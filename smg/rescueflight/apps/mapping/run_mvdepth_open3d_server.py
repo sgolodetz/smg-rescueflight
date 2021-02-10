@@ -92,6 +92,8 @@ def main() -> None:
 
         # If an output directory has been specified and we're saving the reconstruction, save it now.
         if output_dir is not None and args["save_reconstruction"]:
+            os.makedirs(output_dir, exist_ok=True)
+
             # noinspection PyTypeChecker
             o3d.io.write_triangle_mesh(os.path.join(output_dir, "mesh.ply"), mesh, print_progress=True)
 
