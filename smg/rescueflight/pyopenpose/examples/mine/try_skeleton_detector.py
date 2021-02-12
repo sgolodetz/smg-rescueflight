@@ -12,11 +12,12 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from smg.opengl import OpenGLMatrixContext, OpenGLUtil
 from smg.openni import OpenNICamera
-from smg.pyopenpose import BoneLengthEstimator, Skeleton, SkeletonDetector, SkeletonRenderer
+from smg.pyopenpose import BoneLengthEstimator, SkeletonDetector
 from smg.pyorbslam2 import RGBDTracker
 from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter
+from smg.skeletons import Skeleton, SkeletonRenderer
 from smg.utility import GeometryUtil
 
 

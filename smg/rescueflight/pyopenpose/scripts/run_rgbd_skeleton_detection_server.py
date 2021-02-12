@@ -11,10 +11,11 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from smg.mapping.remote import MappingServer, RGBDFrameReceiver, RGBDFrameMessageUtil
 from smg.opengl import OpenGLMatrixContext, OpenGLUtil
-from smg.pyopenpose import BoneLengthEstimator, Skeleton, SkeletonDetector, SkeletonRenderer
+from smg.pyopenpose import BoneLengthEstimator, SkeletonDetector
 from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter
+from smg.skeletons import Skeleton, SkeletonRenderer
 from smg.utility import GeometryUtil, PooledQueue
 
 
