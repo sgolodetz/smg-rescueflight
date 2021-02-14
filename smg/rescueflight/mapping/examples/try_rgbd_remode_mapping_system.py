@@ -5,7 +5,7 @@ import os
 from argparse import ArgumentParser
 from typing import Optional
 
-from smg.mapping import RGBDRemodeMappingSystem
+from smg.mapping.remode import RGBDRemodeMappingSystem
 from smg.open3d import ReconstructionUtil, VisualisationUtil
 from smg.openni import OpenNICamera, OpenNIRGBDImageSource
 from smg.pyorbslam2 import RGBDTracker

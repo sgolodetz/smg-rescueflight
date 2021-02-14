@@ -4,7 +4,7 @@ import numpy as np
 from argparse import ArgumentParser
 from typing import Any, Dict, Optional
 
-from smg.comms import MappingClient, RGBDFrameMessageUtil
+from smg.comms.frames import MappingClient, RGBDFrameMessageUtil
 from smg.utility import CameraParameters, ImageUtil, PooledQueue, RGBDSequenceUtil
 
 

@@ -4,7 +4,7 @@ import numpy as np
 from argparse import ArgumentParser
 from typing import Optional, Tuple
 
-from smg.comms import MappingServer, RGBDFrameMessageUtil, RGBDFrameReceiver
+from smg.comms.frames import MappingServer, RGBDFrameMessageUtil, RGBDFrameReceiver
 from smg.mvdepthnet import MonocularDepthEstimator
 from smg.utility import GeometryUtil, PooledQueue
 
