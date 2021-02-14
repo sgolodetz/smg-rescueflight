@@ -3,8 +3,8 @@ import numpy as np
 from argparse import ArgumentParser
 from typing import Optional
 
-from smg.mapping import MVDepthOctomapMappingSystem
-from smg.mapping.remote import MappingServer, RGBDFrameMessageUtil
+from smg.comms import MappingServer, RGBDFrameMessageUtil
+from smg.mapping.mvdepth import MVDepthOctomapMappingSystem
 from smg.mvdepthnet import MonocularDepthEstimator
 from smg.utility import PooledQueue
 
