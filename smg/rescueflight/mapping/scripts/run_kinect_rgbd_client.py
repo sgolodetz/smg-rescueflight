@@ -5,7 +5,7 @@ import os
 from argparse import ArgumentParser
 from typing import Optional
 
-from smg.comms.frames import MappingClient, RGBDFrameMessageUtil
+from smg.comms.mapping import MappingClient, RGBDFrameMessageUtil
 from smg.openni import OpenNICamera
 from smg.pyorbslam2 import RGBDTracker
 from smg.utility import ImageUtil

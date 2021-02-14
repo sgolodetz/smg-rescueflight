@@ -9,7 +9,7 @@ from OpenGL.GL import *
 from timeit import default_timer as timer
 from typing import Dict, List, Optional, Tuple
 
-from smg.comms.frames import MappingClient, RGBDFrameMessageUtil
+from smg.comms.mapping import MappingClient, RGBDFrameMessageUtil
 from smg.mapping.metric import MetricDroneFSM
 from smg.opengl import CameraRenderer, OpenGLImageRenderer, OpenGLMatrixContext, OpenGLUtil
 from smg.pyorbslam2 import MonocularTracker
