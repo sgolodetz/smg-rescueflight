@@ -66,8 +66,7 @@ def main() -> None:
                         pygame.quit()
                         cv2.destroyAllWindows()
 
-                        # Forcibly terminate the whole process. This isn't graceful, but ORB-SLAM can sometimes
-                        # take a long time to shut down, and it's dull to wait for it.
+                        # Forcibly terminate the whole process.
                         # noinspection PyProtectedMember
                         os._exit(0)
 
