@@ -9,7 +9,8 @@ from OpenGL.GL import *
 from timeit import default_timer as timer
 from typing import Any, Dict, List, Optional, Tuple
 
-from smg.comms.mapping import MappingServer, RGBDFrameReceiver, RGBDFrameMessageUtil
+from smg.comms.base import RGBDFrameReceiver, RGBDFrameMessageUtil
+from smg.comms.mapping import MappingServer
 from smg.opengl import OpenGLMatrixContext, OpenGLUtil
 from smg.pyopenpose import BoneLengthEstimator, SkeletonDetector
 from smg.rigging.cameras import SimpleCamera
