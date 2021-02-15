@@ -9,7 +9,7 @@ from OpenGL.GL import *
 from timeit import default_timer as timer
 from typing import Any, Dict, List, Optional, Tuple
 
-from smg.mapping.remote import MappingServer, RGBDFrameReceiver, RGBDFrameMessageUtil
+from smg.comms.mapping import MappingServer, RGBDFrameReceiver, RGBDFrameMessageUtil
 from smg.opengl import OpenGLMatrixContext, OpenGLUtil
 from smg.pyopenpose import BoneLengthEstimator, SkeletonDetector
 from smg.rigging.cameras import SimpleCamera
@@ -66,8 +66,7 @@ def main() -> None:
                         pygame.quit()
                         cv2.destroyAllWindows()
 
-                        # Forcibly terminate the whole process. This isn't graceful, but ORB-SLAM can sometimes
-                        # take a long time to shut down, and it's dull to wait for it.
+                        # Forcibly terminate the whole process.
                         # noinspection PyProtectedMember
                         os._exit(0)
 

@@ -6,7 +6,7 @@ from argparse import ArgumentParser
 from typing import Dict, Optional
 
 from smg.imagesources import RGBFromRGBDImageSource, RGBImageSource
-from smg.mapping import MonocularRemodeMappingSystem
+from smg.mapping.remode import MonocularRemodeMappingSystem
 from smg.open3d import ReconstructionUtil, VisualisationUtil
 from smg.openni import OpenNICamera, OpenNIRGBDImageSource
 from smg.pyorbslam2 import MonocularTracker

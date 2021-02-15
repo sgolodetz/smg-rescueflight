@@ -6,8 +6,8 @@ import os
 from argparse import ArgumentParser
 from typing import List, Optional, Tuple
 
-from smg.mapping import MVDepthOpen3DMappingSystem
-from smg.mapping.remote import MappingServer, RGBDFrameMessageUtil
+from smg.comms.mapping import MappingServer, RGBDFrameMessageUtil
+from smg.mapping.mvdepth import MVDepthOpen3DMappingSystem
 from smg.mvdepthnet import MonocularDepthEstimator
 from smg.open3d import ReconstructionUtil, VisualisationUtil
 from smg.utility import PooledQueue
