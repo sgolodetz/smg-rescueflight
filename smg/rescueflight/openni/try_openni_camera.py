@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 
 from smg.openni.openni_camera import OpenNICamera
+from smg.utility import ImageUtil
 
 
 def main():
@@ -15,7 +16,7 @@ def main():
 
             ax[0].clear()
             ax[1].clear()
-            ax[0].imshow(colour_image)
+            ax[0].imshow(ImageUtil.flip_channels(colour_image))
             ax[1].imshow(depth_image)
 
             plt.draw()
