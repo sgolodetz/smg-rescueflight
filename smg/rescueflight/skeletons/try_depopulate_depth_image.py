@@ -10,10 +10,10 @@ from smg.skeletons import Skeleton, SkeletonUtil
 
 
 def main() -> None:
-    # Construct the remote skeleton detector.
-    with RemoteSkeletonDetector() as skeleton_detector:
-        # Construct the camera.
-        with OpenNICamera(mirror_images=True) as camera:
+    # Construct the camera.
+    with OpenNICamera(mirror_images=True) as camera:
+        # Construct the remote skeleton detector.
+        with RemoteSkeletonDetector() as skeleton_detector:
             intrinsics: Tuple[float, float, float, float] = camera.get_colour_intrinsics()
 
             # Repeatedly:
@@ -28,6 +28,7 @@ def main() -> None:
                 skeletons: Optional[List[Skeleton]] = skeleton_detector.detect_skeletons(
                     colour_image, world_from_camera
                 )
+
                 if skeletons is not None:
                     start = timer()
 
