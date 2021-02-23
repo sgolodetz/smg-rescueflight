@@ -18,7 +18,9 @@ def main() -> None:
         top_centre=[0, 0, 10], top_radius=2.0
     )
     print(cylinder.mins(), cylinder.maxs())
+    print(cylinder.classify_point([0.99, 0, 0]))
     print(cylinder.classify_point([1, 0, 0]))
+    print(cylinder.classify_point([1.01, 0, 0]))
     print(cylinder.classify_point([1.49, 0, 5]))
     print(cylinder.classify_point([1.5, 0, 5]))
     print(cylinder.classify_point([1.51, 0, 5]))
