@@ -16,6 +16,9 @@ def main() -> None:
         with RemoteSkeletonDetector() as skeleton_detector:
             intrinsics: Tuple[float, float, float, float] = camera.get_colour_intrinsics()
 
+            # Set the camera calibration.
+            skeleton_detector.set_calibration(camera.get_colour_size(), intrinsics)
+
             # Repeatedly:
             while True:
                 # Get an RGB-D image from the camera.
