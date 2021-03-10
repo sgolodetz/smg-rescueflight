@@ -58,10 +58,7 @@ def main() -> None:
                     if estimated_depth_image is not None:
                         # Detect any skeletons in the estimated depth image and 'depopulate' it as necessary.
                         depopulated_depth_image: np.ndarray = estimated_depth_image.copy()
-
-                        skeletons: Optional[List[Skeleton]] = skeleton_detector.detect_skeletons(
-                            colour_image, tracker_w_t_c
-                        )
+                        skeletons, people_mask = skeleton_detector.detect_skeletons(colour_image, tracker_w_t_c)
 
                         if skeletons is not None:
                             start = timer()
