@@ -63,7 +63,7 @@ def main() -> None:
                         if skeletons is not None:
                             start = timer()
 
-                            depopulated_depth_image = SkeletonUtil.depopulate_depth_image(
+                            depopulated_depth_image = SkeletonUtil.depopulate_depth_image_using_3d_boxes(
                                 skeletons, estimated_depth_image, tracker_w_t_c, intrinsics, debug=True
                             )
 
