@@ -3,10 +3,8 @@ import numpy as np
 
 from argparse import ArgumentParser
 from timeit import default_timer as timer
-from typing import List, Optional
 
 from smg.comms.skeletons import RemoteSkeletonDetector
-from smg.skeletons import Skeleton
 
 
 def main() -> None:
@@ -25,7 +23,7 @@ def main() -> None:
         # Repeatedly detect the people in the input image and print out some debug messages.
         while True:
             start = timer()
-            skeletons, people_mask = skeleton_detector.detect_skeletons(image, world_from_camera)
+            skeletons, _ = skeleton_detector.detect_skeletons(image, world_from_camera)
             end = timer()
 
             if skeletons is not None:
