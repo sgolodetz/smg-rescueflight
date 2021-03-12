@@ -24,6 +24,10 @@ def main() -> None:
         help="whether to detect 3D objects"
     )
     parser.add_argument(
+        "--detect_skeletons", action="store_true",
+        help="whether to detect 3D skeletons"
+    )
+    parser.add_argument(
         "--output_dir", "-o", type=str,
         help="an optional directory into which to save output files"
     )
@@ -57,7 +61,8 @@ def main() -> None:
         # Construct the mapping system.
         with MVDepthOctomapMappingSystem(
             server, depth_estimator, camera_mode=args["camera_mode"], detect_objects=args["detect_objects"],
-            output_dir=output_dir, save_frames=args["save_frames"], save_reconstruction=args["save_reconstruction"]
+            detect_skeletons=args["detect_skeletons"], output_dir=output_dir, save_frames=args["save_frames"],
+            save_reconstruction=args["save_reconstruction"]
         ) as mapping_system:
             # Start the server.
             server.start()
