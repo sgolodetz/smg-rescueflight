@@ -43,6 +43,7 @@ def main() -> None:
                     if not tracker.is_ready():
                         continue
 
+                    # Estimate the camera pose.
                     tracker_c_t_w: Optional[np.ndarray] = tracker.estimate_pose(colour_image, depth_image)
                     if tracker_c_t_w is None:
                         continue
