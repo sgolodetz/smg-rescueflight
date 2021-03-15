@@ -1,5 +1,7 @@
 import numpy as np
 
+from pprint import pprint
+from timeit import default_timer as timer
 from typing import List
 
 from smg.utility import Cylinder, ShapeUtil, Sphere
@@ -13,10 +15,7 @@ def main() -> None:
     print(sphere.classify_point([2, 0, 0]))
     print()
 
-    cylinder: Cylinder = Cylinder(
-        base_centre=[0, 0, 0], base_radius=1.0,
-        top_centre=[0, 0, 10], top_radius=2.0
-    )
+    cylinder: Cylinder = Cylinder(base_centre=[0, 0, 0], base_radius=1.0, top_centre=[0, 0, 10], top_radius=2.0)
     print(cylinder.mins(), cylinder.maxs())
     print(cylinder.classify_point([0.99, 0, 0]))
     print(cylinder.classify_point([1, 0, 0]))
@@ -32,8 +31,6 @@ def main() -> None:
     print(cylinder.classify_point([0, 0, 10.1]))
     print()
 
-    from pprint import pprint
-    from timeit import default_timer as timer
     start = timer()
     voxels: List[np.ndarray] = ShapeUtil.rasterise_shapes([sphere, cylinder], 5.0)
     end = timer()
