@@ -71,10 +71,10 @@ def main() -> None:
                             print(f"Time: {end - start}s")
 
                         # Show the estimated depth image and the depopulated depth image alongside each other,
-                        # for comparison purposes. If the user presses 'q', exit.
+                        # for comparison purposes. Again, if the user presses 'q', exit.
                         cv2.imshow("Estimated Depth Image", estimated_depth_image / 5)
                         cv2.imshow("Depopulated Depth Image", depopulated_depth_image / 5)
-                        c: int = cv2.waitKey(1)
+                        c = cv2.waitKey(1)
                         if c == ord('q'):
                             break
 
