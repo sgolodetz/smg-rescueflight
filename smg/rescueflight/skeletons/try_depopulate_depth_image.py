@@ -10,11 +10,14 @@ from smg.skeletons import Skeleton, SkeletonUtil
 
 
 def main() -> None:
-    # Construct the remote skeleton detector.
-    with RemoteSkeletonDetector() as skeleton_detector:
-        # Construct the camera.
-        with OpenNICamera(mirror_images=True) as camera:
+    # Construct the camera.
+    with OpenNICamera(mirror_images=True) as camera:
+        # Construct the remote skeleton detector.
+        with RemoteSkeletonDetector() as skeleton_detector:
             intrinsics: Tuple[float, float, float, float] = camera.get_colour_intrinsics()
+
+            # Set the camera calibration.
+            skeleton_detector.set_calibration(camera.get_colour_size(), intrinsics)
 
             # Repeatedly:
             while True:
@@ -24,16 +27,20 @@ def main() -> None:
 
                 # Detect any skeletons in the depth image and 'depopulate' it as necessary.
                 depopulated_depth_image: np.ndarray = depth_image.copy()
+                skeletons, people_mask = skeleton_detector.detect_skeletons(colour_image, world_from_camera)
 
-                skeletons: Optional[List[Skeleton]] = skeleton_detector.detect_skeletons(
-                    colour_image, world_from_camera
-                )
                 if skeletons is not None:
                     start = timer()
 
-                    depopulated_depth_image = SkeletonUtil.depopulate_depth_image(
-                        skeletons, depth_image, world_from_camera, intrinsics, debug=True
+                    people_mask_from_3d_boxes: np.ndarray = SkeletonUtil.make_people_mask_from_3d_boxes(
+                        skeletons, depth_image, world_from_camera, intrinsics
                     )
+
+                    people_mask = np.where(
+                        (people_mask != 0) & (people_mask_from_3d_boxes != 0), 255, 0
+                    ).astype(np.uint8)
+
+                    depopulated_depth_image = SkeletonUtil.depopulate_depth_image(depth_image, people_mask)
 
                     end = timer()
                     print(f"Time: {end - start}s")
