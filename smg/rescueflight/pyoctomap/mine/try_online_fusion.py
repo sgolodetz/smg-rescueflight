@@ -115,10 +115,9 @@ def main() -> None:
                 # Show the 3D cursor.
                 x, y = pygame.mouse.get_pos()
                 if picking_mask[y, x] != 0:
-                    centre: np.ndarray = picking_image[y, x]
                     glColor3f(1, 0, 1)
                     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
-                    OpenGLUtil.render_sphere(centre, 0.1, slices=10, stacks=10)
+                    OpenGLUtil.render_sphere(picking_image[y, x], 0.1, slices=10, stacks=10)
                     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
 
         # Swap the front and back buffers.
