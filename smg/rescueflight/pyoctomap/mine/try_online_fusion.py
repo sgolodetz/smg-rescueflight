@@ -1,3 +1,4 @@
+import cv2
 import numpy as np
 import os
 import sys
@@ -37,6 +38,10 @@ def main() -> None:
     # Create the octree.
     voxel_size: float = 0.05
     tree: OcTree = OcTree(voxel_size)
+
+    # Set up the picker.
+    # noinspection PyTypeChecker
+    picker: OctomapPicker = OctomapPicker(tree, *window_size, intrinsics)
 
     # Construct the camera controller.
     camera_controller: KeyboardCameraController = KeyboardCameraController(
@@ -104,6 +109,12 @@ def main() -> None:
             )):
                 # Draw the octree.
                 OctomapUtil.draw_octree(tree, drawer)
+
+        # Pick from the viewing pose, and show the results.
+        picking_image, picking_mask = picker.pick(np.linalg.inv(viewing_pose))
+        cv2.imshow("Picking Image", picking_image)
+        cv2.imshow("Picking Mask", picking_mask)
+        cv2.waitKey(1)
 
         # Swap the front and back buffers.
         pygame.display.flip()
