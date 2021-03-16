@@ -1,4 +1,3 @@
-import cv2
 import numpy as np
 import os
 import sys
@@ -101,6 +100,9 @@ def main() -> None:
         # viewing_pose: np.ndarray = np.linalg.inv(pose)
         viewing_pose: np.ndarray = camera_controller.get_pose()
 
+        # Pick from the viewing pose.
+        picking_image, picking_mask = picker.pick(np.linalg.inv(viewing_pose))
+
         # Set the projection matrix.
         with OpenGLMatrixContext(GL_PROJECTION, lambda: OpenGLUtil.set_projection_matrix(intrinsics, *window_size)):
             # Set the model-view matrix.
@@ -110,11 +112,14 @@ def main() -> None:
                 # Draw the octree.
                 OctomapUtil.draw_octree(tree, drawer)
 
-        # Pick from the viewing pose, and show the results.
-        picking_image, picking_mask = picker.pick(np.linalg.inv(viewing_pose))
-        cv2.imshow("Picking Image", picking_image)
-        cv2.imshow("Picking Mask", picking_mask)
-        cv2.waitKey(1)
+                # Show the 3D cursor.
+                x, y = pygame.mouse.get_pos()
+                if picking_mask[y, x] != 0:
+                    centre: np.ndarray = picking_image[y, x]
+                    glColor3f(1, 0, 1)
+                    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
+                    OpenGLUtil.render_sphere(centre, 0.1, slices=10, stacks=10)
+                    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
 
         # Swap the front and back buffers.
         pygame.display.flip()
