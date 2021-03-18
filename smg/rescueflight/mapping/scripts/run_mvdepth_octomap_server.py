@@ -45,6 +45,10 @@ def main() -> None:
         help="whether to save the reconstructed Octomap"
     )
     parser.add_argument(
+        "--use_arm_selection", action="store_true",
+        help="whether to allow the user to select 3D points in the scene using their arm"
+    )
+    parser.add_argument(
         "--use_received_depth", action="store_true",
         help="whether to use depth images received from the client instead of estimating depth"
     )
@@ -66,7 +70,8 @@ def main() -> None:
         with MVDepthOctomapMappingSystem(
             server, depth_estimator, camera_mode=args["camera_mode"], detect_objects=args["detect_objects"],
             detect_skeletons=args["detect_skeletons"], output_dir=output_dir, save_frames=args["save_frames"],
-            save_reconstruction=args["save_reconstruction"], use_received_depth=args["use_received_depth"]
+            save_reconstruction=args["save_reconstruction"], use_arm_selection=args["use_arm_selection"],
+            use_received_depth=args["use_received_depth"]
         ) as mapping_system:
             # Start the server.
             server.start()
