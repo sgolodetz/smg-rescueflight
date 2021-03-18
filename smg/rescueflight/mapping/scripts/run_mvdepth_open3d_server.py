@@ -44,6 +44,10 @@ def main() -> None:
         "--show_keyframes", action="store_true",
         help="whether to visualise the MVDepth keyframes"
     )
+    parser.add_argument(
+        "--use_received_depth", action="store_true",
+        help="whether to use depth images received from the client instead of estimating depth"
+    )
     args: dict = vars(parser.parse_args())
 
     output_dir: Optional[str] = args["output_dir"]
@@ -61,7 +65,7 @@ def main() -> None:
         # Construct the mapping system.
         mapping_system: MVDepthOpen3DMappingSystem = MVDepthOpen3DMappingSystem(
             server, depth_estimator, detect_objects=args["detect_objects"], output_dir=output_dir,
-            save_frames=args["save_frames"]
+            save_frames=args["save_frames"], use_received_depth=args["use_received_depth"]
         )
 
         # Start the server.
