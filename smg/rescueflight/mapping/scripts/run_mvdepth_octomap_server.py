@@ -44,6 +44,10 @@ def main() -> None:
         "--save_reconstruction", action="store_true",
         help="whether to save the reconstructed Octomap"
     )
+    parser.add_argument(
+        "--use_received_depth", action="store_true",
+        help="whether to use depth images received from the client instead of estimating depth"
+    )
     args: dict = vars(parser.parse_args())
 
     output_dir: Optional[str] = args["output_dir"]
@@ -62,7 +66,7 @@ def main() -> None:
         with MVDepthOctomapMappingSystem(
             server, depth_estimator, camera_mode=args["camera_mode"], detect_objects=args["detect_objects"],
             detect_skeletons=args["detect_skeletons"], output_dir=output_dir, save_frames=args["save_frames"],
-            save_reconstruction=args["save_reconstruction"]
+            save_reconstruction=args["save_reconstruction"], use_received_depth=args["use_received_depth"]
         ) as mapping_system:
             # Start the server.
             server.start()
