@@ -1,3 +1,4 @@
+import cv2
 import numpy as np
 import os
 
@@ -19,6 +20,34 @@ from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter
 from smg.skeletons import Skeleton, SkeletonRenderer, SkeletonUtil
 from smg.utility import GeometryUtil
+
+
+class SkeletonSelector:
+    def __init__(self, skeleton: Skeleton, source_name: str, target_name: str, picker: OctomapPicker, *,
+                 debug: bool = False):
+        self.__debug: bool = debug
+        self.__picker: OctomapPicker = picker
+        self.__skeleton: Skeleton = skeleton
+        self.__source_name: str = source_name
+        self.__target_name: str = target_name
+
+    def get_position(self) -> Optional[np.ndarray]:
+        source: Optional[Skeleton.Keypoint] = self.__skeleton.keypoints.get(self.__source_name)
+        target: Optional[Skeleton.Keypoint] = self.__skeleton.keypoints.get(self.__target_name)
+        if source is None or target is None:
+            return None
+
+        up: np.ndarray = np.array([0.0, -1.0, 0.0])
+        picking_cam: SimpleCamera = SimpleCamera(target.position, target.position - source.position, up)
+        picking_pose: np.ndarray = np.linalg.inv(CameraPoseConverter.camera_to_pose(picking_cam))
+        picking_image, picking_mask = self.__picker.pick(picking_pose)
+
+        if self.__debug:
+            cv2.imshow("Picking Image", picking_image)
+            cv2.waitKey(1)
+
+        y, x = picking_image.shape[0] // 2, picking_image.shape[1] // 2
+        return picking_image[y, x] if picking_mask[y, x] != 0 else None
 
 
 def main() -> None:
@@ -149,24 +178,13 @@ def main() -> None:
                                     # noinspection PyTypeChecker
                                     picker = OctomapPicker(tree, *image_size, intrinsics)
 
-                                skeleton: Skeleton = skeletons[0]
-                                lelbow: Skeleton.Keypoint = skeleton.keypoints.get("LElbow")
-                                lwrist: Skeleton.Keypoint = skeleton.keypoints.get("LWrist")
-                                picking_cam: SimpleCamera = SimpleCamera(
-                                    lwrist.position, lwrist.position - lelbow.position, np.array([0.0, 1.0, 0.0])
-                                )
-                                picking_pose: np.ndarray = np.linalg.inv(
-                                    CameraPoseConverter.camera_to_pose(picking_cam))
-                                picking_image, picking_mask = picker.pick(picking_pose)
-                                import cv2
-                                cv2.imshow("Picking Image", picking_image)
-                                cv2.waitKey(1)
+                                selector: SkeletonSelector = SkeletonSelector(skeletons[0], "LElbow", "LWrist", picker)
 
-                                width, height = image_size
-                                if picking_mask[height // 2, width // 2] != 0:
+                                pos: Optional[np.ndarray] = selector.get_position()
+                                if pos is not None:
                                     glColor3f(1, 0, 1)
                                     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
-                                    OpenGLUtil.render_sphere(picking_image[height // 2, width // 2], 0.1, slices=10, stacks=10)
+                                    OpenGLUtil.render_sphere(pos, 0.1, slices=10, stacks=10)
                                     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
 
                 # Swap the front and back buffers.
