@@ -11,7 +11,6 @@ from typing import Tuple
 
 from smg.opengl import CameraRenderer, OpenGLMatrixContext, OpenGLUtil
 from smg.pyleap import leap, LeapController, LeapRenderer
-from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
 
