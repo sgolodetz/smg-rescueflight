@@ -9,11 +9,11 @@ from OpenGL.GL import *
 from timeit import default_timer as timer
 from typing import Tuple
 
-from smg.opengl import OpenGLMatrixContext, OpenGLUtil
+from smg.opengl import CameraRenderer, OpenGLMatrixContext, OpenGLUtil
 from smg.pyleap import leap, LeapController, LeapRenderer
 from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
-from smg.rigging.helpers import CameraPoseConverter
+from smg.rigging.helpers import CameraPoseConverter, CameraUtil
 
 
 def main() -> None:
@@ -54,7 +54,7 @@ def main() -> None:
                 # noinspection PyProtectedMember
                 os._exit(0)
 
-        # Get the current frame from the Leap.
+        # Get the current tracking frame from the Leap.
         leap_frame: leap.Frame = leap_controller.frame()
 
         # Allow the user to control the camera.
@@ -65,18 +65,16 @@ def main() -> None:
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
         # Set the projection matrix.
-        with OpenGLMatrixContext(GL_PROJECTION, lambda: OpenGLUtil.set_projection_matrix(
-            intrinsics, *window_size
-        )):
+        with OpenGLMatrixContext(GL_PROJECTION, lambda: OpenGLUtil.set_projection_matrix(intrinsics, *window_size)):
             # Set the model-view matrix.
             with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.load_matrix(
                 CameraPoseConverter.pose_to_modelview(camera_controller.get_pose())
             )):
-                # Render a voxel grid.
-                glColor3f(0.0, 0.0, 0.0)
-                OpenGLUtil.render_voxel_grid([-2, -2, -2], [2, 0, 2], [1, 1, 1], dotted=True)
+                # Render coordinate axes.
+                origin: SimpleCamera = CameraUtil.make_default_camera()
+                CameraRenderer.render_camera(origin, body_colour=(1.0, 1.0, 0.0), body_scale=0.1)
 
-                # If the current frame from the Leap is valid, render any detected hands.
+                # If the current tracking frame from the Leap is valid, render any detected hands.
                 if leap_frame.is_valid():
                     LeapRenderer.render_hands(leap_frame, leap_controller)
 
