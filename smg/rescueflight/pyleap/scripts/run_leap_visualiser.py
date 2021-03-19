@@ -34,7 +34,7 @@ def main() -> None:
 
     # Construct the camera controller.
     camera_controller: KeyboardCameraController = KeyboardCameraController(
-        SimpleCamera([0, 0, 0], [0, 0, 1], [0, -1, 0]), canonical_angular_speed=0.05, canonical_linear_speed=0.1
+        CameraUtil.make_default_camera(), canonical_angular_speed=0.05, canonical_linear_speed=0.1
     )
 
     # Construct the Leap controller.
@@ -71,8 +71,9 @@ def main() -> None:
                 CameraPoseConverter.pose_to_modelview(camera_controller.get_pose())
             )):
                 # Render coordinate axes.
-                origin: SimpleCamera = CameraUtil.make_default_camera()
-                CameraRenderer.render_camera(origin, body_colour=(1.0, 1.0, 0.0), body_scale=0.1)
+                CameraRenderer.render_camera(
+                    CameraUtil.make_default_camera(), body_colour=(1.0, 1.0, 0.0), body_scale=0.1
+                )
 
                 # If the current tracking frame from the Leap is valid, render any detected hands.
                 if leap_frame.is_valid():
