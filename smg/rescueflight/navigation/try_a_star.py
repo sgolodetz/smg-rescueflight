@@ -11,6 +11,7 @@ from OpenGL.GL import *
 from timeit import default_timer as timer
 from typing import Tuple
 
+from smg.navigation import AStarPathPlanner
 from smg.opengl import CameraRenderer, OpenGLMatrixContext, OpenGLUtil
 from smg.pyoctomap import *
 from smg.rigging.controllers import KeyboardCameraController
@@ -48,6 +49,9 @@ def main() -> None:
         angled_offset: Vector3 = offset.copy()
         angled_offset.rotate_ip(0, -angle, 0)
         tree.insert_ray(origin, origin + angled_offset)
+
+    planner: AStarPathPlanner = AStarPathPlanner(tree)
+    planner.plan_path(start=[0, 0, 0], goal=[voxel_size * 10 + half_voxel_size, 0, 0])
 
     # Construct the camera controller.
     camera_controller: KeyboardCameraController = KeyboardCameraController(
