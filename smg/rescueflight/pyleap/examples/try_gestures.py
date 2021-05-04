@@ -19,7 +19,8 @@ def main() -> None:
                     circle_gesture: leap.CircleGesture = leap.CircleGesture(gesture)
                     print(
                         f"Circle Gesture ({gesture.id()}, {gesture.state()}): "
-                        f"{circle_gesture.centre()}, {circle_gesture.normal()}"
+                        f"{circle_gesture.centre()}, {circle_gesture.normal()}, {circle_gesture.radius()}, "
+                        f"{circle_gesture.progress()}"
                     )
                 elif gesture.type() == leap.GT_SWIPE:
                     swipe_gesture: leap.SwipeGesture = leap.SwipeGesture(gesture)
