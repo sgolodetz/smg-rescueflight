@@ -7,8 +7,8 @@ import pygame
 from argparse import ArgumentParser
 from typing import Dict
 
+from smg.joysticks import FutabaT6K
 from smg.rotory import DroneFactory
-from smg.rotory.joysticks import FutabaT6K
 
 
 def main():

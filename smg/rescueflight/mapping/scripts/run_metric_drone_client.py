@@ -11,6 +11,7 @@ from typing import Dict, List, Optional, Tuple
 
 from smg.comms.base import RGBDFrameMessageUtil
 from smg.comms.mapping import MappingClient
+from smg.joysticks import FutabaT6K
 from smg.mapping.metric import MetricDroneFSM
 from smg.opengl import CameraRenderer, OpenGLImageRenderer, OpenGLMatrixContext, OpenGLUtil
 from smg.pyorbslam2 import MonocularTracker
@@ -19,7 +20,6 @@ from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter
 from smg.rotory import DroneFactory
-from smg.rotory.joysticks import FutabaT6K
 from smg.utility import ImageUtil, TrajectorySmoother
 
 
