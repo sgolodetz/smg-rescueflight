@@ -9,6 +9,7 @@ def main() -> None:
     controller: LeapController = LeapController()
     controller.enable_gesture(leap.GT_CIRCLE)
     controller.enable_gesture(leap.GT_KEY_TAP)
+    controller.enable_gesture(leap.GT_SCREEN_TAP)
     controller.enable_gesture(leap.GT_SWIPE)
 
     while True:
@@ -29,6 +30,9 @@ def main() -> None:
                 elif gesture.type() == leap.GT_KEY_TAP:
                     key_tap_gesture: leap.KeyTapGesture = leap.KeyTapGesture(gesture)
                     print(f"Key Tap Gesture ({gesture.id()}, {gesture.state()}): {key_tap_gesture.position()}")
+                elif gesture.type() == leap.GT_SCREEN_TAP:
+                    screen_tap_gesture: leap.ScreenTapGesture = leap.ScreenTapGesture(gesture)
+                    print(f"Screen Tap Gesture ({gesture.id()}, {gesture.state()}): {screen_tap_gesture.position()}")
                 elif gesture.type() == leap.GT_SWIPE:
                     swipe_gesture: leap.SwipeGesture = leap.SwipeGesture(gesture)
                     print(f"Swipe Gesture ({gesture.id()}, {gesture.state()}): {swipe_gesture.direction()}")
