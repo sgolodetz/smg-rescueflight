@@ -36,18 +36,12 @@ class TestPriorityQueue(unittest.TestCase):
         pq.insert("M", 0.9, 7)
         pq.update_key("M", 1.1)
         self.assertEqual(pq.top().ident, "M")
-        self.assertAlmostEqual(pq.top().key, 1.1)  # TODO: Tolerance of 0.001
+        self.assertAlmostEqual(pq.top().key, 1.1)
         self.assertEqual(pq.top().data, 7)
-        #     BOOST_CHECK_EQUAL(pq.top().id(), "M");
-        #     BOOST_CHECK_CLOSE(pq.top().key(), 1.1, 0.001);
-        #     BOOST_CHECK_EQUAL(pq.top().data(), 7);
         pq.pop()
         self.assertEqual(pq.top().ident, "S")
-        self.assertAlmostEqual(pq.top().key, 1.0)  # TODO: Tolerance of 0.001
+        self.assertAlmostEqual(pq.top().key, 1.0)
         self.assertEqual(pq.top().data, 23)
-        #     BOOST_CHECK_EQUAL(pq.top().id(), "S");
-        #     BOOST_CHECK_CLOSE(pq.top().key(), 1.0, 0.001);
-        #     BOOST_CHECK_EQUAL(pq.top().data(), 23);
         pq.pop()
         self.assertTrue(pq.empty())
 

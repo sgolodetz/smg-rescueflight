@@ -9,7 +9,7 @@ import sys
 
 from OpenGL.GL import *
 from timeit import default_timer as timer
-from typing import Tuple
+from typing import Deque, Optional, Tuple
 
 from smg.navigation import AStarPathPlanner
 from smg.opengl import CameraRenderer, OpenGLMatrixContext, OpenGLUtil
@@ -34,7 +34,7 @@ def main() -> None:
     # Set up the octree drawer.
     drawer: OcTreeDrawer = OcTreeDrawer()
     # drawer.set_color_mode(CM_COLOR_HEIGHT)
-    drawer.enable_freespace()
+    # drawer.enable_freespace()
 
     # Create the octree.
     voxel_size: float = 0.05
@@ -50,12 +50,15 @@ def main() -> None:
         angled_offset.rotate_ip(0, -angle, 0)
         tree.insert_ray(origin, origin + angled_offset)
 
-    planner: AStarPathPlanner = AStarPathPlanner(tree)
-    planner.plan_path(start=[0, 0, 0], goal=[voxel_size * 10 + half_voxel_size, 0, 0])
+    planner: AStarPathPlanner = AStarPathPlanner(tree, AStarPathPlanner.neighbours8)
+    start = np.array([0.5, 0.5, 0.5]) * voxel_size
+    goal = np.array([5.5, 0.5, 3.5]) * voxel_size
+    path: Optional[Deque[np.ndarray]] = planner.plan_path(start=start, goal=goal)
 
     # Construct the camera controller.
     camera_controller: KeyboardCameraController = KeyboardCameraController(
-        CameraUtil.make_default_camera(), canonical_angular_speed=0.05, canonical_linear_speed=0.1
+        # CameraUtil.make_default_camera(), canonical_angular_speed=0.05, canonical_linear_speed=0.1
+        CameraUtil.make_default_camera(), canonical_angular_speed=0.05, canonical_linear_speed=0.025
     )
 
     # Repeatedly:
@@ -84,20 +87,25 @@ def main() -> None:
             )):
                 # Render coordinate axes.
                 CameraRenderer.render_camera(
-                    CameraUtil.make_default_camera(), body_colour=(1.0, 1.0, 0.0), body_scale=0.1
+                    CameraUtil.make_default_camera(), axis_scale=0.1, body_colour=(1.0, 1.0, 0.0), body_scale=0.01
                 )
 
                 # Render a voxel grid.
-                ten_voxel_size: float = voxel_size * 10
+                ten_voxel_size: float = voxel_size  # * 10
                 glColor3f(0.0, 0.0, 0.0)
                 OpenGLUtil.render_voxel_grid(
-                    [-2, -ten_voxel_size, -2], [2, ten_voxel_size, 2],
+                    # [-2, -ten_voxel_size, -2], [2, ten_voxel_size, 2],
+                    [-2, 0, -2], [2, ten_voxel_size, 2],
                     [ten_voxel_size, ten_voxel_size, ten_voxel_size],
-                    dotted=True
+                    dotted=False
                 )
 
                 # Draw the octree.
                 OctomapUtil.draw_octree(tree, drawer)
+
+                # If a path was found, draw it.
+                if path is not None:
+                    OpenGLUtil.render_path(path, colour=(1, 0, 1))
 
         # Swap the front and back buffers.
         pygame.display.flip()
