@@ -105,7 +105,7 @@ def main() -> None:
 
                 # If a path was found, draw it.
                 if path is not None:
-                    OpenGLUtil.render_path(path, colour=(1, 0, 1))
+                    OpenGLUtil.render_path(path, colour=(1, 0, 1), width=5)
 
         # Swap the front and back buffers.
         pygame.display.flip()
