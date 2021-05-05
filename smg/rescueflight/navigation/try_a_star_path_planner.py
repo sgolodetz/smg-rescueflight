@@ -51,7 +51,7 @@ def main() -> None:
         angled_offset.rotate_ip(0, -angle, 0)
         tree.insert_ray(origin, origin + angled_offset)
 
-    planner: AStarPathPlanner = AStarPathPlanner(tree, AStarPathPlanner.neighbours8)
+    planner: AStarPathPlanner = AStarPathPlanner(tree, PathUtil.neighbours8)
     source = np.array([0.5, 0.5, 0.5]) * voxel_size
     goal = np.array([7.5, 0.5, 3.5]) * voxel_size
 
@@ -60,7 +60,7 @@ def main() -> None:
     end = timer()
     print(f"Path Planning: {end - start}s")
 
-    smoothed_path: Optional[np.ndarray] = PathUtil.interpolate(PathUtil.pull_strings(path)) \
+    smoothed_path: Optional[np.ndarray] = PathUtil.interpolate(PathUtil.pull_strings(path, tree)) \
         if path is not None else None
 
     # Construct the camera controller.
