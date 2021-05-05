@@ -60,8 +60,11 @@ def main() -> None:
     end = timer()
     print(f"Path Planning: {end - start}s")
 
+    start = timer()
     smoothed_path: Optional[np.ndarray] = PathUtil.interpolate(PathUtil.pull_strings(path, tree)) \
         if path is not None else None
+    end = timer()
+    print(f"Path Smoothing: {end - start}s")
 
     # Construct the camera controller.
     camera_controller: KeyboardCameraController = KeyboardCameraController(
