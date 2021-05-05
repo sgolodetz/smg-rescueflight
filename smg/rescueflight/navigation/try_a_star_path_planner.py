@@ -9,13 +9,21 @@ import sys
 
 from OpenGL.GL import *
 from timeit import default_timer as timer
-from typing import Deque, Optional, Tuple
+from typing import Optional, Tuple
 
 from smg.navigation import AStarPathPlanner
 from smg.opengl import CameraRenderer, OpenGLMatrixContext, OpenGLUtil
 from smg.pyoctomap import *
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
+
+
+def smooth_path(path: np.ndarray, *, smoothed_length: int = 100) -> np.ndarray:
+    from scipy.interpolate import CubicSpline
+    from typing import List
+    x: List[int] = np.arange(len(path))
+    cs: CubicSpline = CubicSpline(x, path, bc_type='clamped')
+    return cs(np.linspace(0, len(path) - 1, smoothed_length))
 
 
 def main() -> None:
@@ -53,10 +61,10 @@ def main() -> None:
 
     planner: AStarPathPlanner = AStarPathPlanner(tree, AStarPathPlanner.neighbours8)
     source = np.array([0.5, 0.5, 0.5]) * voxel_size
-    goal = np.array([5.5, 0.5, 3.5]) * voxel_size
+    goal = np.array([7.5, 0.5, 3.5]) * voxel_size
 
     start = timer()
-    path: Optional[Deque[np.ndarray]] = planner.plan_path(source=source, goal=goal)
+    path: Optional[np.ndarray] = planner.plan_path(source=source, goal=goal)
     end = timer()
     print(f"Path Planning: {end - start}s")
 
@@ -91,9 +99,11 @@ def main() -> None:
                     CameraPoseConverter.pose_to_modelview(viewing_pose)
             )):
                 # Render coordinate axes.
+                glLineWidth(5)
                 CameraRenderer.render_camera(
                     CameraUtil.make_default_camera(), axis_scale=0.1, body_colour=(1.0, 1.0, 0.0), body_scale=0.01
                 )
+                glLineWidth(1)
 
                 # Render a voxel grid.
                 ten_voxel_size: float = voxel_size  # * 10
@@ -110,7 +120,8 @@ def main() -> None:
 
                 # If a path was found, draw it.
                 if path is not None:
-                    OpenGLUtil.render_path(path, colour=(1, 0, 1), width=5)
+                    smoothed_path: np.ndarray = smooth_path(path)
+                    OpenGLUtil.render_path(smoothed_path, colour=(1, 0, 1), width=5)
 
         # Swap the front and back buffers.
         pygame.display.flip()
