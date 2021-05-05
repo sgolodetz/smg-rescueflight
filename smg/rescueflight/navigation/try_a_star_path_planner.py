@@ -11,19 +11,11 @@ from OpenGL.GL import *
 from timeit import default_timer as timer
 from typing import Optional, Tuple
 
-from smg.navigation import AStarPathPlanner
+from smg.navigation import AStarPathPlanner, PathUtil
 from smg.opengl import CameraRenderer, OpenGLMatrixContext, OpenGLUtil
 from smg.pyoctomap import *
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
-
-
-def smooth_path(path: np.ndarray, *, smoothed_length: int = 100) -> np.ndarray:
-    from scipy.interpolate import CubicSpline
-    from typing import List
-    x: List[int] = np.arange(len(path))
-    cs: CubicSpline = CubicSpline(x, path, bc_type='clamped')
-    return cs(np.linspace(0, len(path) - 1, smoothed_length))
 
 
 def main() -> None:
@@ -68,9 +60,11 @@ def main() -> None:
     end = timer()
     print(f"Path Planning: {end - start}s")
 
+    smoothed_path: Optional[np.ndarray] = PathUtil.interpolate(PathUtil.pull_strings(path)) \
+        if path is not None else None
+
     # Construct the camera controller.
     camera_controller: KeyboardCameraController = KeyboardCameraController(
-        # CameraUtil.make_default_camera(), canonical_angular_speed=0.05, canonical_linear_speed=0.1
         CameraUtil.make_default_camera(), canonical_angular_speed=0.05, canonical_linear_speed=0.025
     )
 
@@ -120,7 +114,6 @@ def main() -> None:
 
                 # If a path was found, draw it.
                 if path is not None:
-                    smoothed_path: np.ndarray = smooth_path(path)
                     OpenGLUtil.render_path(smoothed_path, colour=(1, 0, 1), width=5)
 
         # Swap the front and back buffers.
