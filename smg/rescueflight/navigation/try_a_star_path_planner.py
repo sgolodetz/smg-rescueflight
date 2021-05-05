@@ -23,6 +23,7 @@ def main() -> None:
     pygame.init()
     window_size: Tuple[int, int] = (640, 480)
     pygame.display.set_mode(window_size, pygame.DOUBLEBUF | pygame.OPENGL)
+    pygame.display.set_caption("A* Path Planner")
 
     # Specify the camera intrinsics.
     intrinsics: Tuple[float, float, float, float] = (532.5694641250893, 531.5410880910171, 320.0, 240.0)
@@ -51,9 +52,13 @@ def main() -> None:
         tree.insert_ray(origin, origin + angled_offset)
 
     planner: AStarPathPlanner = AStarPathPlanner(tree, AStarPathPlanner.neighbours8)
-    start = np.array([0.5, 0.5, 0.5]) * voxel_size
+    source = np.array([0.5, 0.5, 0.5]) * voxel_size
     goal = np.array([5.5, 0.5, 3.5]) * voxel_size
-    path: Optional[Deque[np.ndarray]] = planner.plan_path(start=start, goal=goal)
+
+    start = timer()
+    path: Optional[Deque[np.ndarray]] = planner.plan_path(source=source, goal=goal)
+    end = timer()
+    print(f"Path Planning: {end - start}s")
 
     # Construct the camera controller.
     camera_controller: KeyboardCameraController = KeyboardCameraController(
