@@ -38,17 +38,23 @@ def main() -> None:
     # drawer.enable_freespace()
 
     # Create the octree.
-    voxel_size: float = 0.05
-    tree: OcTree = OcTree(voxel_size)
-    tree.read_binary("C:/smglib/smg-mapping/output-navigation/octree.bt")
+    planning_voxel_size: float = 0.1
+    planning_tree: OcTree = OcTree(planning_voxel_size)
+    planning_tree.read_binary("C:/smglib/smg-mapping/output-navigation/octree10cm.bt")
+
+    rendering_voxel_size: float = 0.05
+    rendering_tree: OcTree = OcTree(rendering_voxel_size)
+    rendering_tree.read_binary("C:/smglib/smg-mapping/output-navigation/octree5cm.bt")
 
     PathUtil.neighbours = PathUtil.neighbours6
-    # PathUtil.node_is_free = lambda n, t: PathUtil.occupancy_status(n, t) != "Occupied"
-    planner: AStarPathPlanner = AStarPathPlanner(tree)
-    source = np.array([0.5, 0.5, 5.5]) * voxel_size
-    # goal = np.array([20.5, 0.5, 20.5]) * voxel_size
-    goal = np.array([30.5, 5.5, 17.5]) * voxel_size
-    # goal = np.array([30.5, 5.5, 5.5]) * voxel_size
+    PathUtil.node_is_free = lambda n, t: PathUtil.occupancy_status(n, t) != "Occupied"
+    planner: AStarPathPlanner = AStarPathPlanner(planning_tree)
+
+    source = np.array([0.5, 0.5, 5.5]) * rendering_voxel_size
+    # goal = np.array([20.5, 0.5, 20.5]) * rendering_voxel_size
+    # goal = np.array([30.5, 5.5, 17.5]) * rendering_voxel_size
+    goal = np.array([30.5, 5.5, 5.5]) * rendering_voxel_size
+    # goal = np.array([20.5, 5.5, 0.5]) * rendering_voxel_size
 
     start = timer()
     path: Optional[np.ndarray] = planner.plan_path(source=source, goal=goal, use_clearance=True)
@@ -57,7 +63,7 @@ def main() -> None:
 
     start = timer()
     smoothed_path: Optional[np.ndarray] = PathUtil.interpolate(
-        PathUtil.pull_strings(path, tree, use_clearance=True)
+        PathUtil.pull_strings(path, planning_tree, use_clearance=True)
     ) if path is not None else None
     end = timer()
     print(f"Path Smoothing: {end - start}s")
@@ -99,7 +105,7 @@ def main() -> None:
                 glLineWidth(1)
 
                 # Draw the octree.
-                OctomapUtil.draw_octree(tree, drawer)
+                OctomapUtil.draw_octree(rendering_tree, drawer)
 
                 # If a path was found, draw it.
                 if path is not None:
