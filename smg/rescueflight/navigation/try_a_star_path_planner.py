@@ -11,7 +11,7 @@ from OpenGL.GL import *
 from timeit import default_timer as timer
 from typing import Optional, Tuple
 
-from smg.navigation import AStarPathPlanner, PathUtil
+from smg.navigation import AStarPathPlanner, PlanningToolkit
 from smg.opengl import CameraRenderer, OpenGLMatrixContext, OpenGLUtil
 from smg.pyoctomap import *
 from smg.rigging.controllers import KeyboardCameraController
@@ -46,9 +46,12 @@ def main() -> None:
     rendering_tree: OcTree = OcTree(rendering_voxel_size)
     rendering_tree.read_binary("C:/smglib/smg-mapping/output-navigation/octree5cm.bt")
 
-    PathUtil.neighbours = PathUtil.neighbours6
-    PathUtil.node_is_free = lambda n, t: PathUtil.occupancy_status(n, t) != "Occupied"
-    planner: AStarPathPlanner = AStarPathPlanner(planning_tree)
+    planning_toolkit: PlanningToolkit = PlanningToolkit(
+        planning_tree,
+        neighbours=PlanningToolkit.neighbours6,
+        node_is_free=lambda n: planning_toolkit.occupancy_status(n) != "Occupied"
+    )
+    planner: AStarPathPlanner = AStarPathPlanner(planning_tree, planning_toolkit)
 
     source = np.array([0.5, 0.5, 5.5]) * rendering_voxel_size
     # goal = np.array([20.5, 0.5, 20.5]) * rendering_voxel_size
@@ -62,8 +65,8 @@ def main() -> None:
     print(f"Path Planning: {end - start}s")
 
     start = timer()
-    smoothed_path: Optional[np.ndarray] = PathUtil.interpolate(
-        PathUtil.pull_strings(path, planning_tree, use_clearance=True)
+    smoothed_path: Optional[np.ndarray] = PlanningToolkit.interpolate_path(
+        planning_toolkit.pull_strings(path, use_clearance=True)
     ) if path is not None else None
     end = timer()
     print(f"Path Smoothing: {end - start}s")
