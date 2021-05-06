@@ -42,8 +42,9 @@ def main() -> None:
     tree: OcTree = OcTree(voxel_size)
     tree.read_binary("C:/smglib/smg-mapping/output-navigation/octree.bt")
 
+    PathUtil.neighbours = PathUtil.neighbours6
     # PathUtil.node_is_free = lambda n, t: PathUtil.occupancy_status(n, t) != "Occupied"
-    planner: AStarPathPlanner = AStarPathPlanner(tree, PathUtil.neighbours6)
+    planner: AStarPathPlanner = AStarPathPlanner(tree)
     source = np.array([0.5, 0.5, 5.5]) * voxel_size
     # goal = np.array([20.5, 0.5, 20.5]) * voxel_size
     goal = np.array([30.5, 5.5, 17.5]) * voxel_size
@@ -55,8 +56,9 @@ def main() -> None:
     print(f"Path Planning: {end - start}s")
 
     start = timer()
-    smoothed_path: Optional[np.ndarray] = PathUtil.interpolate(PathUtil.pull_strings(path, tree)) \
-        if path is not None else None
+    smoothed_path: Optional[np.ndarray] = PathUtil.interpolate(
+        PathUtil.pull_strings(path, tree, use_clearance=True)
+    ) if path is not None else None
     end = timer()
     print(f"Path Smoothing: {end - start}s")
 
