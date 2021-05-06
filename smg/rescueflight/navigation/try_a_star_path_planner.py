@@ -44,9 +44,10 @@ def main() -> None:
 
     # PathUtil.node_is_free = lambda n, t: PathUtil.occupancy_status(n, t) != "Occupied"
     planner: AStarPathPlanner = AStarPathPlanner(tree, PathUtil.neighbours6)
-    source = np.array([0.5, -0.5, 0.5]) * voxel_size
+    source = np.array([0.5, 0.5, 5.5]) * voxel_size
     # goal = np.array([20.5, 0.5, 20.5]) * voxel_size
     goal = np.array([30.5, 5.5, 17.5]) * voxel_size
+    # goal = np.array([30.5, 5.5, 5.5]) * voxel_size
 
     start = timer()
     path: Optional[np.ndarray] = planner.plan_path(source=source, goal=goal, use_clearance=True)
