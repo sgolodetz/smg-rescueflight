@@ -34,26 +34,18 @@ def main() -> None:
 
     # Set up the octree drawer.
     drawer: OcTreeDrawer = OcTreeDrawer()
-    # drawer.set_color_mode(CM_COLOR_HEIGHT)
+    drawer.set_color_mode(CM_COLOR_HEIGHT)
     # drawer.enable_freespace()
 
     # Create the octree.
     voxel_size: float = 0.05
-    half_voxel_size: float = voxel_size / 2.0
-
     tree: OcTree = OcTree(voxel_size)
+    tree.read_binary("C:/smglib/smg-mapping/output-navigation/octree.bt")
 
-    origin: Vector3 = Vector3(half_voxel_size, half_voxel_size, half_voxel_size)
-    offset: Vector3 = Vector3(voxel_size * 10, 0.0, 0.0)
-
-    for angle in np.linspace(0.0, 2 * math.pi, 128, endpoint=False):
-        angled_offset: Vector3 = offset.copy()
-        angled_offset.rotate_ip(0, -angle, 0)
-        tree.insert_ray(origin, origin + angled_offset)
-
-    planner: AStarPathPlanner = AStarPathPlanner(tree, PathUtil.neighbours8)
+    planner: AStarPathPlanner = AStarPathPlanner(tree, PathUtil.neighbours6)
     source = np.array([0.5, 0.5, 0.5]) * voxel_size
-    goal = np.array([7.5, 0.5, 3.5]) * voxel_size
+    goal = np.array([20.5, 0.5, 20.5]) * voxel_size
+    # goal = np.array([30.5, 3.5, 18.5]) * voxel_size
 
     start = timer()
     path: Optional[np.ndarray] = planner.plan_path(source=source, goal=goal)
@@ -102,22 +94,12 @@ def main() -> None:
                 )
                 glLineWidth(1)
 
-                # Render a voxel grid.
-                ten_voxel_size: float = voxel_size  # * 10
-                glColor3f(0.0, 0.0, 0.0)
-                OpenGLUtil.render_voxel_grid(
-                    # [-2, -ten_voxel_size, -2], [2, ten_voxel_size, 2],
-                    [-2, 0, -2], [2, ten_voxel_size, 2],
-                    [ten_voxel_size, ten_voxel_size, ten_voxel_size],
-                    dotted=False
-                )
-
                 # Draw the octree.
                 OctomapUtil.draw_octree(tree, drawer)
 
                 # If a path was found, draw it.
                 if path is not None:
-                    OpenGLUtil.render_path(smoothed_path, colour=(1, 0, 1), width=5)
+                    OpenGLUtil.render_path(smoothed_path, colour=(1, 0, 1), waypoints=False, width=5)
 
         # Swap the front and back buffers.
         pygame.display.flip()
