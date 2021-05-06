@@ -51,7 +51,7 @@ def main() -> None:
         neighbours=PlanningToolkit.neighbours6,
         node_is_free=lambda n: planning_toolkit.occupancy_status(n) != "Occupied"
     )
-    planner: AStarPathPlanner = AStarPathPlanner(planning_tree, planning_toolkit)
+    planner: AStarPathPlanner = AStarPathPlanner(planning_toolkit)
 
     source = np.array([0.5, 0.5, 5.5]) * rendering_voxel_size
     # goal = np.array([20.5, 0.5, 20.5]) * rendering_voxel_size
