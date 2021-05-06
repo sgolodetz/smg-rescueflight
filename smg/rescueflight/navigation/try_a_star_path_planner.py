@@ -42,7 +42,7 @@ def main() -> None:
     tree: OcTree = OcTree(voxel_size)
     tree.read_binary("C:/smglib/smg-mapping/output-navigation/octree.bt")
 
-    planner: AStarPathPlanner = AStarPathPlanner(tree, PathUtil.neighbours26)
+    planner: AStarPathPlanner = AStarPathPlanner(tree, PathUtil.neighbours6)
     source = np.array([0.5, -0.5, 0.5]) * voxel_size
     # goal = np.array([20.5, 0.5, 20.5]) * voxel_size
     goal = np.array([30.5, 5.5, 17.5]) * voxel_size
