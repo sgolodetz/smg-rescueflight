@@ -60,7 +60,13 @@ def main() -> None:
     # goal = np.array([20.5, 5.5, 0.5]) * rendering_voxel_size
 
     start = timer()
-    path: Optional[np.ndarray] = planner.plan_path(source=source, goal=goal, use_clearance=True)
+    mu: float = 10
+    path: Optional[np.ndarray] = planner.plan_path(
+        source, goal,
+        d=PlanningToolkit.l1_penalise_vertical(mu),
+        h=PlanningToolkit.l1_penalise_vertical(mu),
+        use_clearance=True
+    )
     end = timer()
     print(f"Path Planning: {end - start}s")
 
