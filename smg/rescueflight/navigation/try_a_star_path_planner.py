@@ -61,19 +61,24 @@ def main() -> None:
 
     start = timer()
     mu: float = 10
-    path: Optional[np.ndarray] = planner.plan_path(
-        source, goal,
+    path: Optional[np.ndarray] = planner.plan_multipath(
+        [
+            source,
+            np.array([-5.5, 10.5, 15.5]) * rendering_voxel_size,
+            goal,
+            np.array([50.5, 0.5, 20.5]) * rendering_voxel_size
+        ],
         d=PlanningToolkit.l1_penalise_vertical(mu),
         h=PlanningToolkit.l1_penalise_vertical(mu),
+        pull_strings=True,
         use_clearance=True
     )
     end = timer()
     print(f"Path Planning: {end - start}s")
 
     start = timer()
-    smoothed_path: Optional[np.ndarray] = PlanningToolkit.interpolate_path(
-        planning_toolkit.pull_strings(path, use_clearance=True)
-    ) if path is not None else None
+    interpolated_path: Optional[np.ndarray] = PlanningToolkit.interpolate_path(path) if path is not None else None
+    # interpolated_path: Optional[np.ndarray] = path
     end = timer()
     print(f"Path Smoothing: {end - start}s")
 
@@ -119,7 +124,7 @@ def main() -> None:
                 # If a path was found, draw it.
                 if path is not None:
                     OpenGLUtil.render_path(
-                        smoothed_path, start_colour=(1, 1, 0), end_colour=(1, 0, 1), waypoints=False, width=5
+                        interpolated_path, start_colour=(1, 1, 0), end_colour=(1, 0, 1), waypoints=True, width=5
                     )
 
         # Swap the front and back buffers.
