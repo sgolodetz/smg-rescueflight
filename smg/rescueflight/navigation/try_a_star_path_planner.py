@@ -9,13 +9,24 @@ import sys
 
 from OpenGL.GL import *
 from timeit import default_timer as timer
-from typing import Optional, Tuple
+from typing import Callable, Optional, Tuple
 
-from smg.navigation import AStarPathPlanner, OCS_OCCUPIED, PlanningToolkit
+from smg.navigation import AStarPathPlanner, EOccupancyStatus, OCS_FREE, OCS_OCCUPIED, OCS_UNKNOWN, PlanningToolkit
 from smg.opengl import CameraRenderer, OpenGLMatrixContext, OpenGLUtil
 from smg.pyoctomap import *
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
+
+
+def occupancy_colourer(planning_toolkit: PlanningToolkit) -> Callable[[np.ndarray], np.ndarray]:
+    def inner(pos: np.ndarray) -> np.ndarray:
+        occupancy: EOccupancyStatus = planning_toolkit.occupancy_status(planning_toolkit.pos_to_node(pos))
+        if occupancy == OCS_FREE:
+            return np.array([0, 1, 0])
+        else:  # in practice, occupancy == OCS_UNKNOWN
+            return np.array([1, 0, 0])
+
+    return inner
 
 
 def main() -> None:
@@ -124,7 +135,8 @@ def main() -> None:
                 # If a path was found, draw it.
                 if path is not None:
                     OpenGLUtil.render_path(
-                        interpolated_path, start_colour=(1, 1, 0), end_colour=(1, 0, 1), waypoints=True, width=5
+                        interpolated_path, start_colour=(1, 1, 0), end_colour=(1, 0, 1), width=5,
+                        waypoint_colourer=occupancy_colourer(planning_toolkit)
                     )
 
         # Swap the front and back buffers.
