@@ -60,7 +60,7 @@ def main() -> None:
     # goal = np.array([20.5, 5.5, 0.5]) * rendering_voxel_size
 
     start = timer()
-    mu: float = 10
+    ay: float = 10
     path: Optional[np.ndarray] = planner.plan_multipath(
         [
             source,
@@ -68,8 +68,8 @@ def main() -> None:
             goal,
             np.array([50.5, 0.5, 20.5]) * rendering_voxel_size
         ],
-        d=PlanningToolkit.l1_penalise_vertical(mu),
-        h=PlanningToolkit.l1_penalise_vertical(mu),
+        d=PlanningToolkit.l1_distance(ay=ay),
+        h=PlanningToolkit.l1_distance(ay=ay),
         pull_strings=True,
         use_clearance=True
     )
