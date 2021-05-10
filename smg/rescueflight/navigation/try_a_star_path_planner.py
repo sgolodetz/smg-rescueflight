@@ -11,7 +11,7 @@ from OpenGL.GL import *
 from timeit import default_timer as timer
 from typing import Optional, Tuple
 
-from smg.navigation import AStarPathPlanner, PlanningToolkit
+from smg.navigation import AStarPathPlanner, OCS_OCCUPIED, PlanningToolkit
 from smg.opengl import CameraRenderer, OpenGLMatrixContext, OpenGLUtil
 from smg.pyoctomap import *
 from smg.rigging.controllers import KeyboardCameraController
@@ -49,7 +49,7 @@ def main() -> None:
     planning_toolkit: PlanningToolkit = PlanningToolkit(
         planning_tree,
         neighbours=PlanningToolkit.neighbours6,
-        node_is_free=lambda n: planning_toolkit.occupancy_status(n) != "Occupied"
+        node_is_free=lambda n: planning_toolkit.occupancy_status(n) != OCS_OCCUPIED
     )
     planner: AStarPathPlanner = AStarPathPlanner(planning_toolkit)
 
