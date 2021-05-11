@@ -62,7 +62,7 @@ def main() -> None:
         neighbours=PlanningToolkit.neighbours6,
         node_is_free=lambda n: planning_toolkit.occupancy_status(n) != OCS_OCCUPIED
     )
-    planner: AStarPathPlanner = AStarPathPlanner(planning_toolkit)
+    planner: AStarPathPlanner = AStarPathPlanner(planning_toolkit, debug=True)
 
     source = np.array([0.5, 0.5, 5.5]) * rendering_voxel_size
     # goal = np.array([20.5, 0.5, 20.5]) * rendering_voxel_size
@@ -136,7 +136,7 @@ def main() -> None:
                 if path is not None:
                     OpenGLUtil.render_path(
                         interpolated_path, start_colour=(1, 1, 0), end_colour=(1, 0, 1), width=5,
-                        waypoint_colourer=occupancy_colourer(planning_toolkit)
+                        waypoint_colourer=None  # occupancy_colourer(planning_toolkit)
                     )
 
         # Swap the front and back buffers.
