@@ -9,9 +9,9 @@ import sys
 
 from OpenGL.GL import *
 from timeit import default_timer as timer
-from typing import Callable, Optional, Tuple
+from typing import Optional, Tuple
 
-from smg.navigation import AStarPathPlanner, EOccupancyStatus, OCS_FREE, OCS_OCCUPIED, PlanningToolkit
+from smg.navigation import AStarPathPlanner, OCS_OCCUPIED, PlanningToolkit
 from smg.opengl import CameraRenderer, OpenGLMatrixContext, OpenGLUtil
 from smg.pyoctomap import *
 from smg.rigging.controllers import KeyboardCameraController
