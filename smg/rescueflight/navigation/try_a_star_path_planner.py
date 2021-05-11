@@ -81,6 +81,7 @@ def main() -> None:
         ],
         d=PlanningToolkit.l1_distance(ay=ay),
         h=PlanningToolkit.l1_distance(ay=ay),
+        allow_shortcuts=True,
         pull_strings=True,
         use_clearance=True
     )
@@ -136,7 +137,7 @@ def main() -> None:
                 if path is not None:
                     OpenGLUtil.render_path(
                         interpolated_path, start_colour=(1, 1, 0), end_colour=(1, 0, 1), width=5,
-                        waypoint_colourer=None  # occupancy_colourer(planning_toolkit)
+                        waypoint_colourer=occupancy_colourer(planning_toolkit)
                     )
 
         # Swap the front and back buffers.
