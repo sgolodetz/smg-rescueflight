@@ -9,7 +9,7 @@ import sys
 
 from OpenGL.GL import *
 from timeit import default_timer as timer
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 from smg.navigation import AStarPathPlanner, OCS_OCCUPIED, PlanningToolkit
 from smg.opengl import CameraRenderer, OpenGLMatrixContext, OpenGLUtil
@@ -37,7 +37,7 @@ def main() -> None:
     drawer.set_color_mode(CM_COLOR_HEIGHT)
     # drawer.enable_freespace()
 
-    # Create the octree.
+    # Load the octrees.
     planning_voxel_size: float = 0.1
     planning_tree: OcTree = OcTree(planning_voxel_size)
     planning_tree.read_binary("C:/smglib/smg-mapping/output-navigation/octree10cm.bt")
@@ -46,28 +46,28 @@ def main() -> None:
     rendering_tree: OcTree = OcTree(rendering_voxel_size)
     rendering_tree.read_binary("C:/smglib/smg-mapping/output-navigation/octree5cm.bt")
 
+    # Construct the planning toolkit and the A* path planner.
     planning_toolkit: PlanningToolkit = PlanningToolkit(
         planning_tree,
         neighbours=PlanningToolkit.neighbours6,
         node_is_free=lambda n: planning_toolkit.occupancy_status(n) != OCS_OCCUPIED
     )
+
     planner: AStarPathPlanner = AStarPathPlanner(planning_toolkit, debug=True)
 
-    source = np.array([0.5, 0.5, 5.5]) * rendering_voxel_size
-    # goal = np.array([20.5, 0.5, 20.5]) * rendering_voxel_size
-    # goal = np.array([30.5, 5.5, 17.5]) * rendering_voxel_size
-    goal = np.array([30.5, 5.5, 5.5]) * rendering_voxel_size
-    # goal = np.array([20.5, 5.5, 0.5]) * rendering_voxel_size
+    # Specify the waypoints.
+    waypoints: List[np.ndarray] = [
+        np.array([0.5, 0.5, 5.5]) * rendering_voxel_size,
+        np.array([-5.5, 10.5, 15.5]) * rendering_voxel_size,
+        np.array([30.5, 5.5, 5.5]) * rendering_voxel_size,
+        np.array([50.5, 0.5, 20.5]) * rendering_voxel_size
+    ]
 
+    # Plan a path through the waypoints.
     start = timer()
     ay: float = 10
     path: Optional[np.ndarray] = planner.plan_multipath(
-        [
-            source,
-            np.array([-5.5, 10.5, 15.5]) * rendering_voxel_size,
-            goal,
-            np.array([50.5, 0.5, 20.5]) * rendering_voxel_size
-        ],
+        waypoints,
         d=PlanningToolkit.l1_distance(ay=ay),
         h=PlanningToolkit.l1_distance(ay=ay),
         allow_shortcuts=True,
@@ -77,9 +77,9 @@ def main() -> None:
     end = timer()
     print(f"Path Planning: {end - start}s")
 
+    # Smooth any path found.
     start = timer()
     interpolated_path: Optional[np.ndarray] = PlanningToolkit.interpolate_path(path) if path is not None else None
-    # interpolated_path: Optional[np.ndarray] = path
     end = timer()
     print(f"Path Smoothing: {end - start}s")
 
