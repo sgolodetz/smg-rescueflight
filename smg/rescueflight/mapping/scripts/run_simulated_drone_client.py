@@ -40,8 +40,12 @@ def main() -> None:
     o3d_mesh: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(
         "C:/spaint/build/bin/apps/spaintgui/meshes/groundtruth.ply"
     )
+    o3d_mesh.compute_vertex_normals(True)
     mesh: TriangleMesh = TriangleMesh(
-        np.asarray(o3d_mesh.vertices), np.asarray(o3d_mesh.vertex_colors), np.asarray(o3d_mesh.triangles)
+        np.asarray(o3d_mesh.vertices),
+        np.asarray(o3d_mesh.vertex_colors),
+        np.asarray(o3d_mesh.triangles),
+        vertex_normals=np.asarray(o3d_mesh.vertex_normals)
     )
 
     # Construct the camera controller.
@@ -83,7 +87,28 @@ def main() -> None:
                 )
 
                 # TODO
+                # Enable lighting.
+                glEnable(GL_LIGHTING)
+
+                # Set up the first directional light.
+                glEnable(GL_LIGHT0)
+                pos = np.array([0.0, -2.0, -1.0, 0.0])  # type: np.ndarray
+                glLightfv(GL_LIGHT0, GL_POSITION, pos)
+
+                # Set up the second directional light.
+                glEnable(GL_LIGHT1)
+                glLightfv(GL_LIGHT1, GL_DIFFUSE, np.array([1, 1, 1, 1]))
+                glLightfv(GL_LIGHT1, GL_SPECULAR, np.array([1, 1, 1, 1]))
+                glLightfv(GL_LIGHT1, GL_POSITION, -pos)
+
+                # Enable colour-based materials (i.e. let material properties be defined by glColor).
+                glEnable(GL_COLOR_MATERIAL)
+
                 mesh.render()
+
+                # Disable colour-based materials and lighting again.
+                glDisable(GL_COLOR_MATERIAL)
+                glDisable(GL_LIGHTING)
 
         # Swap the front and back buffers.
         pygame.display.flip()
