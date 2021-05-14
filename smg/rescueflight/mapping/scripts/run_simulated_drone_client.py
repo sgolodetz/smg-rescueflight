@@ -196,8 +196,8 @@ def main() -> None:
                 drone.move_up(0)
 
             # TODO
-            drone_image, drone_w_t_c = drone.get_image_and_pose()
-            print(drone_w_t_c)
+            drone_image, drone_camera_w_t_c, drone_w_t_c = drone.get_image_and_poses()
+            print(drone_camera_w_t_c)
             cv2.imshow("Drone Image", drone_image)
             cv2.waitKey(1)
 
