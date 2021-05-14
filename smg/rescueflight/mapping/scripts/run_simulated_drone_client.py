@@ -36,8 +36,13 @@ def render_lit_mesh(mesh: TriangleMesh) -> None:
     # Enable colour-based materials (i.e. let material properties be defined by glColor).
     glEnable(GL_COLOR_MATERIAL)
 
+    glCullFace(GL_BACK)
+    glEnable(GL_CULL_FACE)
+
     # TODO
     mesh.render()
+
+    glDisable(GL_CULL_FACE)
 
     # Disable colour-based materials and lighting again.
     glDisable(GL_COLOR_MATERIAL)
