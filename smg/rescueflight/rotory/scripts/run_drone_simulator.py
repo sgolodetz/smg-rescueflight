@@ -245,6 +245,9 @@ def main() -> None:
                     drone.move_up(0)
 
                 # TODO
+                drone.set_gimbal(joystick.get_throttle())
+
+                # TODO
                 drone_image, drone_camera_w_t_c, drone_w_t_c = drone.get_image_and_poses()
                 print(drone_camera_w_t_c)
 
