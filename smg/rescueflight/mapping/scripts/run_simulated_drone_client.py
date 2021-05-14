@@ -148,12 +148,12 @@ def main() -> None:
             image_size=(640, 480),
             intrinsics=intrinsics
     ) as drone:
-        drone.set_pose(np.array([
-            [1, 0, 0, -1],
-            [0, 1, 0, -1],
-            [0, 0, 1, -1],
-            [0, 0, 0, 1]
-        ]))
+        # drone.set_pose(np.array([
+        #     [1, 0, 0, -1],
+        #     [0, 1, 0, -1],
+        #     [0, 0, 1, -1],
+        #     [0, 0, 0, 1]
+        # ]))
 
         # Repeatedly:
         while True:
