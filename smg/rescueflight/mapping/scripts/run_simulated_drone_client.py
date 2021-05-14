@@ -119,9 +119,10 @@ def make_mesh_renderer(o3d_mesh: o3d.geometry.TriangleMesh) -> MeshRenderer:
 
 
 def main() -> None:
-    # Initialise pygame and its joystick module.
+    # Initialise pygame and some of its modules.
     pygame.init()
     pygame.joystick.init()
+    pygame.mixer.init()
 
     # Make sure pygame always gets the user inputs.
     pygame.event.set_grab(True)
@@ -164,10 +165,12 @@ def main() -> None:
     )
 
     with SimulatedDrone(
-            image_renderer=scene_mesh_renderer.render_to_image,
-            image_size=(640, 480),
-            intrinsics=intrinsics
+        image_renderer=scene_mesh_renderer.render_to_image,
+        image_size=(640, 480),
+        intrinsics=intrinsics
     ) as drone:
+        pygame.mixer.music.load("C:/smglib/sounds/drone_flying.mp3")
+
         # Stop when both Button 0 and Button 1 on the Futaba T6K are set to their "released" state.
         while joystick.get_button(0) != 0 or joystick.get_button(1) != 0:
             # Process any PyGame events.
@@ -175,6 +178,8 @@ def main() -> None:
                 if event.type == pygame.JOYBUTTONDOWN:
                     # If Button 0 on the Futaba T6K is set to its "pressed" state, take off.
                     if event.button == 0:
+                        if drone.get_state() == SimulatedDrone.IDLE:
+                            pygame.mixer.music.play(loops=-1)
                         drone.takeoff()
                 elif event.type == pygame.JOYBUTTONUP:
                     # If Button 0 on the Futaba T6K is set to its "released" state, land.
@@ -183,6 +188,10 @@ def main() -> None:
                 elif event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit(0)
+
+            # TODO
+            if drone.get_state() == SimulatedDrone.IDLE:
+                pygame.mixer.music.stop()
 
             # Update the movement of the drone based on the pitch, roll and yaw values output by the Futaba T6K.
             drone.move_forward(joystick.get_pitch())
