@@ -14,10 +14,12 @@ from timeit import default_timer as timer
 from typing import Optional, Tuple
 
 from smg.joysticks import FutabaT6K
-from smg.opengl import CameraRenderer, OpenGLFrameBuffer, OpenGLMatrixContext, OpenGLUtil, TriangleMesh
+from smg.opengl import CameraRenderer, OpenGLFrameBuffer, OpenGLMatrixContext
+from smg.opengl import OpenGLImageRenderer, OpenGLUtil, TriangleMesh
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
 from smg.rotory.drones import SimulatedDrone
+from smg.utility import ImageUtil
 
 
 class MeshRenderer:
@@ -118,6 +120,47 @@ def make_mesh_renderer(o3d_mesh: o3d.geometry.TriangleMesh) -> MeshRenderer:
     return MeshRenderer(mesh)
 
 
+def render_window(*, drone_image: np.ndarray, drone_w_t_c: np.ndarray, image_renderer: OpenGLImageRenderer,
+                  intrinsics: Tuple[float, float, float, float], scene_mesh_renderer: MeshRenderer,
+                  tello_mesh_renderer: MeshRenderer, viewing_pose: np.ndarray, window_size: Tuple[int, int]) -> None:
+    # Clear the window.
+    OpenGLUtil.set_viewport((0.0, 0.0), (1.0, 1.0), window_size)
+    glClearColor(1.0, 1.0, 1.0, 0.0)
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+
+    # Render the whole scene from the viewing pose.
+    OpenGLUtil.set_viewport((0.0, 0.0), (0.5, 1.0), window_size)
+
+    glDepthFunc(GL_LEQUAL)
+    glEnable(GL_DEPTH_TEST)
+
+    with OpenGLMatrixContext(GL_PROJECTION, lambda: OpenGLUtil.set_projection_matrix(intrinsics, 640, 480)):
+        with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.load_matrix(
+            CameraPoseConverter.pose_to_modelview(viewing_pose)
+        )):
+            # Render a voxel grid.
+            glColor3f(0.0, 0.0, 0.0)
+            OpenGLUtil.render_voxel_grid([-2, -2, -2], [2, 0, 2], [1, 1, 1], dotted=True)
+
+            # Render coordinate axes.
+            CameraRenderer.render_camera(CameraUtil.make_default_camera())
+
+            # TODO
+            scene_mesh_renderer.render()
+
+            with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(drone_w_t_c)):
+                tello_mesh_renderer.render()
+
+    glDisable(GL_DEPTH_TEST)
+
+    # Render the drone image.
+    OpenGLUtil.set_viewport((0.5, 0.0), (1.0, 1.0), window_size)
+    image_renderer.render_image(ImageUtil.flip_channels(drone_image))
+
+    # Swap the front and back buffers.
+    pygame.display.flip()
+
+
 def main() -> None:
     # Initialise pygame and some of its modules.
     pygame.init()
@@ -137,20 +180,20 @@ def main() -> None:
         pass
 
     # Construct and calibrate the Futaba T6K.
-    joystick = FutabaT6K(joystick_idx)
+    joystick: FutabaT6K = FutabaT6K(joystick_idx)
     joystick.calibrate()
 
     # Create the window.
-    window_size: Tuple[int, int] = (640, 480)
+    window_size: Tuple[int, int] = (1280, 480)
     pygame.display.set_mode(window_size, pygame.DOUBLEBUF | pygame.OPENGL)
-    pygame.display.set_caption("Simulated Drone Client")
+    pygame.display.set_caption("Drone Simulator")
 
     # Specify the camera intrinsics.
     intrinsics: Tuple[float, float, float, float] = (532.5694641250893, 531.5410880910171, 320.0, 240.0)
 
     # Enable the z-buffer.
-    glEnable(GL_DEPTH_TEST)
-    glDepthFunc(GL_LESS)
+    # glEnable(GL_DEPTH_TEST)
+    # glDepthFunc(GL_LESS)
 
     # TODO
     scene_mesh_renderer: MeshRenderer = make_mesh_renderer(
@@ -169,78 +212,92 @@ def main() -> None:
         image_size=(640, 480),
         intrinsics=intrinsics
     ) as drone:
-        pygame.mixer.music.load("C:/smglib/sounds/drone_flying.mp3")
+        # Construct the image renderer.
+        with OpenGLImageRenderer() as image_renderer:
+            pygame.mixer.music.load("C:/smglib/sounds/drone_flying.mp3")
 
-        # Stop when both Button 0 and Button 1 on the Futaba T6K are set to their "released" state.
-        while joystick.get_button(0) != 0 or joystick.get_button(1) != 0:
-            # Process any PyGame events.
-            for event in pygame.event.get():
-                if event.type == pygame.JOYBUTTONDOWN:
-                    # If Button 0 on the Futaba T6K is set to its "pressed" state, take off.
-                    if event.button == 0:
-                        if drone.get_state() == SimulatedDrone.IDLE:
-                            pygame.mixer.music.play(loops=-1)
-                        drone.takeoff()
-                elif event.type == pygame.JOYBUTTONUP:
-                    # If Button 0 on the Futaba T6K is set to its "released" state, land.
-                    if event.button == 0:
-                        drone.land()
-                elif event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit(0)
+            # Stop when both Button 0 and Button 1 on the Futaba T6K are set to their "released" state.
+            while joystick.get_button(0) != 0 or joystick.get_button(1) != 0:
+                # Process any PyGame events.
+                for event in pygame.event.get():
+                    if event.type == pygame.JOYBUTTONDOWN:
+                        # If Button 0 on the Futaba T6K is set to its "pressed" state, take off.
+                        if event.button == 0:
+                            if drone.get_state() == SimulatedDrone.IDLE:
+                                pygame.mixer.music.play(loops=-1)
+                            drone.takeoff()
+                    elif event.type == pygame.JOYBUTTONUP:
+                        # If Button 0 on the Futaba T6K is set to its "released" state, land.
+                        if event.button == 0:
+                            drone.land()
+                    elif event.type == pygame.QUIT:
+                        pygame.quit()
+                        sys.exit(0)
 
-            # TODO
-            if drone.get_state() == SimulatedDrone.IDLE:
-                pygame.mixer.music.stop()
+                # TODO
+                if drone.get_state() == SimulatedDrone.IDLE:
+                    pygame.mixer.music.stop()
 
-            # Update the movement of the drone based on the pitch, roll and yaw values output by the Futaba T6K.
-            drone.move_forward(joystick.get_pitch())
-            drone.turn(joystick.get_yaw())
+                # Update the movement of the drone based on the pitch, roll and yaw values output by the Futaba T6K.
+                drone.move_forward(joystick.get_pitch())
+                drone.turn(joystick.get_yaw())
 
-            if joystick.get_button(1) == 0:
-                drone.move_right(0)
-                drone.move_up(joystick.get_roll())
-            else:
-                drone.move_right(joystick.get_roll())
-                drone.move_up(0)
+                if joystick.get_button(1) == 0:
+                    drone.move_right(0)
+                    drone.move_up(joystick.get_roll())
+                else:
+                    drone.move_right(joystick.get_roll())
+                    drone.move_up(0)
 
-            # TODO
-            drone_image, drone_camera_w_t_c, drone_w_t_c = drone.get_image_and_poses()
-            print(drone_camera_w_t_c)
-            cv2.imshow("Drone Image", drone_image)
-            cv2.waitKey(1)
+                # TODO
+                drone_image, drone_camera_w_t_c, drone_w_t_c = drone.get_image_and_poses()
+                print(drone_camera_w_t_c)
+                # cv2.imshow("Drone Image", drone_image)
+                # cv2.waitKey(1)
 
-            # Allow the user to control the camera.
-            camera_controller.update(pygame.key.get_pressed(), timer() * 1000)
+                # Allow the user to control the camera.
+                camera_controller.update(pygame.key.get_pressed(), timer() * 1000)
 
-            # Clear the colour and depth buffers.
-            glClearColor(1.0, 1.0, 1.0, 1.0)
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+                # Render the contents of the window.
+                render_window(
+                    drone_image=drone_image,
+                    drone_w_t_c=drone_w_t_c,
+                    image_renderer=image_renderer,
+                    intrinsics=intrinsics,
+                    scene_mesh_renderer=scene_mesh_renderer,
+                    tello_mesh_renderer=tello_mesh_renderer,
+                    viewing_pose=camera_controller.get_pose(),
+                    window_size=window_size
+                )
 
-            # Determine the viewing pose.
-            viewing_pose: np.ndarray = camera_controller.get_pose()
-
-            # Set the projection matrix.
-            with OpenGLMatrixContext(GL_PROJECTION, lambda: OpenGLUtil.set_projection_matrix(intrinsics, *window_size)):
-                # Set the model-view matrix.
-                with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.load_matrix(
-                    CameraPoseConverter.pose_to_modelview(viewing_pose)
-                )):
-                    # Render a voxel grid.
-                    glColor3f(0.0, 0.0, 0.0)
-                    OpenGLUtil.render_voxel_grid([-2, -2, -2], [2, 0, 2], [1, 1, 1], dotted=True)
-
-                    # Render coordinate axes.
-                    CameraRenderer.render_camera(CameraUtil.make_default_camera())
-
-                    # TODO
-                    scene_mesh_renderer.render()
-
-                    with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(drone_w_t_c)):
-                        tello_mesh_renderer.render()
-
-            # Swap the front and back buffers.
-            pygame.display.flip()
+                # # Clear the colour and depth buffers.
+                # glClearColor(1.0, 1.0, 1.0, 1.0)
+                # glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+                #
+                # # Determine the viewing pose.
+                # viewing_pose: np.ndarray = camera_controller.get_pose()
+                #
+                # # Set the projection matrix.
+                # with OpenGLMatrixContext(GL_PROJECTION, lambda: OpenGLUtil.set_projection_matrix(intrinsics, *window_size)):
+                #     # Set the model-view matrix.
+                #     with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.load_matrix(
+                #         CameraPoseConverter.pose_to_modelview(viewing_pose)
+                #     )):
+                #         # Render a voxel grid.
+                #         glColor3f(0.0, 0.0, 0.0)
+                #         OpenGLUtil.render_voxel_grid([-2, -2, -2], [2, 0, 2], [1, 1, 1], dotted=True)
+                #
+                #         # Render coordinate axes.
+                #         CameraRenderer.render_camera(CameraUtil.make_default_camera())
+                #
+                #         # TODO
+                #         scene_mesh_renderer.render()
+                #
+                #         with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(drone_w_t_c)):
+                #             tello_mesh_renderer.render()
+                #
+                # # Swap the front and back buffers.
+                # pygame.display.flip()
 
 
 if __name__ == "__main__":
