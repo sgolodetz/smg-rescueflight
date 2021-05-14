@@ -13,6 +13,7 @@ from OpenGL.GL import *
 from timeit import default_timer as timer
 from typing import Optional, Tuple
 
+from smg.joysticks import FutabaT6K
 from smg.opengl import CameraRenderer, OpenGLFrameBuffer, OpenGLMatrixContext, OpenGLUtil, TriangleMesh
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
@@ -118,8 +119,27 @@ def make_mesh_renderer(o3d_mesh: o3d.geometry.TriangleMesh) -> MeshRenderer:
 
 
 def main() -> None:
-    # Initialise PyGame and create the window.
+    # Initialise pygame and its joystick module.
     pygame.init()
+    pygame.joystick.init()
+
+    # Make sure pygame always gets the user inputs.
+    pygame.event.set_grab(True)
+
+    # Try to determine the joystick index of the Futaba T6K. If no joystick is plugged in, early out.
+    joystick_count: int = pygame.joystick.get_count()
+    joystick_idx: int = 0
+    if joystick_count == 0:
+        exit(0)
+    elif joystick_count != 1:
+        # TODO: Prompt the user for the joystick to use.
+        pass
+
+    # Construct and calibrate the Futaba T6K.
+    joystick = FutabaT6K(joystick_idx)
+    joystick.calibrate()
+
+    # Create the window.
     window_size: Tuple[int, int] = (640, 480)
     pygame.display.set_mode(window_size, pygame.DOUBLEBUF | pygame.OPENGL)
     pygame.display.set_caption("Simulated Drone Client")
@@ -148,20 +168,32 @@ def main() -> None:
             image_size=(640, 480),
             intrinsics=intrinsics
     ) as drone:
-        # drone.set_pose(np.array([
-        #     [1, 0, 0, -1],
-        #     [0, 1, 0, -1],
-        #     [0, 0, 1, -1],
-        #     [0, 0, 0, 1]
-        # ]))
-
-        # Repeatedly:
-        while True:
+        # Stop when both Button 0 and Button 1 on the Futaba T6K are set to their "released" state.
+        while joystick.get_button(0) != 0 or joystick.get_button(1) != 0:
             # Process any PyGame events.
             for event in pygame.event.get():
-                if event.type == pygame.QUIT:
+                if event.type == pygame.JOYBUTTONDOWN:
+                    # If Button 0 on the Futaba T6K is set to its "pressed" state, take off.
+                    if event.button == 0:
+                        drone.takeoff()
+                elif event.type == pygame.JOYBUTTONUP:
+                    # If Button 0 on the Futaba T6K is set to its "released" state, land.
+                    if event.button == 0:
+                        drone.land()
+                elif event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit(0)
+
+            # Update the movement of the drone based on the pitch, roll and yaw values output by the Futaba T6K.
+            drone.move_forward(joystick.get_pitch())
+            drone.turn(joystick.get_yaw())
+
+            if joystick.get_button(1) == 0:
+                drone.move_right(0)
+                drone.move_up(joystick.get_roll())
+            else:
+                drone.move_right(joystick.get_roll())
+                drone.move_up(0)
 
             # TODO
             drone_image, drone_w_t_c = drone.get_image_and_pose()
