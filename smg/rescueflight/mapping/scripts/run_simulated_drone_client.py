@@ -1,4 +1,5 @@
 import cv2
+import math
 import numpy as np
 import open3d as o3d
 import os
@@ -88,6 +89,34 @@ class MeshRenderer:
                     return OpenGLUtil.read_bgr_image(width, height)
 
 
+# noinspection PyArgumentList
+def load_tello_mesh(filename: str) -> o3d.geometry.TriangleMesh:
+    """
+    Load a DJI Tello mesh from the specified file.
+
+    :param filename:    The name of the file containing the DJI Tello mesh.
+    :return:            The DJI Tello mesh.
+    """
+    mesh: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(filename)
+    mesh.translate(-mesh.get_center())
+    mesh.scale(0.002, np.zeros(3))
+    mesh.rotate(o3d.geometry.get_rotation_matrix_from_axis_angle(np.array([math.pi, 0, 0])))
+    mesh.compute_vertex_normals()
+    mesh.paint_uniform_color(np.array([0, 1, 1]))
+    return mesh
+
+
+def make_mesh_renderer(o3d_mesh: o3d.geometry.TriangleMesh) -> MeshRenderer:
+    o3d_mesh.compute_vertex_normals(True)
+    mesh: TriangleMesh = TriangleMesh(
+        np.asarray(o3d_mesh.vertices),
+        np.asarray(o3d_mesh.vertex_colors),
+        np.asarray(o3d_mesh.triangles),
+        vertex_normals=np.asarray(o3d_mesh.vertex_normals)
+    )
+    return MeshRenderer(mesh)
+
+
 def main() -> None:
     # Initialise PyGame and create the window.
     pygame.init()
@@ -102,20 +131,12 @@ def main() -> None:
     glEnable(GL_DEPTH_TEST)
     glDepthFunc(GL_LESS)
 
-    # Load the mesh.
-    o3d_mesh: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(
-        "C:/spaint/build/bin/apps/spaintgui/meshes/groundtruth-decimated.ply"
-    )
-    o3d_mesh.compute_vertex_normals(True)
-    mesh: TriangleMesh = TriangleMesh(
-        np.asarray(o3d_mesh.vertices),
-        np.asarray(o3d_mesh.vertex_colors),
-        np.asarray(o3d_mesh.triangles),
-        vertex_normals=np.asarray(o3d_mesh.vertex_normals)
+    # TODO
+    scene_mesh_renderer: MeshRenderer = make_mesh_renderer(
+        o3d.io.read_triangle_mesh("C:/spaint/build/bin/apps/spaintgui/meshes/groundtruth-decimated.ply")
     )
 
-    # TODO
-    mesh_renderer: MeshRenderer = MeshRenderer(mesh)
+    tello_mesh_renderer: MeshRenderer = make_mesh_renderer(load_tello_mesh("C:/smglib/meshes/tello.ply"))
 
     # Construct the camera controller.
     camera_controller: KeyboardCameraController = KeyboardCameraController(
@@ -123,10 +144,17 @@ def main() -> None:
     )
 
     with SimulatedDrone(
-            image_renderer=mesh_renderer.render_to_image,
+            image_renderer=scene_mesh_renderer.render_to_image,
             image_size=(640, 480),
             intrinsics=intrinsics
     ) as drone:
+        drone.set_pose(np.array([
+            [1, 0, 0, -1],
+            [0, 1, 0, -1],
+            [0, 0, 1, -1],
+            [0, 0, 0, 1]
+        ]))
+
         # Repeatedly:
         while True:
             # Process any PyGame events.
@@ -136,10 +164,9 @@ def main() -> None:
                     sys.exit(0)
 
             # TODO
-            drone.set_pose(np.linalg.inv(camera_controller.get_pose()))
-            image, world_from_camera = drone.get_image_and_pose()
-            print(world_from_camera)
-            cv2.imshow("Image", image)
+            drone_image, drone_w_t_c = drone.get_image_and_pose()
+            print(drone_w_t_c)
+            cv2.imshow("Drone Image", drone_image)
             cv2.waitKey(1)
 
             # Allow the user to control the camera.
@@ -163,12 +190,13 @@ def main() -> None:
                     OpenGLUtil.render_voxel_grid([-2, -2, -2], [2, 0, 2], [1, 1, 1], dotted=True)
 
                     # Render coordinate axes.
-                    CameraRenderer.render_camera(
-                        CameraUtil.make_default_camera(), body_colour=(1.0, 1.0, 0.0), body_scale=0.1
-                    )
+                    CameraRenderer.render_camera(CameraUtil.make_default_camera())
 
                     # TODO
-                    mesh_renderer.render()
+                    scene_mesh_renderer.render()
+
+                    with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(drone_w_t_c)):
+                        tello_mesh_renderer.render()
 
             # Swap the front and back buffers.
             pygame.display.flip()
