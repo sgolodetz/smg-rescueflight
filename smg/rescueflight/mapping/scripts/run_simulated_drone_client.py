@@ -10,47 +10,82 @@ import sys
 
 from OpenGL.GL import *
 from timeit import default_timer as timer
-from typing import Tuple
+from typing import Optional, Tuple
 
-from smg.opengl import CameraRenderer, OpenGLMatrixContext, OpenGLUtil, TriangleMesh
+from smg.opengl import CameraRenderer, OpenGLFrameBuffer, OpenGLMatrixContext, OpenGLUtil, TriangleMesh
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
 from smg.rotory.drones import SimulatedDrone
 
 
-def render_lit_mesh(mesh: TriangleMesh) -> None:
-    # Enable lighting.
-    glEnable(GL_LIGHTING)
+class MeshRenderer:
+    """TODO"""
 
-    # Set up the first directional light.
-    glEnable(GL_LIGHT0)
-    pos = np.array([0.0, -2.0, -1.0, 0.0])  # type: np.ndarray
-    glLightfv(GL_LIGHT0, GL_POSITION, pos)
+    # CONSTRUCTOR
 
-    # Set up the second directional light.
-    glEnable(GL_LIGHT1)
-    glLightfv(GL_LIGHT1, GL_DIFFUSE, np.array([1, 1, 1, 1]))
-    glLightfv(GL_LIGHT1, GL_SPECULAR, np.array([1, 1, 1, 1]))
-    glLightfv(GL_LIGHT1, GL_POSITION, -pos)
+    def __init__(self, mesh: TriangleMesh):
+        self.__framebuffer: Optional[OpenGLFrameBuffer] = None
+        self.__mesh: TriangleMesh = mesh
 
-    # Enable colour-based materials (i.e. let material properties be defined by glColor).
-    glEnable(GL_COLOR_MATERIAL)
+    # PUBLIC METHODS
 
-    glCullFace(GL_BACK)
-    glEnable(GL_CULL_FACE)
+    def render(self) -> None:
+        # Enable lighting.
+        glEnable(GL_LIGHTING)
 
-    # TODO
-    mesh.render()
+        # Set up the first directional light.
+        glEnable(GL_LIGHT0)
+        pos = np.array([0.0, -2.0, -1.0, 0.0])  # type: np.ndarray
+        glLightfv(GL_LIGHT0, GL_POSITION, pos)
 
-    glDisable(GL_CULL_FACE)
+        # Set up the second directional light.
+        glEnable(GL_LIGHT1)
+        glLightfv(GL_LIGHT1, GL_DIFFUSE, np.array([1, 1, 1, 1]))
+        glLightfv(GL_LIGHT1, GL_SPECULAR, np.array([1, 1, 1, 1]))
+        glLightfv(GL_LIGHT1, GL_POSITION, -pos)
 
-    # Disable colour-based materials and lighting again.
-    glDisable(GL_COLOR_MATERIAL)
-    glDisable(GL_LIGHTING)
+        # Enable colour-based materials (i.e. let material properties be defined by glColor).
+        glEnable(GL_COLOR_MATERIAL)
 
+        glCullFace(GL_BACK)
+        glEnable(GL_CULL_FACE)
 
-def render_scene(w_t_c: np.ndarray) -> np.ndarray:
-    return np.zeros((480, 640, 3), dtype=np.uint8)
+        # TODO
+        self.__mesh.render()
+
+        glDisable(GL_CULL_FACE)
+
+        # Disable colour-based materials and lighting again.
+        glDisable(GL_COLOR_MATERIAL)
+        glDisable(GL_LIGHTING)
+
+    def render_to_image(self, world_from_camera: np.ndarray, image_size: Tuple[int, int],
+                        intrinsics: Tuple[float, float, float, float]) -> np.ndarray:
+        # If the OpenGL framebuffer hasn't been constructed yet, construct it now.
+        # FIXME: Support image size changes.
+        width, height = image_size
+        if self.__framebuffer is None:
+            self.__framebuffer = OpenGLFrameBuffer(width, height)
+
+        # TODO
+        with self.__framebuffer:
+            # Set the viewport to encompass the whole framebuffer.
+            OpenGLUtil.set_viewport((0.0, 0.0), (1.0, 1.0), (width, height))
+
+            # Clear the background to black.
+            glClearColor(1.0, 1.0, 1.0, 1.0)
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+
+            # Set the projection matrix.
+            with OpenGLMatrixContext(GL_PROJECTION, lambda: OpenGLUtil.set_projection_matrix(
+                intrinsics, width, height
+            )):
+                # Set the model-view matrix.
+                with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.load_matrix(
+                    CameraPoseConverter.pose_to_modelview(np.linalg.inv(world_from_camera))
+                )):
+                    self.render()
+                    return OpenGLUtil.read_bgr_image(width, height)
 
 
 def main() -> None:
@@ -79,63 +114,64 @@ def main() -> None:
         vertex_normals=np.asarray(o3d_mesh.vertex_normals)
     )
 
+    # TODO
+    mesh_renderer: MeshRenderer = MeshRenderer(mesh)
+
     # Construct the camera controller.
     camera_controller: KeyboardCameraController = KeyboardCameraController(
         CameraUtil.make_default_camera(), canonical_angular_speed=0.05, canonical_linear_speed=0.025
     )
 
-    # Repeatedly:
-    while True:
-        # Process any PyGame events.
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit(0)
+    with SimulatedDrone(
+            image_renderer=mesh_renderer.render_to_image,
+            image_size=(640, 480),
+            intrinsics=intrinsics
+    ) as drone:
+        # Repeatedly:
+        while True:
+            # Process any PyGame events.
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit(0)
 
-        # Allow the user to control the camera.
-        camera_controller.update(pygame.key.get_pressed(), timer() * 1000)
+            # TODO
+            drone.set_pose(np.linalg.inv(camera_controller.get_pose()))
+            image, world_from_camera = drone.get_image_and_pose()
+            print(world_from_camera)
+            cv2.imshow("Image", image)
+            cv2.waitKey(1)
 
-        # Clear the colour and depth buffers.
-        glClearColor(1.0, 1.0, 1.0, 1.0)
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            # Allow the user to control the camera.
+            camera_controller.update(pygame.key.get_pressed(), timer() * 1000)
 
-        # Determine the viewing pose.
-        viewing_pose: np.ndarray = camera_controller.get_pose()
+            # Clear the colour and depth buffers.
+            glClearColor(1.0, 1.0, 1.0, 1.0)
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
-        # Set the projection matrix.
-        with OpenGLMatrixContext(GL_PROJECTION, lambda: OpenGLUtil.set_projection_matrix(intrinsics, *window_size)):
-            # Set the model-view matrix.
-            with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.load_matrix(
-                CameraPoseConverter.pose_to_modelview(viewing_pose)
-            )):
-                # Render a voxel grid.
-                glColor3f(0.0, 0.0, 0.0)
-                OpenGLUtil.render_voxel_grid([-2, -2, -2], [2, 0, 2], [1, 1, 1], dotted=True)
+            # Determine the viewing pose.
+            viewing_pose: np.ndarray = camera_controller.get_pose()
 
-                # Render coordinate axes.
-                CameraRenderer.render_camera(
-                    CameraUtil.make_default_camera(), body_colour=(1.0, 1.0, 0.0), body_scale=0.1
-                )
+            # Set the projection matrix.
+            with OpenGLMatrixContext(GL_PROJECTION, lambda: OpenGLUtil.set_projection_matrix(intrinsics, *window_size)):
+                # Set the model-view matrix.
+                with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.load_matrix(
+                    CameraPoseConverter.pose_to_modelview(viewing_pose)
+                )):
+                    # Render a voxel grid.
+                    glColor3f(0.0, 0.0, 0.0)
+                    OpenGLUtil.render_voxel_grid([-2, -2, -2], [2, 0, 2], [1, 1, 1], dotted=True)
 
-                # TODO
-                render_lit_mesh(mesh)
+                    # Render coordinate axes.
+                    CameraRenderer.render_camera(
+                        CameraUtil.make_default_camera(), body_colour=(1.0, 1.0, 0.0), body_scale=0.1
+                    )
 
-        # Swap the front and back buffers.
-        pygame.display.flip()
+                    # TODO
+                    mesh_renderer.render()
 
-    # with SimulatedDrone(
-    #     image_renderer=render_scene,
-    #     image_size=(640, 480),
-    #     intrinsics=(532.5694641250893, 531.5410880910171, 320.0, 240.0)
-    # ) as drone:
-    #     while True:
-    #         image, w_t_c = drone.get_image_and_pose()
-    #
-    #         cv2.imshow("Image", image)
-    #         cv2.waitKey(1)
-    #
-    #         print(w_t_c)
-    #         print("===")
+            # Swap the front and back buffers.
+            pygame.display.flip()
 
 
 if __name__ == "__main__":
