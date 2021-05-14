@@ -18,6 +18,32 @@ from smg.rigging.helpers import CameraPoseConverter, CameraUtil
 from smg.rotory.drones import SimulatedDrone
 
 
+def render_lit_mesh(mesh: TriangleMesh) -> None:
+    # Enable lighting.
+    glEnable(GL_LIGHTING)
+
+    # Set up the first directional light.
+    glEnable(GL_LIGHT0)
+    pos = np.array([0.0, -2.0, -1.0, 0.0])  # type: np.ndarray
+    glLightfv(GL_LIGHT0, GL_POSITION, pos)
+
+    # Set up the second directional light.
+    glEnable(GL_LIGHT1)
+    glLightfv(GL_LIGHT1, GL_DIFFUSE, np.array([1, 1, 1, 1]))
+    glLightfv(GL_LIGHT1, GL_SPECULAR, np.array([1, 1, 1, 1]))
+    glLightfv(GL_LIGHT1, GL_POSITION, -pos)
+
+    # Enable colour-based materials (i.e. let material properties be defined by glColor).
+    glEnable(GL_COLOR_MATERIAL)
+
+    # TODO
+    mesh.render()
+
+    # Disable colour-based materials and lighting again.
+    glDisable(GL_COLOR_MATERIAL)
+    glDisable(GL_LIGHTING)
+
+
 def render_scene(w_t_c: np.ndarray) -> np.ndarray:
     return np.zeros((480, 640, 3), dtype=np.uint8)
 
@@ -38,7 +64,7 @@ def main() -> None:
 
     # Load the mesh.
     o3d_mesh: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(
-        "C:/spaint/build/bin/apps/spaintgui/meshes/groundtruth.ply"
+        "C:/spaint/build/bin/apps/spaintgui/meshes/groundtruth-decimated.ply"
     )
     o3d_mesh.compute_vertex_normals(True)
     mesh: TriangleMesh = TriangleMesh(
@@ -87,28 +113,7 @@ def main() -> None:
                 )
 
                 # TODO
-                # Enable lighting.
-                glEnable(GL_LIGHTING)
-
-                # Set up the first directional light.
-                glEnable(GL_LIGHT0)
-                pos = np.array([0.0, -2.0, -1.0, 0.0])  # type: np.ndarray
-                glLightfv(GL_LIGHT0, GL_POSITION, pos)
-
-                # Set up the second directional light.
-                glEnable(GL_LIGHT1)
-                glLightfv(GL_LIGHT1, GL_DIFFUSE, np.array([1, 1, 1, 1]))
-                glLightfv(GL_LIGHT1, GL_SPECULAR, np.array([1, 1, 1, 1]))
-                glLightfv(GL_LIGHT1, GL_POSITION, -pos)
-
-                # Enable colour-based materials (i.e. let material properties be defined by glColor).
-                glEnable(GL_COLOR_MATERIAL)
-
-                mesh.render()
-
-                # Disable colour-based materials and lighting again.
-                glDisable(GL_COLOR_MATERIAL)
-                glDisable(GL_LIGHTING)
+                render_lit_mesh(mesh)
 
         # Swap the front and back buffers.
         pygame.display.flip()
