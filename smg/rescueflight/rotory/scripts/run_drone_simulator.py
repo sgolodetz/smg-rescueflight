@@ -53,8 +53,14 @@ class MeshRenderer:
         glCullFace(GL_BACK)
         glEnable(GL_CULL_FACE)
 
+        glPushAttrib(GL_DEPTH_BUFFER_BIT)
+        glDepthFunc(GL_LEQUAL)
+        glEnable(GL_DEPTH_TEST)
+
         # TODO
         self.__mesh.render()
+
+        glPopAttrib()
 
         glDisable(GL_CULL_FACE)
 
@@ -130,6 +136,7 @@ def render_window(*, drone_image: np.ndarray, drone_w_t_c: np.ndarray, image_ren
     # Render the whole scene from the viewing pose.
     OpenGLUtil.set_viewport((0.0, 0.0), (0.5, 1.0), window_size)
 
+    glPushAttrib(GL_DEPTH_BUFFER_BIT)
     glDepthFunc(GL_LEQUAL)
     glEnable(GL_DEPTH_TEST)
 
@@ -150,7 +157,7 @@ def render_window(*, drone_image: np.ndarray, drone_w_t_c: np.ndarray, image_ren
             with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(drone_w_t_c)):
                 tello_mesh_renderer.render()
 
-    glDisable(GL_DEPTH_TEST)
+    glPopAttrib()
 
     # Render the drone image.
     OpenGLUtil.set_viewport((0.5, 0.0), (1.0, 1.0), window_size)
@@ -245,7 +252,7 @@ def main() -> None:
                     drone.move_up(0)
 
                 # TODO
-                drone.set_gimbal(joystick.get_throttle())
+                drone.update_gimbal(2 * (joystick.get_throttle() - 0.5))
 
                 # TODO
                 drone_image, drone_camera_w_t_c, drone_w_t_c = drone.get_image_and_poses()
