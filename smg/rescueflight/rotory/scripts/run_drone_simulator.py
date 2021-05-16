@@ -216,7 +216,11 @@ def main() -> None:
     ) as drone:
         # Construct the image renderer.
         with OpenGLImageRenderer() as image_renderer:
+            # TODO
             pygame.mixer.music.load("C:/smglib/sounds/drone_flying.mp3")
+
+            # TODO
+            gimbal_enabled: bool = False
 
             # Stop when both Button 0 and Button 1 on the Futaba T6K are set to their "released" state.
             while joystick.get_button(0) != 0 or joystick.get_button(1) != 0:
@@ -252,7 +256,13 @@ def main() -> None:
                     drone.move_up(0)
 
                 # TODO
-                drone.update_gimbal(2 * (joystick.get_throttle() - 0.5))
+                throttle: float = joystick.get_throttle()
+                if throttle >= 0.5:
+                    gimbal_enabled = True
+
+                # TODO
+                if gimbal_enabled:
+                    drone.update_gimbal_pitch(2 * (joystick.get_throttle() - 0.5))
 
                 # TODO
                 drone_image, drone_camera_w_t_c, drone_w_t_c = drone.get_image_and_poses()
