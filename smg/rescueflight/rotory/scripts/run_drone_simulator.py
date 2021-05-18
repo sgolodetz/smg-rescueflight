@@ -10,7 +10,7 @@ import sys
 
 from OpenGL.GL import *
 from timeit import default_timer as timer
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 from smg.joysticks import FutabaT6K
 from smg.opengl import CameraRenderer, OpenGLFrameBuffer, OpenGLMatrixContext
@@ -26,32 +26,41 @@ class MeshRenderer:
 
     # CONSTRUCTOR
 
-    def __init__(self, mesh: TriangleMesh):
+    def __init__(self, mesh: TriangleMesh, *, light_dirs: Optional[List[np.ndarray]] = None):
         """
         Construct an OpenGL renderer for a triangle mesh.
 
-        :param mesh:    The triangle mesh.
+        :param mesh:        The triangle mesh.
+        :param light_dirs:  The directions from which to light the mesh with directional lights.
         """
-        self.__framebuffer: Optional[OpenGLFrameBuffer] = None
-        self.__mesh: TriangleMesh = mesh
+        self.__framebuffer = None  # type: Optional[OpenGLFrameBuffer]
+        self.__mesh = mesh         # type: TriangleMesh
+
+        if light_dirs is None:
+            pos = np.array([0.0, -2.0, -1.0, 0.0])  # type: np.ndarray
+            self.__light_dirs = [pos, -pos]         # type: List[np.ndarray]
+        elif len(light_dirs) <= 8:
+            self.__light_dirs = light_dirs          # type: List[np.ndarray]
+        else:
+            raise RuntimeError("At most 8 light directions can be specified")
 
     # PUBLIC METHODS
 
     def render(self) -> None:
-        """Render the mesh with some appropriate lighting."""
+        """Render the mesh."""
+        # Save various attributes so that they can be restored later.
+        glPushAttrib(GL_DEPTH_BUFFER_BIT | GL_ENABLE_BIT | GL_LIGHTING_BIT)
+
         # Enable lighting.
         glEnable(GL_LIGHTING)
 
-        # Set up the first directional light.
-        glEnable(GL_LIGHT0)
-        pos: np.ndarray = np.array([0.0, -2.0, -1.0, 0.0])
-        glLightfv(GL_LIGHT0, GL_POSITION, pos)
-
-        # Set up the second directional light.
-        glEnable(GL_LIGHT1)
-        glLightfv(GL_LIGHT1, GL_DIFFUSE, np.array([1, 1, 1, 1]))
-        glLightfv(GL_LIGHT1, GL_SPECULAR, np.array([1, 1, 1, 1]))
-        glLightfv(GL_LIGHT1, GL_POSITION, -pos)
+        # Set up the directional lights.
+        for i in range(len(self.__light_dirs)):
+            light_idx = GL_LIGHT0 + i  # type: int
+            glEnable(light_idx)
+            glLightfv(light_idx, GL_DIFFUSE, np.array([1, 1, 1, 1]))
+            glLightfv(light_idx, GL_SPECULAR, np.array([1, 1, 1, 1]))
+            glLightfv(light_idx, GL_POSITION, self.__light_dirs[i])
 
         # Enable colour-based materials (i.e. let material properties be defined by glColor).
         glEnable(GL_COLOR_MATERIAL)
@@ -60,25 +69,15 @@ class MeshRenderer:
         glCullFace(GL_BACK)
         glEnable(GL_CULL_FACE)
 
-        # Store the current enablement state of the depth buffer, and make sure that it's enabled.
-        glPushAttrib(GL_DEPTH_BUFFER_BIT)
+        # Enable depth testing.
         glDepthFunc(GL_LEQUAL)
         glEnable(GL_DEPTH_TEST)
 
-        # TODO
+        # Render the mesh itself.
         self.__mesh.render()
 
-        # Restore the depth buffer to its previous state of enablement.
+        # Restore the attributes to their previous states.
         glPopAttrib()
-
-        # Disable back-face culling again.
-        glDisable(GL_CULL_FACE)
-
-        # Disable colour-based materials and lighting again.
-        glDisable(GL_COLOR_MATERIAL)
-        glDisable(GL_LIGHT1)
-        glDisable(GL_LIGHT0)
-        glDisable(GL_LIGHTING)
 
     def render_to_image(self, world_from_camera: np.ndarray, image_size: Tuple[int, int],
                         intrinsics: Tuple[float, float, float, float]) -> np.ndarray:
