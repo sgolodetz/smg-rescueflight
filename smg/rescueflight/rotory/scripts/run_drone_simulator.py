@@ -8,6 +8,7 @@ import pygame
 
 import sys
 
+from functools import partial
 from OpenGL.GL import *
 from timeit import default_timer as timer
 from typing import Tuple
@@ -156,9 +157,9 @@ def main() -> None:
     drawer: OcTreeDrawer = OcTreeDrawer()
     drawer.set_color_mode(CM_COLOR_HEIGHT)
 
-    rendering_voxel_size: float = 0.05
-    rendering_tree: OcTree = OcTree(rendering_voxel_size)
-    rendering_tree.read_binary("C:/smglib/smg-mapping/output-navigation/octree5cm.bt")
+    scene_voxel_size: float = 0.05
+    scene_octree: OcTree = OcTree(scene_voxel_size)
+    scene_octree.read_binary("C:/smglib/smg-mapping/output-navigation/octree5cm.bt")
 
     # Construct the camera controller.
     camera_controller: KeyboardCameraController = KeyboardCameraController(
@@ -167,88 +168,90 @@ def main() -> None:
 
     # Construct the image renderer.
     with OpenGLImageRenderer() as image_renderer:
-        # Construct the simulated drone.
-        with SimulatedDrone(
-            # image_renderer=OpenGLSceneRenderer[OpenGLTriMesh](
-            #     scene_mesh, lambda s: s.render()
-            # ).render_to_image,
-            image_renderer=OpenGLSceneRenderer[OcTree](
-                rendering_tree, lambda s: OctomapUtil.draw_octree(rendering_tree, drawer)
-            ).render_to_image,
-            image_size=(640, 480), intrinsics=intrinsics
-        ) as drone:
-            # Load in the "drone flying" sound.
-            pygame.mixer.music.load("C:/smglib/sounds/drone_flying.mp3")
+        with OpenGLSceneRenderer() as scene_renderer:
+            # Construct the simulated drone.
+            with SimulatedDrone(
+                image_renderer=partial(
+                    OpenGLSceneRenderer.render_to_image, scene_renderer, scene_mesh, lambda s: s.render()
+                ),
+                # image_renderer=partial(
+                #     OpenGLSceneRenderer.render_to_image, scene_renderer, scene_octree,
+                #     lambda s: OctomapUtil.draw_octree(scene_octree, drawer)
+                # ),
+                image_size=(640, 480), intrinsics=intrinsics
+            ) as drone:
+                # Load in the "drone flying" sound.
+                pygame.mixer.music.load("C:/smglib/sounds/drone_flying.mp3")
 
-            # Prevent the drone's gimbal from being moved until we're ready.
-            can_move_gimbal: bool = False
+                # Prevent the drone's gimbal from being moved until we're ready.
+                can_move_gimbal: bool = False
 
-            # Stop when both Button 0 and Button 1 on the Futaba T6K are set to their "released" state.
-            while joystick.get_button(0) != 0 or joystick.get_button(1) != 0:
-                # Process any PyGame events.
-                for event in pygame.event.get():
-                    if event.type == pygame.JOYBUTTONDOWN:
-                        # If Button 0 on the Futaba T6K is set to its "pressed" state:
-                        if event.button == 0:
-                            # Start playing the "drone flying" sound.
-                            if drone.get_state() == SimulatedDrone.IDLE:
-                                pygame.mixer.music.play(loops=-1)
+                # Stop when both Button 0 and Button 1 on the Futaba T6K are set to their "released" state.
+                while joystick.get_button(0) != 0 or joystick.get_button(1) != 0:
+                    # Process any PyGame events.
+                    for event in pygame.event.get():
+                        if event.type == pygame.JOYBUTTONDOWN:
+                            # If Button 0 on the Futaba T6K is set to its "pressed" state:
+                            if event.button == 0:
+                                # Start playing the "drone flying" sound.
+                                if drone.get_state() == SimulatedDrone.IDLE:
+                                    pygame.mixer.music.play(loops=-1)
 
-                            # Take off.
-                            drone.takeoff()
-                    elif event.type == pygame.JOYBUTTONUP:
-                        # If Button 0 on the Futaba T6K is set to its "released" state, land.
-                        if event.button == 0:
-                            drone.land()
-                    elif event.type == pygame.QUIT:
-                        # If the user wants us to quit, do so.
-                        pygame.quit()
-                        sys.exit(0)
+                                # Take off.
+                                drone.takeoff()
+                        elif event.type == pygame.JOYBUTTONUP:
+                            # If Button 0 on the Futaba T6K is set to its "released" state, land.
+                            if event.button == 0:
+                                drone.land()
+                        elif event.type == pygame.QUIT:
+                            # If the user wants us to quit, do so.
+                            pygame.quit()
+                            sys.exit(0)
 
-                # If the drone is in the idle state, stop the "drone flying" sound.
-                if drone.get_state() == SimulatedDrone.IDLE:
-                    pygame.mixer.music.stop()
+                    # If the drone is in the idle state, stop the "drone flying" sound.
+                    if drone.get_state() == SimulatedDrone.IDLE:
+                        pygame.mixer.music.stop()
 
-                # Update the movement of the drone based on the pitch, roll and yaw values output by the Futaba T6K.
-                drone.move_forward(joystick.get_pitch())
-                drone.turn(joystick.get_yaw())
+                    # Update the movement of the drone based on the pitch, roll and yaw values output by the Futaba T6K.
+                    drone.move_forward(joystick.get_pitch())
+                    drone.turn(joystick.get_yaw())
 
-                if joystick.get_button(1) == 0:
-                    drone.move_right(0)
-                    drone.move_up(joystick.get_roll())
-                else:
-                    drone.move_right(joystick.get_roll())
-                    drone.move_up(0)
+                    if joystick.get_button(1) == 0:
+                        drone.move_right(0)
+                        drone.move_up(joystick.get_roll())
+                    else:
+                        drone.move_right(joystick.get_roll())
+                        drone.move_up(0)
 
-                # If the throttle goes above half-way, enable movement of the drone's gimbal from now on.
-                throttle: float = joystick.get_throttle()
-                if throttle >= 0.5:
-                    can_move_gimbal = True
+                    # If the throttle goes above half-way, enable movement of the drone's gimbal from now on.
+                    throttle: float = joystick.get_throttle()
+                    if throttle >= 0.5:
+                        can_move_gimbal = True
 
-                # If the drone's gimbal can be moved, update its pitch based on the current value of the throttle.
-                # Note that the throttle value is in [0,1], so we rescale it to a value in [-1,1] as a first step.
-                if can_move_gimbal:
-                    drone.update_gimbal_pitch(2 * (joystick.get_throttle() - 0.5))
+                    # If the drone's gimbal can be moved, update its pitch based on the current value of the throttle.
+                    # Note that the throttle value is in [0,1], so we rescale it to a value in [-1,1] as a first step.
+                    if can_move_gimbal:
+                        drone.update_gimbal_pitch(2 * (joystick.get_throttle() - 0.5))
 
-                # Get the drone's image and poses.
-                drone_image, drone_camera_w_t_c, drone_chassis_w_t_c = drone.get_image_and_poses()
+                    # Get the drone's image and poses.
+                    drone_image, drone_camera_w_t_c, drone_chassis_w_t_c = drone.get_image_and_poses()
 
-                # Allow the user to control the free-view camera.
-                camera_controller.update(pygame.key.get_pressed(), timer() * 1000)
+                    # Allow the user to control the free-view camera.
+                    camera_controller.update(pygame.key.get_pressed(), timer() * 1000)
 
-                # Render the contents of the window.
-                render_window(
-                    drone_chassis_w_t_c=drone_chassis_w_t_c,
-                    drone_image=drone_image,
-                    drone_mesh=drone_mesh,
-                    image_renderer=image_renderer,
-                    intrinsics=intrinsics,
-                    octree=rendering_tree,
-                    octree_drawer=drawer,
-                    scene_mesh=scene_mesh,
-                    viewing_pose=camera_controller.get_pose(),
-                    window_size=window_size
-                )
+                    # Render the contents of the window.
+                    render_window(
+                        drone_chassis_w_t_c=drone_chassis_w_t_c,
+                        drone_image=drone_image,
+                        drone_mesh=drone_mesh,
+                        image_renderer=image_renderer,
+                        intrinsics=intrinsics,
+                        octree=scene_octree,
+                        octree_drawer=drawer,
+                        scene_mesh=scene_mesh,
+                        viewing_pose=camera_controller.get_pose(),
+                        window_size=window_size
+                    )
 
 
 if __name__ == "__main__":
