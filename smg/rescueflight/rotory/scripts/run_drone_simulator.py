@@ -21,33 +21,46 @@ from smg.rotory.drones import SimulatedDrone
 from smg.utility import ImageUtil
 
 
-class MeshRenderer:
-    """A simple OpenGL renderer that can render a triangle mesh either to the screen or to an image."""
+class OpenGLMeshRenderer:
+    """TODO"""
 
     # CONSTRUCTOR
 
-    def __init__(self, mesh: TriangleMesh, *, light_dirs: Optional[List[np.ndarray]] = None):
-        """
-        Construct an OpenGL renderer for a triangle mesh.
-
-        :param mesh:        The triangle mesh.
-        :param light_dirs:  The directions from which to light the mesh with directional lights.
-        """
+    def __init__(self):
+        """TODO"""
         self.__framebuffer = None  # type: Optional[OpenGLFrameBuffer]
-        self.__mesh = mesh         # type: TriangleMesh
 
-        if light_dirs is None:
-            pos = np.array([0.0, -2.0, -1.0, 0.0])  # type: np.ndarray
-            self.__light_dirs = [pos, -pos]         # type: List[np.ndarray]
-        elif len(light_dirs) <= 8:
-            self.__light_dirs = light_dirs          # type: List[np.ndarray]
-        else:
-            raise RuntimeError("At most 8 light directions can be specified")
+    # DESTRUCTOR
+
+    def __del__(self):
+        """Destroy the renderer."""
+        self.terminate()
+
+    # SPECIAL METHODS
+
+    def __enter__(self):
+        """No-op (needed to allow the renderer's lifetime to be managed by a with statement)."""
+        return self
+
+    def __exit__(self, exception_type, exception_value, traceback):
+        """Destroy the renderer at the end of the with statement that's used to manage its lifetime."""
+        self.terminate()
 
     # PUBLIC METHODS
 
-    def render(self) -> None:
-        """Render the mesh."""
+    def render(self, mesh: TriangleMesh, *, light_dirs: Optional[List[np.ndarray]] = None) -> None:
+        """
+        Render the specified mesh with the specified directional lighting.
+
+        :param mesh:        The mesh to render.
+        :param light_dirs:  The directions from which to light the mesh with directional lights.
+        """
+        if light_dirs is None:
+            pos = np.array([0.0, -2.0, -1.0, 0.0])  # type: np.ndarray
+            light_dirs = [pos, -pos]
+        elif len(light_dirs) > 8:
+            raise RuntimeError("At most 8 light directions can be specified")
+
         # Save various attributes so that they can be restored later.
         glPushAttrib(GL_DEPTH_BUFFER_BIT | GL_ENABLE_BIT | GL_LIGHTING_BIT)
 
@@ -55,12 +68,12 @@ class MeshRenderer:
         glEnable(GL_LIGHTING)
 
         # Set up the directional lights.
-        for i in range(len(self.__light_dirs)):
+        for i in range(len(light_dirs)):
             light_idx = GL_LIGHT0 + i  # type: int
             glEnable(light_idx)
             glLightfv(light_idx, GL_DIFFUSE, np.array([1, 1, 1, 1]))
             glLightfv(light_idx, GL_SPECULAR, np.array([1, 1, 1, 1]))
-            glLightfv(light_idx, GL_POSITION, self.__light_dirs[i])
+            glLightfv(light_idx, GL_POSITION, light_dirs[i])
 
         # Enable colour-based materials (i.e. let material properties be defined by glColor).
         glEnable(GL_COLOR_MATERIAL)
@@ -74,17 +87,20 @@ class MeshRenderer:
         glEnable(GL_DEPTH_TEST)
 
         # Render the mesh itself.
-        self.__mesh.render()
+        mesh.render()
 
         # Restore the attributes to their previous states.
         glPopAttrib()
 
-    def render_to_image(self, world_from_camera: np.ndarray, image_size: Tuple[int, int],
-                        intrinsics: Tuple[float, float, float, float]) -> np.ndarray:
-        # If the OpenGL framebuffer hasn't been constructed yet, construct it now.
-        # FIXME: Support image size changes.
+    def render_to_image(self, mesh: TriangleMesh, world_from_camera: np.ndarray,
+                        image_size: Tuple[int, int], intrinsics: Tuple[float, float, float, float],
+                        *, light_dirs: Optional[List[np.ndarray]] = None) -> np.ndarray:
+        # Make sure the OpenGL frame buffer has been constructed and has the right size.
         width, height = image_size
         if self.__framebuffer is None:
+            self.__framebuffer = OpenGLFrameBuffer(width, height)
+        elif width != self.__framebuffer.width or height != self.__framebuffer.height:
+            self.__framebuffer.terminate()
             self.__framebuffer = OpenGLFrameBuffer(width, height)
 
         # TODO
@@ -104,8 +120,33 @@ class MeshRenderer:
                 with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.load_matrix(
                     CameraPoseConverter.pose_to_modelview(np.linalg.inv(world_from_camera))
                 )):
-                    self.render()
+                    self.render(mesh, light_dirs=light_dirs)
                     return OpenGLUtil.read_bgr_image(width, height)
+
+    def terminate(self) -> None:
+        if self.__framebuffer is not None:
+            self.__framebuffer.terminate()
+            self.__framebuffer = None
+
+
+class PrespecifiedMeshRenderer:
+    """TODO"""
+
+    # CONSTRUCTOR
+
+    def __init__(self, mesh: TriangleMesh, mesh_renderer: Optional[OpenGLMeshRenderer] = None, *,
+                 light_dirs: Optional[List[np.ndarray]] = None):
+        self.__light_dirs: Optional[List[np.ndarray]] = light_dirs
+        self.__mesh: TriangleMesh = mesh
+        self.__mesh_renderer: OpenGLMeshRenderer = mesh_renderer if mesh_renderer is not None else OpenGLMeshRenderer()
+
+    # PUBLIC METHODS
+
+    def render_to_image(self, world_from_camera: np.ndarray, image_size: Tuple[int, int],
+                        intrinsics: Tuple[float, float, float, float]) -> np.ndarray:
+        return self.__mesh_renderer.render_to_image(
+            self.__mesh, world_from_camera, image_size, intrinsics, light_dirs=self.__light_dirs
+        )
 
 
 # noinspection PyArgumentList
@@ -128,26 +169,25 @@ def load_tello_mesh(filename: str) -> o3d.geometry.TriangleMesh:
     return mesh
 
 
-def make_mesh_renderer(o3d_mesh: o3d.geometry.TriangleMesh) -> MeshRenderer:
+def make_opengl_mesh(o3d_mesh: o3d.geometry.TriangleMesh) -> TriangleMesh:
     """
-    Make an OpenGL mesh renderer from an Open3D triangle mesh.
+    Make an OpenGL mesh from an Open3D triangle mesh.
 
     :param o3d_mesh:    The Open3D triangle mesh.
-    :return:            The OpenGL mesh renderer.
+    :return:            The OpenGL mesh.
     """
     o3d_mesh.compute_vertex_normals(True)
-    mesh: TriangleMesh = TriangleMesh(
+    return TriangleMesh(
         np.asarray(o3d_mesh.vertices),
         np.asarray(o3d_mesh.vertex_colors),
         np.asarray(o3d_mesh.triangles),
         vertex_normals=np.asarray(o3d_mesh.vertex_normals)
     )
-    return MeshRenderer(mesh)
 
 
 def render_window(*, drone_image: np.ndarray, drone_chassis_w_t_c: np.ndarray, image_renderer: OpenGLImageRenderer,
-                  intrinsics: Tuple[float, float, float, float], scene_mesh_renderer: MeshRenderer,
-                  tello_mesh_renderer: MeshRenderer, viewing_pose: np.ndarray, window_size: Tuple[int, int]) -> None:
+                  intrinsics: Tuple[float, float, float, float], mesh_renderer: OpenGLMeshRenderer, scene_mesh: TriangleMesh,
+                  tello_mesh: TriangleMesh, viewing_pose: np.ndarray, window_size: Tuple[int, int]) -> None:
     """
     TODO
 
@@ -155,8 +195,9 @@ def render_window(*, drone_image: np.ndarray, drone_chassis_w_t_c: np.ndarray, i
     :param drone_chassis_w_t_c: TODO
     :param image_renderer:      TODO
     :param intrinsics:          TODO
-    :param scene_mesh_renderer: TODO
-    :param tello_mesh_renderer: TODO
+    :param mesh_renderer:       TODO
+    :param scene_mesh:          TODO
+    :param tello_mesh:          TODO
     :param viewing_pose:        TODO
     :param window_size:         TODO
     """
@@ -184,11 +225,11 @@ def render_window(*, drone_image: np.ndarray, drone_chassis_w_t_c: np.ndarray, i
             CameraRenderer.render_camera(CameraUtil.make_default_camera())
 
             # Render the mesh for the scene.
-            scene_mesh_renderer.render()
+            mesh_renderer.render(scene_mesh)
 
             # Render the mesh for the drone (at its current pose).
             with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(drone_chassis_w_t_c)):
-                tello_mesh_renderer.render()
+                mesh_renderer.render(tello_mesh)
 
     glPopAttrib()
 
@@ -231,96 +272,99 @@ def main() -> None:
     intrinsics: Tuple[float, float, float, float] = (532.5694641250893, 531.5410880910171, 320.0, 240.0)
 
     # Load in the meshes for the scene and the drone, and prepare them for rendering.
-    scene_mesh_renderer: MeshRenderer = make_mesh_renderer(
+    scene_mesh: TriangleMesh = make_opengl_mesh(
         o3d.io.read_triangle_mesh("C:/spaint/build/bin/apps/spaintgui/meshes/groundtruth-decimated.ply")
     )
 
-    tello_mesh_renderer: MeshRenderer = make_mesh_renderer(load_tello_mesh("C:/smglib/meshes/tello.ply"))
+    tello_mesh: TriangleMesh = make_opengl_mesh(load_tello_mesh("C:/smglib/meshes/tello.ply"))
 
     # Construct the camera controller.
     camera_controller: KeyboardCameraController = KeyboardCameraController(
         CameraUtil.make_default_camera(), canonical_angular_speed=0.05, canonical_linear_speed=0.025
     )
 
-    # Construct the simulated drone.
-    with SimulatedDrone(
-        image_renderer=scene_mesh_renderer.render_to_image,
-        image_size=(640, 480),
-        intrinsics=intrinsics
-    ) as drone:
-        # Construct the image renderer.
-        with OpenGLImageRenderer() as image_renderer:
-            # Load in the "drone flying" sound.
-            pygame.mixer.music.load("C:/smglib/sounds/drone_flying.mp3")
+    # Construct the image renderer.
+    with OpenGLImageRenderer() as image_renderer:
+        # Construct the mesh renderer.
+        with OpenGLMeshRenderer() as mesh_renderer:
+            # Construct the simulated drone.
+            with SimulatedDrone(
+                image_renderer=PrespecifiedMeshRenderer(scene_mesh, mesh_renderer).render_to_image,
+                image_size=(640, 480),
+                intrinsics=intrinsics
+            ) as drone:
+                # Load in the "drone flying" sound.
+                pygame.mixer.music.load("C:/smglib/sounds/drone_flying.mp3")
 
-            # Prevent the drone's gimbal from being moved until we're ready.
-            can_move_gimbal: bool = False
+                # Prevent the drone's gimbal from being moved until we're ready.
+                can_move_gimbal: bool = False
 
-            # Stop when both Button 0 and Button 1 on the Futaba T6K are set to their "released" state.
-            while joystick.get_button(0) != 0 or joystick.get_button(1) != 0:
-                # Process any PyGame events.
-                for event in pygame.event.get():
-                    if event.type == pygame.JOYBUTTONDOWN:
-                        # If Button 0 on the Futaba T6K is set to its "pressed" state:
-                        if event.button == 0:
-                            # Start playing the "drone flying" sound.
-                            if drone.get_state() == SimulatedDrone.IDLE:
-                                pygame.mixer.music.play(loops=-1)
+                # Stop when both Button 0 and Button 1 on the Futaba T6K are set to their "released" state.
+                while joystick.get_button(0) != 0 or joystick.get_button(1) != 0:
+                    # Process any PyGame events.
+                    for event in pygame.event.get():
+                        if event.type == pygame.JOYBUTTONDOWN:
+                            # If Button 0 on the Futaba T6K is set to its "pressed" state:
+                            if event.button == 0:
+                                # Start playing the "drone flying" sound.
+                                if drone.get_state() == SimulatedDrone.IDLE:
+                                    pygame.mixer.music.play(loops=-1)
 
-                            # Take off.
-                            drone.takeoff()
-                    elif event.type == pygame.JOYBUTTONUP:
-                        # If Button 0 on the Futaba T6K is set to its "released" state, land.
-                        if event.button == 0:
-                            drone.land()
-                    elif event.type == pygame.QUIT:
-                        # If the user wants us to quit, do so.
-                        pygame.quit()
-                        sys.exit(0)
+                                # Take off.
+                                drone.takeoff()
+                        elif event.type == pygame.JOYBUTTONUP:
+                            # If Button 0 on the Futaba T6K is set to its "released" state, land.
+                            if event.button == 0:
+                                drone.land()
+                        elif event.type == pygame.QUIT:
+                            # If the user wants us to quit, do so.
+                            pygame.quit()
+                            sys.exit(0)
 
-                # If the drone is in the idle state, stop the "drone flying" sound.
-                if drone.get_state() == SimulatedDrone.IDLE:
-                    pygame.mixer.music.stop()
+                    # If the drone is in the idle state, stop the "drone flying" sound.
+                    if drone.get_state() == SimulatedDrone.IDLE:
+                        pygame.mixer.music.stop()
 
-                # Update the movement of the drone based on the pitch, roll and yaw values output by the Futaba T6K.
-                drone.move_forward(joystick.get_pitch())
-                drone.turn(joystick.get_yaw())
+                    # Update the movement of the drone based on the pitch, roll and yaw values output by the Futaba T6K.
+                    drone.move_forward(joystick.get_pitch())
+                    drone.turn(joystick.get_yaw())
 
-                if joystick.get_button(1) == 0:
-                    drone.move_right(0)
-                    drone.move_up(joystick.get_roll())
-                else:
-                    drone.move_right(joystick.get_roll())
-                    drone.move_up(0)
+                    if joystick.get_button(1) == 0:
+                        drone.move_right(0)
+                        drone.move_up(joystick.get_roll())
+                    else:
+                        drone.move_right(joystick.get_roll())
+                        drone.move_up(0)
 
-                # If the throttle goes above half-way, enable movement of the drone's gimbal from now on.
-                throttle: float = joystick.get_throttle()
-                if throttle >= 0.5:
-                    can_move_gimbal = True
+                    # If the throttle goes above half-way, enable movement of the drone's gimbal from now on.
+                    throttle: float = joystick.get_throttle()
+                    if throttle >= 0.5:
+                        can_move_gimbal = True
 
-                # If the drone's gimbal can be moved, update its pitch based on the current value of the throttle.
-                # Note that the throttle value is in [0,1], so we rescale it to a value in [-1,1] as a first step.
-                if can_move_gimbal:
-                    drone.update_gimbal_pitch(2 * (joystick.get_throttle() - 0.5))
+                    # If the drone's gimbal can be moved, update its pitch based on the current value of the throttle.
+                    # Note that the throttle value is in [0,1], so we rescale it to a value in [-1,1] as a first step.
+                    if can_move_gimbal:
+                        drone.update_gimbal_pitch(2 * (joystick.get_throttle() - 0.5))
 
-                # Get the drone's image and poses, and print out the pose of its camera.
-                drone_image, drone_camera_w_t_c, drone_chassis_w_t_c = drone.get_image_and_poses()
-                print(drone_camera_w_t_c)
+                    # Get the drone's image and poses, and print out the pose of its camera.
+                    drone_image, drone_camera_w_t_c, drone_chassis_w_t_c = drone.get_image_and_poses()
+                    print(drone_camera_w_t_c)
 
-                # Allow the user to control the camera.
-                camera_controller.update(pygame.key.get_pressed(), timer() * 1000)
+                    # Allow the user to control the camera.
+                    camera_controller.update(pygame.key.get_pressed(), timer() * 1000)
 
-                # Render the contents of the window.
-                render_window(
-                    drone_image=drone_image,
-                    drone_chassis_w_t_c=drone_chassis_w_t_c,
-                    image_renderer=image_renderer,
-                    intrinsics=intrinsics,
-                    scene_mesh_renderer=scene_mesh_renderer,
-                    tello_mesh_renderer=tello_mesh_renderer,
-                    viewing_pose=camera_controller.get_pose(),
-                    window_size=window_size
-                )
+                    # Render the contents of the window.
+                    render_window(
+                        drone_image=drone_image,
+                        drone_chassis_w_t_c=drone_chassis_w_t_c,
+                        image_renderer=image_renderer,
+                        intrinsics=intrinsics,
+                        mesh_renderer=mesh_renderer,
+                        scene_mesh=scene_mesh,
+                        tello_mesh=tello_mesh,
+                        viewing_pose=camera_controller.get_pose(),
+                        window_size=window_size
+                    )
 
 
 if __name__ == "__main__":
