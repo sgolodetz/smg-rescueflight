@@ -15,6 +15,7 @@ from typing import Tuple
 from smg.joysticks import FutabaT6K
 from smg.opengl import CameraRenderer, OpenGLImageRenderer, OpenGLMatrixContext, OpenGLPrespecifiedTriMeshRenderer
 from smg.opengl import OpenGLTriMesh, OpenGLTriMeshRenderer, OpenGLUtil
+from smg.pyoctomap import CM_COLOR_HEIGHT, OctomapUtil, OcTree, OcTreeDrawer, PrespecifiedOctreeRenderer
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
 from smg.rotory.drones import SimulatedDrone
@@ -60,7 +61,7 @@ def load_tello_mesh(filename: str) -> o3d.geometry.TriangleMesh:
 def render_window(*, drone_chassis_w_t_c: np.ndarray, drone_image: np.ndarray, drone_mesh: OpenGLTriMesh,
                   image_renderer: OpenGLImageRenderer, intrinsics: Tuple[float, float, float, float],
                   mesh_renderer: OpenGLTriMeshRenderer, scene_mesh: OpenGLTriMesh, viewing_pose: np.ndarray,
-                  window_size: Tuple[int, int]) -> None:
+                  window_size: Tuple[int, int], octree: OcTree, octree_drawer: OcTreeDrawer) -> None:
     """
     Render the application window.
 
@@ -98,7 +99,8 @@ def render_window(*, drone_chassis_w_t_c: np.ndarray, drone_image: np.ndarray, d
             CameraRenderer.render_camera(CameraUtil.make_default_camera())
 
             # Render the mesh for the scene.
-            mesh_renderer.render(scene_mesh)
+            # mesh_renderer.render(scene_mesh)
+            OctomapUtil.draw_octree(octree, octree_drawer)
 
             # Render the mesh for the drone (at its current pose).
             with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(drone_chassis_w_t_c)):
@@ -151,6 +153,14 @@ def main() -> None:
 
     drone_mesh: OpenGLTriMesh = convert_trimesh_to_opengl(load_tello_mesh("C:/smglib/meshes/tello.ply"))
 
+    # TODO
+    drawer: OcTreeDrawer = OcTreeDrawer()
+    drawer.set_color_mode(CM_COLOR_HEIGHT)
+
+    rendering_voxel_size: float = 0.05
+    rendering_tree: OcTree = OcTree(rendering_voxel_size)
+    rendering_tree.read_binary("C:/smglib/smg-mapping/output-navigation/octree5cm.bt")
+
     # Construct the camera controller.
     camera_controller: KeyboardCameraController = KeyboardCameraController(
         CameraUtil.make_default_camera(), canonical_angular_speed=0.05, canonical_linear_speed=0.025
@@ -162,7 +172,8 @@ def main() -> None:
         with OpenGLTriMeshRenderer() as mesh_renderer:
             # Construct the simulated drone.
             with SimulatedDrone(
-                image_renderer=OpenGLPrespecifiedTriMeshRenderer(scene_mesh, mesh_renderer).render_to_image,
+                # image_renderer=OpenGLPrespecifiedTriMeshRenderer(scene_mesh, mesh_renderer).render_to_image,
+                image_renderer=PrespecifiedOctreeRenderer(rendering_tree, drawer).render_to_image,
                 image_size=(640, 480), intrinsics=intrinsics
             ) as drone:
                 # Load in the "drone flying" sound.
@@ -232,6 +243,8 @@ def main() -> None:
                         image_renderer=image_renderer,
                         intrinsics=intrinsics,
                         mesh_renderer=mesh_renderer,
+                        octree=rendering_tree,
+                        octree_drawer=drawer,
                         scene_mesh=scene_mesh,
                         viewing_pose=camera_controller.get_pose(),
                         window_size=window_size
