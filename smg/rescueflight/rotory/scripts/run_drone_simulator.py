@@ -11,7 +11,7 @@ import sys
 from functools import partial
 from OpenGL.GL import *
 from timeit import default_timer as timer
-from typing import Tuple
+from typing import Callable, Tuple, TypeVar
 
 from smg.joysticks import FutabaT6K
 from smg.opengl import CameraRenderer, OpenGLImageRenderer, OpenGLMatrixContext
@@ -22,6 +22,13 @@ from smg.rigging.helpers import CameraPoseConverter, CameraUtil
 from smg.rotory.drones import SimulatedDrone
 from smg.utility import ImageUtil
 
+
+# TYPE VARIABLE
+
+Scene = TypeVar('Scene')
+
+
+# FUNCTIONS
 
 def convert_trimesh_to_opengl(o3d_mesh: o3d.geometry.TriangleMesh) -> OpenGLTriMesh:
     """
@@ -61,8 +68,7 @@ def load_tello_mesh(filename: str) -> o3d.geometry.TriangleMesh:
 
 def render_window(*, drone_chassis_w_t_c: np.ndarray, drone_image: np.ndarray, drone_mesh: OpenGLTriMesh,
                   image_renderer: OpenGLImageRenderer, intrinsics: Tuple[float, float, float, float],
-                  scene_mesh: OpenGLTriMesh, viewing_pose: np.ndarray, window_size: Tuple[int, int],
-                  octree: OcTree, octree_drawer: OcTreeDrawer) -> None:
+                  render_scene: Callable[[], None], viewing_pose: np.ndarray, window_size: Tuple[int, int]) -> None:
     """
     Render the application window.
 
@@ -71,7 +77,7 @@ def render_window(*, drone_chassis_w_t_c: np.ndarray, drone_image: np.ndarray, d
     :param drone_mesh:          The drone mesh.
     :param image_renderer:      An OpenGL-based image renderer.
     :param intrinsics:          The camera intrinsics.
-    :param scene_mesh:          The scene mesh.
+    :param render_scene:        TODO
     :param viewing_pose:        The pose from which the scene is being viewed.
     :param window_size:         The application window size, as a (width, height) tuple.
     """
@@ -98,9 +104,8 @@ def render_window(*, drone_chassis_w_t_c: np.ndarray, drone_image: np.ndarray, d
             # Render coordinate axes.
             CameraRenderer.render_camera(CameraUtil.make_default_camera())
 
-            # Render the mesh for the scene.
-            # mesh_renderer.render(scene_mesh)
-            OctomapUtil.draw_octree(octree, octree_drawer)
+            # Render the scene.
+            render_scene()
 
             # Render the mesh for the drone (at its current pose).
             with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(drone_chassis_w_t_c)):
@@ -246,9 +251,10 @@ def main() -> None:
                         drone_mesh=drone_mesh,
                         image_renderer=image_renderer,
                         intrinsics=intrinsics,
-                        octree=scene_octree,
-                        octree_drawer=drawer,
-                        scene_mesh=scene_mesh,
+                        # render_scene=lambda: OpenGLSceneRenderer.render(scene_mesh, lambda s: s.render()),
+                        render_scene=lambda: OpenGLSceneRenderer.render(
+                            scene_octree, lambda s: OctomapUtil.draw_octree(s, drawer)
+                        ),
                         viewing_pose=camera_controller.get_pose(),
                         window_size=window_size
                     )
