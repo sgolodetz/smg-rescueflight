@@ -10,35 +10,31 @@ import sys
 
 from OpenGL.GL import *
 from timeit import default_timer as timer
-from typing import List, Optional, Tuple
+from typing import Tuple
 
 from smg.joysticks import FutabaT6K
-from smg.opengl import CameraRenderer, OpenGLMatrixContext, OpenGLMeshRenderer, OpenGLImageRenderer, OpenGLUtil
-from smg.opengl import TriangleMesh
+from smg.opengl import CameraRenderer, OpenGLImageRenderer, OpenGLMatrixContext, OpenGLMeshRenderer
+from smg.opengl import OpenGLPrespecifiedMeshRenderer, OpenGLTriangleMesh, OpenGLUtil
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
 from smg.rotory.drones import SimulatedDrone
 from smg.utility import ImageUtil
 
 
-class PrespecifiedMeshRenderer:
-    """TODO"""
+def convert_trimesh_to_opengl(o3d_mesh: o3d.geometry.TriangleMesh) -> OpenGLTriangleMesh:
+    """
+    Convert an Open3D triangle mesh to an OpenGL one.
 
-    # CONSTRUCTOR
-
-    def __init__(self, mesh: TriangleMesh, mesh_renderer: Optional[OpenGLMeshRenderer] = None, *,
-                 light_dirs: Optional[List[np.ndarray]] = None):
-        self.__light_dirs: Optional[List[np.ndarray]] = light_dirs
-        self.__mesh: TriangleMesh = mesh
-        self.__mesh_renderer: OpenGLMeshRenderer = mesh_renderer if mesh_renderer is not None else OpenGLMeshRenderer()
-
-    # PUBLIC METHODS
-
-    def render_to_image(self, world_from_camera: np.ndarray, image_size: Tuple[int, int],
-                        intrinsics: Tuple[float, float, float, float]) -> np.ndarray:
-        return self.__mesh_renderer.render_to_image(
-            self.__mesh, world_from_camera, image_size, intrinsics, light_dirs=self.__light_dirs
-        )
+    :param o3d_mesh:    The Open3D triangle mesh.
+    :return:            The OpenGL mesh.
+    """
+    o3d_mesh.compute_vertex_normals(True)
+    return OpenGLTriangleMesh(
+        np.asarray(o3d_mesh.vertices),
+        np.asarray(o3d_mesh.vertex_colors),
+        np.asarray(o3d_mesh.triangles),
+        vertex_normals=np.asarray(o3d_mesh.vertex_normals)
+    )
 
 
 # noinspection PyArgumentList
@@ -61,25 +57,10 @@ def load_tello_mesh(filename: str) -> o3d.geometry.TriangleMesh:
     return mesh
 
 
-def make_opengl_mesh(o3d_mesh: o3d.geometry.TriangleMesh) -> TriangleMesh:
-    """
-    Make an OpenGL mesh from an Open3D triangle mesh.
-
-    :param o3d_mesh:    The Open3D triangle mesh.
-    :return:            The OpenGL mesh.
-    """
-    o3d_mesh.compute_vertex_normals(True)
-    return TriangleMesh(
-        np.asarray(o3d_mesh.vertices),
-        np.asarray(o3d_mesh.vertex_colors),
-        np.asarray(o3d_mesh.triangles),
-        vertex_normals=np.asarray(o3d_mesh.vertex_normals)
-    )
-
-
 def render_window(*, drone_image: np.ndarray, drone_chassis_w_t_c: np.ndarray, image_renderer: OpenGLImageRenderer,
-                  intrinsics: Tuple[float, float, float, float], mesh_renderer: OpenGLMeshRenderer, scene_mesh: TriangleMesh,
-                  tello_mesh: TriangleMesh, viewing_pose: np.ndarray, window_size: Tuple[int, int]) -> None:
+                  intrinsics: Tuple[float, float, float, float], mesh_renderer: OpenGLMeshRenderer,
+                  scene_mesh: OpenGLTriangleMesh, tello_mesh: OpenGLTriangleMesh, viewing_pose: np.ndarray,
+                  window_size: Tuple[int, int]) -> None:
     """
     TODO
 
@@ -164,11 +145,11 @@ def main() -> None:
     intrinsics: Tuple[float, float, float, float] = (532.5694641250893, 531.5410880910171, 320.0, 240.0)
 
     # Load in the meshes for the scene and the drone, and prepare them for rendering.
-    scene_mesh: TriangleMesh = make_opengl_mesh(
+    scene_mesh: OpenGLTriangleMesh = convert_trimesh_to_opengl(
         o3d.io.read_triangle_mesh("C:/spaint/build/bin/apps/spaintgui/meshes/groundtruth-decimated.ply")
     )
 
-    tello_mesh: TriangleMesh = make_opengl_mesh(load_tello_mesh("C:/smglib/meshes/tello.ply"))
+    tello_mesh: OpenGLTriangleMesh = convert_trimesh_to_opengl(load_tello_mesh("C:/smglib/meshes/tello.ply"))
 
     # Construct the camera controller.
     camera_controller: KeyboardCameraController = KeyboardCameraController(
@@ -181,7 +162,7 @@ def main() -> None:
         with OpenGLMeshRenderer() as mesh_renderer:
             # Construct the simulated drone.
             with SimulatedDrone(
-                image_renderer=PrespecifiedMeshRenderer(scene_mesh, mesh_renderer).render_to_image,
+                image_renderer=OpenGLPrespecifiedMeshRenderer(scene_mesh, mesh_renderer).render_to_image,
                 image_size=(640, 480),
                 intrinsics=intrinsics
             ) as drone:
