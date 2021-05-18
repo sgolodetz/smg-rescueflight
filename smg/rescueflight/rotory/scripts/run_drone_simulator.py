@@ -57,22 +57,22 @@ def load_tello_mesh(filename: str) -> o3d.geometry.TriangleMesh:
     return mesh
 
 
-def render_window(*, drone_image: np.ndarray, drone_chassis_w_t_c: np.ndarray, image_renderer: OpenGLImageRenderer,
-                  intrinsics: Tuple[float, float, float, float], mesh_renderer: OpenGLTriMeshRenderer,
-                  scene_mesh: OpenGLTriMesh, tello_mesh: OpenGLTriMesh, viewing_pose: np.ndarray,
+def render_window(*, drone_chassis_w_t_c: np.ndarray, drone_image: np.ndarray, drone_mesh: OpenGLTriMesh,
+                  image_renderer: OpenGLImageRenderer, intrinsics: Tuple[float, float, float, float],
+                  mesh_renderer: OpenGLTriMeshRenderer, scene_mesh: OpenGLTriMesh, viewing_pose: np.ndarray,
                   window_size: Tuple[int, int]) -> None:
     """
-    TODO
+    Render the application window.
 
-    :param drone_image:         TODO
-    :param drone_chassis_w_t_c: TODO
-    :param image_renderer:      TODO
-    :param intrinsics:          TODO
-    :param mesh_renderer:       TODO
-    :param scene_mesh:          TODO
-    :param tello_mesh:          TODO
-    :param viewing_pose:        TODO
-    :param window_size:         TODO
+    :param drone_chassis_w_t_c: The pose of the drone's chassis.
+    :param drone_image:         The most recent image from the drone.
+    :param drone_mesh:          The drone mesh.
+    :param image_renderer:      An OpenGL-based image renderer.
+    :param intrinsics:          The camera intrinsics.
+    :param mesh_renderer:       An OpenGL-based mesh renderer.
+    :param scene_mesh:          The scene mesh.
+    :param viewing_pose:        The pose from which the scene is being viewed.
+    :param window_size:         The application window size, as a (width, height) tuple.
     """
     # Clear the window.
     OpenGLUtil.set_viewport((0.0, 0.0), (1.0, 1.0), window_size)
@@ -102,7 +102,7 @@ def render_window(*, drone_image: np.ndarray, drone_chassis_w_t_c: np.ndarray, i
 
             # Render the mesh for the drone (at its current pose).
             with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(drone_chassis_w_t_c)):
-                mesh_renderer.render(tello_mesh)
+                mesh_renderer.render(drone_mesh)
 
     glPopAttrib()
 
@@ -149,7 +149,7 @@ def main() -> None:
         o3d.io.read_triangle_mesh("C:/spaint/build/bin/apps/spaintgui/meshes/groundtruth-decimated.ply")
     )
 
-    tello_mesh: OpenGLTriMesh = convert_trimesh_to_opengl(load_tello_mesh("C:/smglib/meshes/tello.ply"))
+    drone_mesh: OpenGLTriMesh = convert_trimesh_to_opengl(load_tello_mesh("C:/smglib/meshes/tello.ply"))
 
     # Construct the camera controller.
     camera_controller: KeyboardCameraController = KeyboardCameraController(
@@ -228,13 +228,13 @@ def main() -> None:
 
                     # Render the contents of the window.
                     render_window(
-                        drone_image=drone_image,
                         drone_chassis_w_t_c=drone_chassis_w_t_c,
+                        drone_image=drone_image,
+                        drone_mesh=drone_mesh,
                         image_renderer=image_renderer,
                         intrinsics=intrinsics,
                         mesh_renderer=mesh_renderer,
                         scene_mesh=scene_mesh,
-                        tello_mesh=tello_mesh,
                         viewing_pose=camera_controller.get_pose(),
                         window_size=window_size
                     )
