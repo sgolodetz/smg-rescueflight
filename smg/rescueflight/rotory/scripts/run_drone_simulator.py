@@ -158,13 +158,12 @@ def main() -> None:
 
     # Construct the image renderer.
     with OpenGLImageRenderer() as image_renderer:
-        # Construct the mesh renderer.
+        # Construct the triangle mesh renderer.
         with OpenGLTriMeshRenderer() as mesh_renderer:
             # Construct the simulated drone.
             with SimulatedDrone(
                 image_renderer=OpenGLPrespecifiedTriMeshRenderer(scene_mesh, mesh_renderer).render_to_image,
-                image_size=(640, 480),
-                intrinsics=intrinsics
+                image_size=(640, 480), intrinsics=intrinsics
             ) as drone:
                 # Load in the "drone flying" sound.
                 pygame.mixer.music.load("C:/smglib/sounds/drone_flying.mp3")
@@ -219,11 +218,10 @@ def main() -> None:
                     if can_move_gimbal:
                         drone.update_gimbal_pitch(2 * (joystick.get_throttle() - 0.5))
 
-                    # Get the drone's image and poses, and print out the pose of its camera.
+                    # Get the drone's image and poses.
                     drone_image, drone_camera_w_t_c, drone_chassis_w_t_c = drone.get_image_and_poses()
-                    print(drone_camera_w_t_c)
 
-                    # Allow the user to control the camera.
+                    # Allow the user to control the free-view camera.
                     camera_controller.update(pygame.key.get_pressed(), timer() * 1000)
 
                     # Render the contents of the window.
