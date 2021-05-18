@@ -109,7 +109,7 @@ def render_window(*, drone_chassis_w_t_c: np.ndarray, drone_image: np.ndarray, d
 
             # Render the mesh for the drone (at its current pose).
             with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(drone_chassis_w_t_c)):
-                OpenGLSceneRenderer.render(drone_mesh, lambda s: s.render())
+                OpenGLSceneRenderer.render(lambda: drone_mesh.render())
 
     glPopAttrib()
 
@@ -159,8 +159,8 @@ def main() -> None:
     drone_mesh: OpenGLTriMesh = convert_trimesh_to_opengl(load_tello_mesh("C:/smglib/meshes/tello.ply"))
 
     # TODO
-    drawer: OcTreeDrawer = OcTreeDrawer()
-    drawer.set_color_mode(CM_COLOR_HEIGHT)
+    octree_drawer: OcTreeDrawer = OcTreeDrawer()
+    octree_drawer.set_color_mode(CM_COLOR_HEIGHT)
 
     scene_voxel_size: float = 0.05
     scene_octree: OcTree = OcTree(scene_voxel_size)
@@ -176,13 +176,11 @@ def main() -> None:
         with OpenGLSceneRenderer() as scene_renderer:
             # Construct the simulated drone.
             with SimulatedDrone(
+                # image_renderer=partial(OpenGLSceneRenderer.render_to_image, scene_renderer, scene_mesh.render),
                 image_renderer=partial(
-                    OpenGLSceneRenderer.render_to_image, scene_renderer, scene_mesh, lambda s: s.render()
+                    OpenGLSceneRenderer.render_to_image, scene_renderer,
+                    lambda: OctomapUtil.draw_octree(scene_octree, octree_drawer)
                 ),
-                # image_renderer=partial(
-                #     OpenGLSceneRenderer.render_to_image, scene_renderer, scene_octree,
-                #     lambda s: OctomapUtil.draw_octree(scene_octree, drawer)
-                # ),
                 image_size=(640, 480), intrinsics=intrinsics
             ) as drone:
                 # Load in the "drone flying" sound.
@@ -251,9 +249,9 @@ def main() -> None:
                         drone_mesh=drone_mesh,
                         image_renderer=image_renderer,
                         intrinsics=intrinsics,
-                        # render_scene=lambda: OpenGLSceneRenderer.render(scene_mesh, lambda s: s.render()),
+                        # render_scene=lambda: OpenGLSceneRenderer.render(scene_mesh.render),
                         render_scene=lambda: OpenGLSceneRenderer.render(
-                            scene_octree, lambda s: OctomapUtil.draw_octree(s, drawer)
+                            lambda: OctomapUtil.draw_octree(scene_octree, octree_drawer)
                         ),
                         viewing_pose=camera_controller.get_pose(),
                         window_size=window_size
