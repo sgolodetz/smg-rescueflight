@@ -13,7 +13,7 @@ from timeit import default_timer as timer
 from typing import Tuple
 
 from smg.joysticks import FutabaT6K
-from smg.opengl import CameraRenderer, OpenGLImageRenderer, OpenGLMatrixContext, OpenGLPrespecifiedTriMeshRenderer
+from smg.opengl import CameraRenderer, OpenGLImageRenderer, OpenGLMatrixContext, OpenGLPrespecifiedSceneRenderer
 from smg.opengl import OpenGLTriMesh, OpenGLTriMeshRenderer, OpenGLUtil
 from smg.pyoctomap import CM_COLOR_HEIGHT, OctomapUtil, OcTree, OcTreeDrawer, PrespecifiedOctreeRenderer
 from smg.rigging.controllers import KeyboardCameraController
@@ -172,8 +172,13 @@ def main() -> None:
         with OpenGLTriMeshRenderer() as mesh_renderer:
             # Construct the simulated drone.
             with SimulatedDrone(
-                # image_renderer=OpenGLPrespecifiedTriMeshRenderer(scene_mesh, mesh_renderer).render_to_image,
-                image_renderer=PrespecifiedOctreeRenderer(rendering_tree, drawer).render_to_image,
+                # image_renderer=OpenGLPrespecifiedSceneRenderer[OpenGLTriMesh](
+                #     scene_mesh, lambda s: s.render()  #, mesh_renderer
+                # ).render_to_image,
+                image_renderer=OpenGLPrespecifiedSceneRenderer[OcTree](
+                    rendering_tree, lambda s: OctomapUtil.draw_octree(rendering_tree, drawer)
+                ).render_to_image,
+                # image_renderer=PrespecifiedOctreeRenderer(rendering_tree, drawer).render_to_image,
                 image_size=(640, 480), intrinsics=intrinsics
             ) as drone:
                 # Load in the "drone flying" sound.
