@@ -14,8 +14,8 @@ from typing import Tuple
 
 from smg.joysticks import FutabaT6K
 from smg.opengl import CameraRenderer, OpenGLImageRenderer, OpenGLMatrixContext, OpenGLPrespecifiedSceneRenderer
-from smg.opengl import OpenGLTriMesh, OpenGLTriMeshRenderer, OpenGLUtil
-from smg.pyoctomap import CM_COLOR_HEIGHT, OctomapUtil, OcTree, OcTreeDrawer, PrespecifiedOctreeRenderer
+from smg.opengl import OpenGLSceneRenderer, OpenGLTriMesh, OpenGLUtil
+from smg.pyoctomap import CM_COLOR_HEIGHT, OctomapUtil, OcTree, OcTreeDrawer
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
 from smg.rotory.drones import SimulatedDrone
@@ -60,7 +60,7 @@ def load_tello_mesh(filename: str) -> o3d.geometry.TriangleMesh:
 
 def render_window(*, drone_chassis_w_t_c: np.ndarray, drone_image: np.ndarray, drone_mesh: OpenGLTriMesh,
                   image_renderer: OpenGLImageRenderer, intrinsics: Tuple[float, float, float, float],
-                  mesh_renderer: OpenGLTriMeshRenderer, scene_mesh: OpenGLTriMesh, viewing_pose: np.ndarray,
+                  scene_mesh: OpenGLTriMesh, scene_renderer: OpenGLSceneRenderer, viewing_pose: np.ndarray,
                   window_size: Tuple[int, int], octree: OcTree, octree_drawer: OcTreeDrawer) -> None:
     """
     Render the application window.
@@ -70,8 +70,8 @@ def render_window(*, drone_chassis_w_t_c: np.ndarray, drone_image: np.ndarray, d
     :param drone_mesh:          The drone mesh.
     :param image_renderer:      An OpenGL-based image renderer.
     :param intrinsics:          The camera intrinsics.
-    :param mesh_renderer:       An OpenGL-based mesh renderer.
     :param scene_mesh:          The scene mesh.
+    :param scene_renderer:      An OpenGL-based scene renderer.
     :param viewing_pose:        The pose from which the scene is being viewed.
     :param window_size:         The application window size, as a (width, height) tuple.
     """
@@ -104,7 +104,7 @@ def render_window(*, drone_chassis_w_t_c: np.ndarray, drone_image: np.ndarray, d
 
             # Render the mesh for the drone (at its current pose).
             with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(drone_chassis_w_t_c)):
-                mesh_renderer.render(drone_mesh)
+                scene_renderer.render(drone_mesh, lambda s: s.render())
 
     glPopAttrib()
 
@@ -168,17 +168,16 @@ def main() -> None:
 
     # Construct the image renderer.
     with OpenGLImageRenderer() as image_renderer:
-        # Construct the triangle mesh renderer.
-        with OpenGLTriMeshRenderer() as mesh_renderer:
+        # Construct the scene renderer.
+        with OpenGLSceneRenderer() as scene_renderer:
             # Construct the simulated drone.
             with SimulatedDrone(
-                # image_renderer=OpenGLPrespecifiedSceneRenderer[OpenGLTriMesh](
-                #     scene_mesh, lambda s: s.render()  #, mesh_renderer
-                # ).render_to_image,
-                image_renderer=OpenGLPrespecifiedSceneRenderer[OcTree](
-                    rendering_tree, lambda s: OctomapUtil.draw_octree(rendering_tree, drawer)
+                image_renderer=OpenGLPrespecifiedSceneRenderer[OpenGLTriMesh](
+                    scene_mesh, lambda s: s.render()
                 ).render_to_image,
-                # image_renderer=PrespecifiedOctreeRenderer(rendering_tree, drawer).render_to_image,
+                # image_renderer=OpenGLPrespecifiedSceneRenderer[OcTree](
+                #     rendering_tree, lambda s: OctomapUtil.draw_octree(rendering_tree, drawer)
+                # ).render_to_image,
                 image_size=(640, 480), intrinsics=intrinsics
             ) as drone:
                 # Load in the "drone flying" sound.
@@ -247,10 +246,10 @@ def main() -> None:
                         drone_mesh=drone_mesh,
                         image_renderer=image_renderer,
                         intrinsics=intrinsics,
-                        mesh_renderer=mesh_renderer,
                         octree=rendering_tree,
                         octree_drawer=drawer,
                         scene_mesh=scene_mesh,
+                        scene_renderer=scene_renderer,
                         viewing_pose=camera_controller.get_pose(),
                         window_size=window_size
                     )
