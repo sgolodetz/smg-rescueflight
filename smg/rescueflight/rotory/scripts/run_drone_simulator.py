@@ -8,6 +8,7 @@ import pygame
 
 import sys
 
+from argparse import ArgumentParser
 from functools import partial
 from OpenGL.GL import *
 from timeit import default_timer as timer
@@ -122,6 +123,22 @@ def render_window(*, drone_chassis_w_t_c: np.ndarray, drone_image: np.ndarray, d
 
 
 def main() -> None:
+    # Parse any command-line arguments.
+    parser = ArgumentParser()
+    parser.add_argument(
+        "--planning_octree", type=str,
+        help="the name of the planning octree file"
+    )
+    parser.add_argument(
+        "--scene_mesh", type=str,
+        help="the name of the scene mesh file"
+    )
+    parser.add_argument(
+        "--scene_octree", type=str,
+        help="the name of the scene octree file"
+    )
+    args: dict = vars(parser.parse_args())
+
     # Initialise pygame and some of its modules.
     pygame.init()
     pygame.joystick.init()
@@ -156,7 +173,7 @@ def main() -> None:
     #     o3d.io.read_triangle_mesh("C:/spaint/build/bin/apps/spaintgui/meshes/groundtruth-decimated.ply")
     # )
     scene_mesh: OpenGLTriMesh = convert_trimesh_to_opengl(
-        o3d.io.read_triangle_mesh("C:/smglib/smg-mapping/output-metric/mesh.ply")
+        o3d.io.read_triangle_mesh(args["scene_mesh"])
     )
 
     drone_mesh: OpenGLTriMesh = convert_trimesh_to_opengl(load_tello_mesh("C:/smglib/meshes/tello.ply"))
@@ -165,9 +182,14 @@ def main() -> None:
     octree_drawer: OcTreeDrawer = OcTreeDrawer()
     octree_drawer.set_color_mode(CM_COLOR_HEIGHT)
 
+    # Load in the octrees for planning and rendering.
+    planning_voxel_size: float = 0.1
+    planning_octree: OcTree = OcTree(planning_voxel_size)
+    planning_octree.read_binary(args["planning_octree"])
+
     scene_voxel_size: float = 0.05
     scene_octree: OcTree = OcTree(scene_voxel_size)
-    scene_octree.read_binary("C:/smglib/smg-mapping/output-metric/octree5cm.bt")
+    scene_octree.read_binary(args["scene_octree"])
 
     # Construct the camera controller.
     camera_controller: KeyboardCameraController = KeyboardCameraController(
@@ -253,10 +275,10 @@ def main() -> None:
                         drone_mesh=drone_mesh,
                         image_renderer=image_renderer,
                         intrinsics=intrinsics,
-                        render_scene=lambda: OpenGLSceneRenderer.render(scene_mesh.render),
-                        # render_scene=lambda: OpenGLSceneRenderer.render(
-                        #     lambda: OctomapUtil.draw_octree(scene_octree, octree_drawer)
-                        # ),
+                        render_scene=lambda: None if [
+                            # OpenGLSceneRenderer.render(scene_mesh.render),
+                            OpenGLSceneRenderer.render(lambda: OctomapUtil.draw_octree(scene_octree, octree_drawer))
+                        ] else None,
                         viewing_pose=camera_controller.get_pose(),
                         window_size=window_size
                     )
