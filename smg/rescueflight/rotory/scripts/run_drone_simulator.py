@@ -304,11 +304,6 @@ def main() -> None:
                         drone_mesh=drone_mesh,
                         image_renderer=gl_image_renderer,
                         intrinsics=intrinsics,
-                        # render_scene=lambda: None if [
-                        #     # OpenGLSceneRenderer.render(scene_mesh.render) if scene_mesh is not None else None,
-                        #     OpenGLSceneRenderer.render(lambda: OctomapUtil.draw_octree(scene_octree, octree_drawer))
-                        #     if scene_octree is not None else None
-                        # ] else None,
                         render_scene=render_scene,
                         viewing_pose=camera_controller.get_pose(),
                         window_size=window_size
