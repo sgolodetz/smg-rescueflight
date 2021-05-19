@@ -152,8 +152,11 @@ def main() -> None:
     intrinsics: Tuple[float, float, float, float] = (532.5694641250893, 531.5410880910171, 320.0, 240.0)
 
     # Load in the meshes for the scene and the drone, and prepare them for rendering.
+    # scene_mesh: OpenGLTriMesh = convert_trimesh_to_opengl(
+    #     o3d.io.read_triangle_mesh("C:/spaint/build/bin/apps/spaintgui/meshes/groundtruth-decimated.ply")
+    # )
     scene_mesh: OpenGLTriMesh = convert_trimesh_to_opengl(
-        o3d.io.read_triangle_mesh("C:/spaint/build/bin/apps/spaintgui/meshes/groundtruth-decimated.ply")
+        o3d.io.read_triangle_mesh("C:/smglib/smg-mapping/output-metric/mesh.ply")
     )
 
     drone_mesh: OpenGLTriMesh = convert_trimesh_to_opengl(load_tello_mesh("C:/smglib/meshes/tello.ply"))
@@ -164,7 +167,7 @@ def main() -> None:
 
     scene_voxel_size: float = 0.05
     scene_octree: OcTree = OcTree(scene_voxel_size)
-    scene_octree.read_binary("C:/smglib/smg-mapping/output-navigation/octree5cm.bt")
+    scene_octree.read_binary("C:/smglib/smg-mapping/output-metric/octree5cm.bt")
 
     # Construct the camera controller.
     camera_controller: KeyboardCameraController = KeyboardCameraController(
@@ -173,14 +176,15 @@ def main() -> None:
 
     # Construct the image renderer.
     with OpenGLImageRenderer() as image_renderer:
+        # Construct the scene renderer.
         with OpenGLSceneRenderer() as scene_renderer:
             # Construct the simulated drone.
             with SimulatedDrone(
-                # image_renderer=partial(OpenGLSceneRenderer.render_to_image, scene_renderer, scene_mesh.render),
-                image_renderer=partial(
-                    OpenGLSceneRenderer.render_to_image, scene_renderer,
-                    lambda: OctomapUtil.draw_octree(scene_octree, octree_drawer)
-                ),
+                image_renderer=partial(OpenGLSceneRenderer.render_to_image, scene_renderer, scene_mesh.render),
+                # image_renderer=partial(
+                #     OpenGLSceneRenderer.render_to_image, scene_renderer,
+                #     lambda: OctomapUtil.draw_octree(scene_octree, octree_drawer)
+                # ),
                 image_size=(640, 480), intrinsics=intrinsics
             ) as drone:
                 # Load in the "drone flying" sound.
@@ -249,10 +253,10 @@ def main() -> None:
                         drone_mesh=drone_mesh,
                         image_renderer=image_renderer,
                         intrinsics=intrinsics,
-                        # render_scene=lambda: OpenGLSceneRenderer.render(scene_mesh.render),
-                        render_scene=lambda: OpenGLSceneRenderer.render(
-                            lambda: OctomapUtil.draw_octree(scene_octree, octree_drawer)
-                        ),
+                        render_scene=lambda: OpenGLSceneRenderer.render(scene_mesh.render),
+                        # render_scene=lambda: OpenGLSceneRenderer.render(
+                        #     lambda: OctomapUtil.draw_octree(scene_octree, octree_drawer)
+                        # ),
                         viewing_pose=camera_controller.get_pose(),
                         window_size=window_size
                     )
