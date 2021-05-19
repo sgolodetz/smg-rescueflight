@@ -12,7 +12,7 @@ from argparse import ArgumentParser
 from functools import partial
 from OpenGL.GL import *
 from timeit import default_timer as timer
-from typing import Callable, Tuple, TypeVar
+from typing import Callable, Optional, Tuple, TypeVar
 
 from smg.joysticks import FutabaT6K
 from smg.opengl import CameraRenderer, OpenGLImageRenderer, OpenGLMatrixContext
@@ -69,7 +69,8 @@ def load_tello_mesh(filename: str) -> o3d.geometry.TriangleMesh:
 
 def render_window(*, drone_chassis_w_t_c: np.ndarray, drone_image: np.ndarray, drone_mesh: OpenGLTriMesh,
                   image_renderer: OpenGLImageRenderer, intrinsics: Tuple[float, float, float, float],
-                  render_scene: Callable[[], None], viewing_pose: np.ndarray, window_size: Tuple[int, int]) -> None:
+                  render_scene: Optional[Callable[[], None]], viewing_pose: np.ndarray, window_size: Tuple[int, int]) \
+        -> None:
     """
     Render the application window.
 
@@ -105,8 +106,9 @@ def render_window(*, drone_chassis_w_t_c: np.ndarray, drone_image: np.ndarray, d
             # Render coordinate axes.
             CameraRenderer.render_camera(CameraUtil.make_default_camera())
 
-            # Render the scene.
-            render_scene()
+            # If possible, render the scene.
+            if render_scene is not None:
+                render_scene()
 
             # Render the mesh for the drone (at its current pose).
             with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(drone_chassis_w_t_c)):
@@ -168,46 +170,65 @@ def main() -> None:
     # Specify the camera intrinsics.
     intrinsics: Tuple[float, float, float, float] = (532.5694641250893, 531.5410880910171, 320.0, 240.0)
 
-    # Load in the meshes for the scene and the drone, and prepare them for rendering.
+    # Load in any mesh that has been provided for the scene, and prepare it for rendering.
     # scene_mesh: OpenGLTriMesh = convert_trimesh_to_opengl(
     #     o3d.io.read_triangle_mesh("C:/spaint/build/bin/apps/spaintgui/meshes/groundtruth-decimated.ply")
     # )
-    scene_mesh: OpenGLTriMesh = convert_trimesh_to_opengl(
-        o3d.io.read_triangle_mesh(args["scene_mesh"])
-    )
+    if args.get("scene_mesh") is not None:
+        scene_mesh: Optional[OpenGLTriMesh] = convert_trimesh_to_opengl(
+            o3d.io.read_triangle_mesh(args["scene_mesh"])
+        )
+    else:
+        scene_mesh: Optional[OpenGLTriMesh] = None
 
+    # Load in the mesh for the drone, and prepare it for rendering.
     drone_mesh: OpenGLTriMesh = convert_trimesh_to_opengl(load_tello_mesh("C:/smglib/meshes/tello.ply"))
 
-    # TODO
-    octree_drawer: OcTreeDrawer = OcTreeDrawer()
-    octree_drawer.set_color_mode(CM_COLOR_HEIGHT)
+    # Load in any octrees that have been provided for planning and rendering.
+    if args.get("planning_octree") is not None:
+        planning_voxel_size: float = 0.1
+        planning_octree: Optional[OcTree] = OcTree(planning_voxel_size)
+        planning_octree.read_binary(args["planning_octree"])
+    else:
+        planning_octree: Optional[OcTree] = None
 
-    # Load in the octrees for planning and rendering.
-    planning_voxel_size: float = 0.1
-    planning_octree: OcTree = OcTree(planning_voxel_size)
-    planning_octree.read_binary(args["planning_octree"])
-
-    scene_voxel_size: float = 0.05
-    scene_octree: OcTree = OcTree(scene_voxel_size)
-    scene_octree.read_binary(args["scene_octree"])
+    if args.get("scene_octree") is not None:
+        scene_voxel_size: float = 0.05
+        scene_octree: Optional[OcTree] = OcTree(scene_voxel_size)
+        scene_octree.read_binary(args["scene_octree"])
+    else:
+        scene_octree: Optional[OcTree] = None
 
     # Construct the camera controller.
     camera_controller: KeyboardCameraController = KeyboardCameraController(
         CameraUtil.make_default_camera(), canonical_angular_speed=0.05, canonical_linear_speed=0.025
     )
 
+    # Construct the octree drawer.
+    octree_drawer: OcTreeDrawer = OcTreeDrawer()
+    octree_drawer.set_color_mode(CM_COLOR_HEIGHT)
+
     # Construct the image renderer.
-    with OpenGLImageRenderer() as image_renderer:
+    with OpenGLImageRenderer() as gl_image_renderer:
         # Construct the scene renderer.
-        with OpenGLSceneRenderer() as scene_renderer:
+        with OpenGLSceneRenderer() as gl_scene_renderer:
+            # Determine the image renderer for the simulated drone.
+            # FIXME: Handle the case where neither a scene mesh nor a scene octree is available.
+            drone_image_renderer: Optional[SimulatedDrone.ImageRenderer] = None
+            if scene_mesh is not None:
+                drone_image_renderer = partial(
+                    OpenGLSceneRenderer.render_to_image, gl_scene_renderer,
+                    scene_mesh.render
+                )
+            elif scene_octree is not None:
+                drone_image_renderer = partial(
+                    OpenGLSceneRenderer.render_to_image, gl_scene_renderer,
+                    lambda: OctomapUtil.draw_octree(scene_octree, octree_drawer)
+                )
+
             # Construct the simulated drone.
             with SimulatedDrone(
-                image_renderer=partial(OpenGLSceneRenderer.render_to_image, scene_renderer, scene_mesh.render),
-                # image_renderer=partial(
-                #     OpenGLSceneRenderer.render_to_image, scene_renderer,
-                #     lambda: OctomapUtil.draw_octree(scene_octree, octree_drawer)
-                # ),
-                image_size=(640, 480), intrinsics=intrinsics
+                image_renderer=drone_image_renderer, image_size=(640, 480), intrinsics=intrinsics
             ) as drone:
                 # Load in the "drone flying" sound.
                 pygame.mixer.music.load("C:/smglib/sounds/drone_flying.mp3")
@@ -269,16 +290,26 @@ def main() -> None:
                     camera_controller.update(pygame.key.get_pressed(), timer() * 1000)
 
                     # Render the contents of the window.
+                    render_scene: Optional[Callable[[], None]] = None
+                    if scene_octree is not None:
+                        render_scene = lambda: OpenGLSceneRenderer.render(
+                            lambda: OctomapUtil.draw_octree(scene_octree, octree_drawer)
+                        )
+                    elif scene_mesh is not None:
+                        render_scene = lambda: OpenGLSceneRenderer.render(scene_mesh.render)
+
                     render_window(
                         drone_chassis_w_t_c=drone_chassis_w_t_c,
                         drone_image=drone_image,
                         drone_mesh=drone_mesh,
-                        image_renderer=image_renderer,
+                        image_renderer=gl_image_renderer,
                         intrinsics=intrinsics,
-                        render_scene=lambda: None if [
-                            # OpenGLSceneRenderer.render(scene_mesh.render),
-                            OpenGLSceneRenderer.render(lambda: OctomapUtil.draw_octree(scene_octree, octree_drawer))
-                        ] else None,
+                        # render_scene=lambda: None if [
+                        #     # OpenGLSceneRenderer.render(scene_mesh.render) if scene_mesh is not None else None,
+                        #     OpenGLSceneRenderer.render(lambda: OctomapUtil.draw_octree(scene_octree, octree_drawer))
+                        #     if scene_octree is not None else None
+                        # ] else None,
+                        render_scene=render_scene,
                         viewing_pose=camera_controller.get_pose(),
                         window_size=window_size
                     )
