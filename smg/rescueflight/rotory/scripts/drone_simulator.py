@@ -14,10 +14,13 @@ from timeit import default_timer as timer
 from typing import Optional, Tuple
 
 from smg.navigation import AStarPathPlanner, OCS_OCCUPIED, PlanningToolkit
-from smg.opengl import CameraRenderer, OpenGLMatrixContext, OpenGLSceneRenderer, OpenGLTriMesh, OpenGLUtil
+from smg.opengl import CameraRenderer, OpenGLImageRenderer, OpenGLMatrixContext, OpenGLSceneRenderer, OpenGLTriMesh
+from smg.opengl import OpenGLUtil
 from smg.pyoctomap import OcTree
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
+from smg.rotory.drones import SimulatedDrone
+from smg.utility import ImageUtil
 
 
 class DroneSimulator:
@@ -27,7 +30,10 @@ class DroneSimulator:
 
     def __init__(self, *, intrinsics: Tuple[float, float, float, float], plan_paths: bool = False,
                  tello_mesh_filename: str, window_size: Tuple[int, int] = (1280, 480)):
+        self.__drone: Optional[SimulatedDrone] = None
         self.__intrinsics: Tuple[float, float, float, float] = intrinsics
+        self.__gl_image_renderer: Optional[OpenGLImageRenderer] = None
+        self.__gl_scene_renderer: Optional[OpenGLSceneRenderer] = None
         self.__plan_paths: bool = plan_paths
         self.__should_terminate: threading.Event = threading.Event()
         self.__tello_mesh_filename: str = tello_mesh_filename
@@ -62,9 +68,21 @@ class DroneSimulator:
         pygame.display.set_mode(self.__window_size, pygame.DOUBLEBUF | pygame.OPENGL)
         pygame.display.set_caption("Drone Simulator")
 
+        # Construct the OpenGL image renderer.
+        self.__gl_image_renderer = OpenGLImageRenderer()
+
+        # Construct the OpenGL scene renderer.
+        self.__gl_scene_renderer = OpenGLSceneRenderer()
+
         # Load in the mesh for the drone, and prepare it for rendering.
         drone_mesh: OpenGLTriMesh = DroneSimulator.__convert_trimesh_to_opengl(
             DroneSimulator.__load_tello_mesh(self.__tello_mesh_filename)
+        )
+
+        # Construct the simulated drone.
+        width, height = self.__window_size
+        self.__drone = SimulatedDrone(
+            image_renderer=None, image_size=(width // 2, height), intrinsics=self.__intrinsics
         )
 
         # Construct the camera controller.
@@ -87,14 +105,15 @@ class DroneSimulator:
                     return
 
             # Get the drone's image and poses.
-            # drone_image, drone_camera_w_t_c, drone_chassis_w_t_c = self.__drone.get_image_and_poses()
+            drone_image, drone_camera_w_t_c, drone_chassis_w_t_c = self.__drone.get_image_and_poses()
 
             # Allow the user to control the free-view camera.
             camera_controller.update(pygame.key.get_pressed(), timer() * 1000)
 
             # Render the contents of the window.
             self.__render_window(
-                drone_chassis_w_t_c=np.eye(4),  # drone_chassis_w_t_c,
+                drone_chassis_w_t_c=drone_chassis_w_t_c,
+                drone_image=drone_image,
                 drone_mesh=drone_mesh,
                 viewing_pose=camera_controller.get_pose()
             )
@@ -108,10 +127,22 @@ class DroneSimulator:
             if self.__planning_thread is not None:
                 self.__planning_thread.join()
 
+            # If the simulated drone exists, destroy it.
+            if self.__drone is not None:
+                self.__drone.terminate()
+
+            # If the OpenGL scene renderer exists, destroy it.
+            if self.__gl_scene_renderer is not None:
+                self.__gl_scene_renderer.terminate()
+
+            # If the OpenGL image renderer exists, destroy it.
+            if self.__gl_image_renderer is not None:
+                self.__gl_image_renderer.terminate()
+
     # PRIVATE METHODS
 
-    def __render_window(self, *, drone_chassis_w_t_c: np.ndarray, drone_mesh: OpenGLTriMesh, viewing_pose: np.ndarray) \
-            -> None:
+    def __render_window(self, *, drone_chassis_w_t_c: np.ndarray, drone_image: np.ndarray, drone_mesh: OpenGLTriMesh,
+                        viewing_pose: np.ndarray) -> None:
         """Render the contents of the window."""
         # Clear the window.
         OpenGLUtil.set_viewport((0.0, 0.0), (1.0, 1.0), self.__window_size)
@@ -151,7 +182,7 @@ class DroneSimulator:
 
         # Render the drone image.
         OpenGLUtil.set_viewport((0.5, 0.0), (1.0, 1.0), self.__window_size)
-        # image_renderer.render_image(ImageUtil.flip_channels(drone_image))
+        self.__gl_image_renderer.render_image(ImageUtil.flip_channels(drone_image))
 
         # Swap the front and back buffers.
         pygame.display.flip()
