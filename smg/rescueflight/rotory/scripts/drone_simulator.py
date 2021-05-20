@@ -56,6 +56,7 @@ class DroneSimulator:
         self.__current_pos: Optional[np.ndarray] = None
         self.__interpolated_path: Optional[np.ndarray] = None
         self.__path: Optional[np.ndarray] = None
+        self.__path_flags: Optional[np.ndarray] = None
         self.__planning_lock: threading.Lock = threading.Lock()
 
         # FIXME: These shouldn't be hard-coded.
@@ -377,6 +378,7 @@ class DroneSimulator:
                         return
 
                 current_pos: Optional[np.ndarray] = self.__current_pos.copy()
+                flags: Optional[np.ndarray] = self.__path_flags
                 interpolated_path: Optional[np.ndarray] = self.__interpolated_path
                 path: Optional[np.ndarray] = self.__path
                 waypoints: List[np.ndarray] = self.__waypoints
@@ -385,7 +387,7 @@ class DroneSimulator:
                 # Plan an initial path through the waypoints.
                 start = timer()
                 ay: float = 10
-                path = planner.plan_multipath(
+                path, flags = planner.plan_multipath(
                     [current_pos] + waypoints,
                     d=PlanningToolkit.l1_distance(ay=ay),
                     h=PlanningToolkit.l1_distance(ay=ay),
@@ -396,7 +398,7 @@ class DroneSimulator:
                 end = timer()
                 # print(f"Path Planning: {end - start}s")
             elif len(path) > 1:
-                path = planner.update_path(current_pos, path)
+                path, flags = planner.update_path(current_pos, path, flags)
 
             # Smooth any path found.
             if path is not None:
@@ -408,6 +410,7 @@ class DroneSimulator:
             with self.__planning_lock:
                 self.__interpolated_path = interpolated_path
                 self.__path = path
+                self.__path_flags = flags
                 self.__planning_is_needed = False
 
             # TODO

@@ -65,7 +65,7 @@ def main() -> None:
     # Plan a path through the waypoints.
     start = timer()
     ay: float = 10
-    path: Optional[np.ndarray] = planner.plan_multipath(
+    path, _ = planner.plan_multipath(
         waypoints,
         d=PlanningToolkit.l1_distance(ay=ay),
         h=PlanningToolkit.l1_distance(ay=ay),
