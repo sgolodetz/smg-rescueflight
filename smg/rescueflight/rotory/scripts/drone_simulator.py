@@ -16,7 +16,7 @@ from typing import Optional, Tuple
 from smg.navigation import AStarPathPlanner, OCS_OCCUPIED, PlanningToolkit
 from smg.opengl import CameraRenderer, OpenGLImageRenderer, OpenGLMatrixContext, OpenGLSceneRenderer, OpenGLTriMesh
 from smg.opengl import OpenGLUtil
-from smg.pyoctomap import OcTree
+from smg.pyoctomap import CM_COLOR_HEIGHT, OctomapUtil, OcTree, OcTreeDrawer
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
 from smg.rotory.drones import SimulatedDrone
@@ -28,15 +28,22 @@ class DroneSimulator:
 
     # CONSTRUCTOR
 
-    def __init__(self, *, intrinsics: Tuple[float, float, float, float], plan_paths: bool = False,
-                 tello_mesh_filename: str, window_size: Tuple[int, int] = (1280, 480)):
+    def __init__(self, *, drone_mesh_filename: str, intrinsics: Tuple[float, float, float, float],
+                 plan_paths: bool = False, scene_mesh_filename: Optional[str], scene_octree_filename: Optional[str],
+                 window_size: Tuple[int, int] = (1280, 480)):
         self.__drone: Optional[SimulatedDrone] = None
+        self.__drone_mesh: Optional[OpenGLTriMesh] = None
+        self.__drone_mesh_filename: str = drone_mesh_filename
         self.__intrinsics: Tuple[float, float, float, float] = intrinsics
         self.__gl_image_renderer: Optional[OpenGLImageRenderer] = None
         self.__gl_scene_renderer: Optional[OpenGLSceneRenderer] = None
+        self.__octree_drawer: Optional[OcTreeDrawer] = None
         self.__plan_paths: bool = plan_paths
         self.__should_terminate: threading.Event = threading.Event()
-        self.__tello_mesh_filename: str = tello_mesh_filename
+        self.__scene_mesh: Optional[OpenGLTriMesh] = None
+        self.__scene_mesh_filename: Optional[str] = scene_mesh_filename
+        self.__scene_octree: Optional[OcTree] = None
+        self.__scene_octree_filename: Optional[str] = scene_octree_filename
         self.__window_size: Tuple[int, int] = window_size
 
         # The threads and conditions.
@@ -74,15 +81,31 @@ class DroneSimulator:
         # Construct the OpenGL scene renderer.
         self.__gl_scene_renderer = OpenGLSceneRenderer()
 
+        # Construct the octree drawer.
+        self.__octree_drawer = OcTreeDrawer()
+        self.__octree_drawer.set_color_mode(CM_COLOR_HEIGHT)
+
         # Load in the mesh for the drone, and prepare it for rendering.
-        drone_mesh: OpenGLTriMesh = DroneSimulator.__convert_trimesh_to_opengl(
-            DroneSimulator.__load_tello_mesh(self.__tello_mesh_filename)
+        self.__drone_mesh = DroneSimulator.__convert_trimesh_to_opengl(
+            DroneSimulator.__load_tello_mesh(self.__drone_mesh_filename)
         )
+
+        # Load in any mesh that has been provided for the scene, and prepare it for rendering.
+        if self.__scene_mesh_filename is not None:
+            self.__scene_mesh = DroneSimulator.__convert_trimesh_to_opengl(
+                o3d.io.read_triangle_mesh(self.__scene_mesh_filename)
+            )
+
+        # Load in any octree that has been provided for the scene.
+        if self.__scene_octree_filename is not None:
+            scene_voxel_size: float = 0.05
+            self.__scene_octree = OcTree(scene_voxel_size)
+            self.__scene_octree.read_binary(self.__scene_octree_filename)
 
         # Construct the simulated drone.
         width, height = self.__window_size
         self.__drone = SimulatedDrone(
-            image_renderer=None, image_size=(width // 2, height), intrinsics=self.__intrinsics
+            image_renderer=self.__render_drone_image, image_size=(width // 2, height), intrinsics=self.__intrinsics
         )
 
         # Construct the camera controller.
@@ -114,7 +137,6 @@ class DroneSimulator:
             self.__render_window(
                 drone_chassis_w_t_c=drone_chassis_w_t_c,
                 drone_image=drone_image,
-                drone_mesh=drone_mesh,
                 viewing_pose=camera_controller.get_pose()
             )
 
@@ -141,8 +163,31 @@ class DroneSimulator:
 
     # PRIVATE METHODS
 
-    def __render_window(self, *, drone_chassis_w_t_c: np.ndarray, drone_image: np.ndarray, drone_mesh: OpenGLTriMesh,
-                        viewing_pose: np.ndarray) -> None:
+    def __render_drone_image(self, world_from_camera: np.ndarray, image_size: Tuple[int, int],
+                             intrinsics: Tuple[float, float, float, float]) -> np.ndarray:
+        """
+        TODO
+
+        :param world_from_camera:   TODO
+        :param image_size:          TODO
+        :param intrinsics:          TODO
+        :return:                    TODO
+        """
+        if self.__scene_mesh is not None:
+            return self.__gl_scene_renderer.render_to_image(
+                self.__scene_mesh.render, world_from_camera, image_size, intrinsics
+            )
+        elif self.__scene_octree is not None:
+            return self.__gl_scene_renderer.render_to_image(
+                lambda: OctomapUtil.draw_octree(self.__scene_octree, self.__octree_drawer),
+                world_from_camera, image_size, intrinsics
+            )
+        else:
+            width, height = image_size
+            return np.zeros((height, width, 3), dtype=np.uint8)
+
+    def __render_window(self, *, drone_chassis_w_t_c: np.ndarray, drone_image: np.ndarray, viewing_pose: np.ndarray) \
+            -> None:
         """Render the contents of the window."""
         # Clear the window.
         OpenGLUtil.set_viewport((0.0, 0.0), (1.0, 1.0), self.__window_size)
@@ -170,13 +215,17 @@ class DroneSimulator:
                 # Render coordinate axes.
                 CameraRenderer.render_camera(CameraUtil.make_default_camera())
 
-                # If possible, render the scene.
-                # if render_scene is not None:
-                #     render_scene()
+                # Render the scene itself.
+                if self.__scene_octree is not None:
+                    OpenGLSceneRenderer.render(
+                        lambda: OctomapUtil.draw_octree(self.__scene_octree, self.__octree_drawer)
+                    )
+                elif self.__scene_mesh is not None:
+                    OpenGLSceneRenderer.render(self.__scene_mesh.render)
 
                 # Render the mesh for the drone (at its current pose).
                 with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(drone_chassis_w_t_c)):
-                    OpenGLSceneRenderer.render(lambda: drone_mesh.render())
+                    OpenGLSceneRenderer.render(lambda: self.__drone_mesh.render())
 
         glPopAttrib()
 

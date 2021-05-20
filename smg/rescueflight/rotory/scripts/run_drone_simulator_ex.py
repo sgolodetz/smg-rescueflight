@@ -9,7 +9,11 @@ def main() -> None:
 
     # Construct the drone simulator.
     with DroneSimulator(
-        intrinsics=intrinsics, plan_paths=True, tello_mesh_filename="C:/smglib/meshes/tello.ply"
+        drone_mesh_filename="C:/smglib/meshes/tello.ply",
+        intrinsics=intrinsics,
+        plan_paths=True,
+        scene_mesh_filename="C:/smglib/smg-mapping/output-navigation/mesh.ply",
+        scene_octree_filename="C:/smglib/smg-mapping/output-navigation/octree5cm.bt"
     ) as simulator:
         # Run the simulator.
         simulator.run()
