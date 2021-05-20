@@ -340,10 +340,10 @@ class DroneSimulator:
                                 self.__path, start_colour=(0, 1, 1), end_colour=(0, 1, 1), width=5,
                                 waypoint_colourer=self.__planning_toolkit.occupancy_colourer()
                             )
-                            OpenGLUtil.render_path(
-                                self.__interpolated_path, start_colour=(1, 1, 0), end_colour=(1, 0, 1), width=5,
-                                waypoint_colourer=None
-                            )
+                            # OpenGLUtil.render_path(
+                            #     self.__interpolated_path, start_colour=(1, 1, 0), end_colour=(1, 0, 1), width=5,
+                            #     waypoint_colourer=None
+                            # )
                     finally:
                         self.__planning_lock.release()
 
