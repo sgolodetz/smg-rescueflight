@@ -13,6 +13,7 @@ from OpenGL.GL import *
 from timeit import default_timer as timer
 from typing import Optional, Tuple
 
+from smg.joysticks import FutabaT6K
 from smg.navigation import AStarPathPlanner, OCS_OCCUPIED, PlanningToolkit
 from smg.opengl import CameraRenderer, OpenGLImageRenderer, OpenGLMatrixContext, OpenGLSceneRenderer, OpenGLTriMesh
 from smg.opengl import OpenGLUtil
@@ -31,6 +32,8 @@ class DroneSimulator:
     def __init__(self, *, drone_mesh_filename: str, intrinsics: Tuple[float, float, float, float],
                  plan_paths: bool = False, scene_mesh_filename: Optional[str], scene_octree_filename: Optional[str],
                  window_size: Tuple[int, int] = (1280, 480)):
+        self.__alive: bool = False
+
         self.__drone: Optional[SimulatedDrone] = None
         self.__drone_mesh: Optional[OpenGLTriMesh] = None
         self.__drone_mesh_filename: str = drone_mesh_filename
@@ -48,6 +51,8 @@ class DroneSimulator:
 
         # The threads and conditions.
         self.__planning_thread: Optional[threading.Thread] = None
+
+        self.__alive = True
 
     # SPECIAL METHODS
 
@@ -71,6 +76,19 @@ class DroneSimulator:
         # Make sure pygame always gets the user inputs.
         pygame.event.set_grab(True)
 
+        # Try to determine the joystick index of the Futaba T6K. If no joystick is plugged in, early out.
+        joystick_count: int = pygame.joystick.get_count()
+        joystick_idx: int = 0
+        if joystick_count == 0:
+            exit(0)
+        elif joystick_count != 1:
+            # TODO: Prompt the user for the joystick to use.
+            pass
+
+        # Construct and calibrate the Futaba T6K.
+        joystick: FutabaT6K = FutabaT6K(joystick_idx)
+        joystick.calibrate()
+
         # Create the window.
         pygame.display.set_mode(self.__window_size, pygame.DOUBLEBUF | pygame.OPENGL)
         pygame.display.set_caption("Drone Simulator")
@@ -90,7 +108,7 @@ class DroneSimulator:
             DroneSimulator.__load_tello_mesh(self.__drone_mesh_filename)
         )
 
-        # Load in any mesh that has been provided for the scene, and prepare it for rendering.
+        # Load in any mesh that has been provided for the scene.
         if self.__scene_mesh_filename is not None:
             self.__scene_mesh = DroneSimulator.__convert_trimesh_to_opengl(
                 o3d.io.read_triangle_mesh(self.__scene_mesh_filename)
@@ -101,6 +119,9 @@ class DroneSimulator:
             scene_voxel_size: float = 0.05
             self.__scene_octree = OcTree(scene_voxel_size)
             self.__scene_octree.read_binary(self.__scene_octree_filename)
+
+        # Load in the "drone flying" sound.
+        pygame.mixer.music.load("C:/smglib/sounds/drone_flying.mp3")
 
         # Construct the simulated drone.
         width, height = self.__window_size
@@ -118,14 +139,58 @@ class DroneSimulator:
             self.__planning_thread = threading.Thread(target=self.__run_planning)
             self.__planning_thread.start()
 
+        # Prevent the drone's gimbal from being moved until we're ready.
+        can_move_gimbal: bool = False
+
         # Until the simulator should terminate:
         while not self.__should_terminate.is_set():
             # Process any PyGame events.
             for event in pygame.event.get():
-                if event.type == pygame.QUIT:
+                if event.type == pygame.JOYBUTTONDOWN:
+                    # If Button 0 on the Futaba T6K is set to its "pressed" state:
+                    if event.button == 0:
+                        # Start playing the "drone flying" sound.
+                        if self.__drone.get_state() == SimulatedDrone.IDLE:
+                            pygame.mixer.music.play(loops=-1)
+
+                        # Take off.
+                        self.__drone.takeoff()
+                elif event.type == pygame.JOYBUTTONUP:
+                    # If Button 0 on the Futaba T6K is set to its "released" state, land.
+                    if event.button == 0:
+                        self.__drone.land()
+                elif event.type == pygame.QUIT:
                     # If the user wants us to quit, do so.
-                    pygame.quit()
                     return
+
+            # Quit if both Button 0 and Button 1 on the Futaba T6K are set to their "released" state.
+            if joystick.get_button(0) == 0 and joystick.get_button(1) == 0:
+                return
+
+            # If the drone is in the idle state, stop the "drone flying" sound.
+            if self.__drone.get_state() == SimulatedDrone.IDLE:
+                pygame.mixer.music.stop()
+
+            # Update the movement of the drone based on the pitch, roll and yaw values output by the Futaba T6K.
+            self.__drone.move_forward(joystick.get_pitch())
+            self.__drone.turn(joystick.get_yaw())
+
+            if joystick.get_button(1) == 0:
+                self.__drone.move_right(0)
+                self.__drone.move_up(joystick.get_roll())
+            else:
+                self.__drone.move_right(joystick.get_roll())
+                self.__drone.move_up(0)
+
+            # If the throttle goes above half-way, enable movement of the drone's gimbal from now on.
+            throttle: float = joystick.get_throttle()
+            if throttle >= 0.5:
+                can_move_gimbal = True
+
+            # If the drone's gimbal can be moved, update its pitch based on the current value of the throttle.
+            # Note that the throttle value is in [0,1], so we rescale it to a value in [-1,1] as a first step.
+            if can_move_gimbal:
+                self.__drone.update_gimbal_pitch(2 * (joystick.get_throttle() - 0.5))
 
             # Get the drone's image and poses.
             drone_image, drone_camera_w_t_c, drone_chassis_w_t_c = self.__drone.get_image_and_poses()
@@ -142,8 +207,10 @@ class DroneSimulator:
 
     def terminate(self) -> None:
         """Destroy the simulator."""
-        if not self.__should_terminate.is_set():
-            self.__should_terminate.set()
+        if self.__alive:
+            # Set the termination flag if it isn't set already.
+            if not self.__should_terminate.is_set():
+                self.__should_terminate.set()
 
             # Join any running threads.
             if self.__planning_thread is not None:
@@ -160,6 +227,11 @@ class DroneSimulator:
             # If the OpenGL image renderer exists, destroy it.
             if self.__gl_image_renderer is not None:
                 self.__gl_image_renderer.terminate()
+
+            # Shut down pygame.
+            pygame.quit()
+
+            self.__alive = False
 
     # PRIVATE METHODS
 
