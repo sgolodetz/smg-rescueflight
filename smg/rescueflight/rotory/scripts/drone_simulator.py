@@ -54,6 +54,7 @@ class DroneSimulator:
 
         # The path planning variables, together with their lock.
         self.__current_pos: Optional[np.ndarray] = None
+        self.__interpolated_path: Optional[np.ndarray] = None
         self.__path: Optional[np.ndarray] = None
         self.__planning_lock: threading.Lock = threading.Lock()
 
@@ -214,7 +215,6 @@ class DroneSimulator:
             # Get the drone's image and poses.
             drone_image, drone_camera_w_t_c, drone_chassis_w_t_c = self.__drone.get_image_and_poses()
 
-            # TODO
             # If a path has been planned, draw it.
             acquired: bool = self.__planning_lock.acquire(blocking=False)
             if acquired:
@@ -366,7 +366,7 @@ class DroneSimulator:
         )
 
         # Construct the path planner.
-        planner: AStarPathPlanner = AStarPathPlanner(self.__planning_toolkit, debug=True)
+        planner: AStarPathPlanner = AStarPathPlanner(self.__planning_toolkit, debug=False)
 
         # TODO
         while not self.__should_terminate.is_set():
@@ -377,6 +377,7 @@ class DroneSimulator:
                         return
 
                 current_pos: Optional[np.ndarray] = self.__current_pos.copy()
+                interpolated_path: Optional[np.ndarray] = self.__interpolated_path
                 path: Optional[np.ndarray] = self.__path
                 waypoints: List[np.ndarray] = self.__waypoints
 
@@ -393,20 +394,20 @@ class DroneSimulator:
                     use_clearance=True
                 )
                 end = timer()
-                print(f"Path Planning: {end - start}s")
+                # print(f"Path Planning: {end - start}s")
             elif len(path) > 1:
-                path = np.vstack([current_pos, path[1:, :]])
+                path = planner.update_path(current_pos, path)
 
             # Smooth any path found.
-            interpolated_path: Optional[np.ndarray] = None
             if path is not None:
                 start = timer()
                 interpolated_path = PlanningToolkit.interpolate_path(path)
                 end = timer()
-                print(f"Path Smoothing: {end - start}s")
+                # print(f"Path Smoothing: {end - start}s")
 
             with self.__planning_lock:
-                self.__path = interpolated_path
+                self.__interpolated_path = interpolated_path
+                self.__path = path
                 self.__planning_is_needed = False
 
             # TODO
