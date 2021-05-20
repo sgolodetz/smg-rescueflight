@@ -11,7 +11,7 @@ import time
 
 from OpenGL.GL import *
 from timeit import default_timer as timer
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 from smg.joysticks import FutabaT6K
 from smg.navigation import AStarPathPlanner, OCS_OCCUPIED, PlanningToolkit
@@ -30,7 +30,8 @@ class DroneSimulator:
     # CONSTRUCTOR
 
     def __init__(self, *, drone_mesh_filename: str, intrinsics: Tuple[float, float, float, float],
-                 plan_paths: bool = False, scene_mesh_filename: Optional[str], scene_octree_filename: Optional[str],
+                 plan_paths: bool = False, planning_octree_filename: Optional[str],
+                 scene_mesh_filename: Optional[str], scene_octree_filename: Optional[str],
                  window_size: Tuple[int, int] = (1280, 480)):
         self.__alive: bool = False
 
@@ -42,6 +43,8 @@ class DroneSimulator:
         self.__gl_scene_renderer: Optional[OpenGLSceneRenderer] = None
         self.__octree_drawer: Optional[OcTreeDrawer] = None
         self.__plan_paths: bool = plan_paths
+        self.__planning_octree_filename: Optional[str] = planning_octree_filename
+        self.__planning_toolkit: Optional[PlanningToolkit] = None
         self.__should_terminate: threading.Event = threading.Event()
         self.__scene_mesh: Optional[OpenGLTriMesh] = None
         self.__scene_mesh_filename: Optional[str] = scene_mesh_filename
@@ -49,8 +52,24 @@ class DroneSimulator:
         self.__scene_octree_filename: Optional[str] = scene_octree_filename
         self.__window_size: Tuple[int, int] = window_size
 
+        # The path planning variables, together with their lock.
+        self.__current_pos: Optional[np.ndarray] = None
+        self.__path: Optional[np.ndarray] = None
+        self.__planning_lock: threading.Lock = threading.Lock()
+
+        # FIXME: These shouldn't be hard-coded.
+        voxel_size: float = 0.05
+        self.__waypoints: List[np.ndarray] = [
+            # np.array([0.5, 0.5, 5.5]) * voxel_size,
+            # np.array([-5.5, 10.5, 15.5]) * voxel_size,
+            np.array([30.5, 5.5, 5.5]) * voxel_size,
+            # np.array([50.5, 0.5, 20.5]) * voxel_size
+        ]
+
         # The threads and conditions.
         self.__planning_thread: Optional[threading.Thread] = None
+        self.__planning_is_needed: bool = False
+        self.__planning_needed: threading.Condition = threading.Condition(self.__planning_lock)
 
         self.__alive = True
 
@@ -135,7 +154,7 @@ class DroneSimulator:
         )
 
         # If we're planning paths, start the path planning thread.
-        if self.__plan_paths:
+        if self.__plan_paths and self.__planning_octree_filename is not None:
             self.__planning_thread = threading.Thread(target=self.__run_planning)
             self.__planning_thread.start()
 
@@ -194,6 +213,18 @@ class DroneSimulator:
 
             # Get the drone's image and poses.
             drone_image, drone_camera_w_t_c, drone_chassis_w_t_c = self.__drone.get_image_and_poses()
+
+            # TODO
+            # If a path has been planned, draw it.
+            acquired: bool = self.__planning_lock.acquire(blocking=False)
+            if acquired:
+                try:
+                    if self.__drone.get_state() == SimulatedDrone.FLYING:
+                        self.__current_pos = drone_camera_w_t_c[0:3, 3]
+                        self.__planning_is_needed = True
+                        self.__planning_needed.notify()
+                finally:
+                    self.__planning_lock.release()
 
             # Allow the user to control the free-view camera.
             camera_controller.update(pygame.key.get_pressed(), timer() * 1000)
@@ -299,6 +330,18 @@ class DroneSimulator:
                 with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(drone_chassis_w_t_c)):
                     OpenGLSceneRenderer.render(lambda: self.__drone_mesh.render())
 
+                # If a path has been planned, draw it.
+                acquired: bool = self.__planning_lock.acquire(blocking=False)
+                if acquired:
+                    try:
+                        if self.__path is not None:
+                            OpenGLUtil.render_path(
+                                self.__path, start_colour=(1, 1, 0), end_colour=(1, 0, 1), width=5,
+                                waypoint_colourer=self.__planning_toolkit.occupancy_colourer()
+                            )
+                    finally:
+                        self.__planning_lock.release()
+
         glPopAttrib()
 
         # Render the drone image.
@@ -312,21 +355,60 @@ class DroneSimulator:
         """Run the path planning thread."""
         # Load the planning octree.
         voxel_size: float = 0.1
-        tree: OcTree = OcTree(voxel_size)
-        tree.read_binary("C:/smglib/smg-mapping/output-navigation/octree10cm.bt")
+        octree: OcTree = OcTree(voxel_size)
+        octree.read_binary(self.__planning_octree_filename)
 
         # Construct the planning toolkit.
-        planning_toolkit: PlanningToolkit = PlanningToolkit(
-            tree,
+        self.__planning_toolkit = PlanningToolkit(
+            octree,
             neighbours=PlanningToolkit.neighbours6,
-            node_is_free=lambda n: planning_toolkit.occupancy_status(n) != OCS_OCCUPIED
+            node_is_free=lambda n: self.__planning_toolkit.occupancy_status(n) != OCS_OCCUPIED
         )
 
         # Construct the path planner.
-        planner: AStarPathPlanner = AStarPathPlanner(planning_toolkit, debug=True)
+        planner: AStarPathPlanner = AStarPathPlanner(self.__planning_toolkit, debug=True)
 
         # TODO
         while not self.__should_terminate.is_set():
+            with self.__planning_lock:
+                while not self.__planning_is_needed:
+                    self.__planning_needed.wait(0.1)
+                    if self.__should_terminate.is_set():
+                        return
+
+                current_pos: Optional[np.ndarray] = self.__current_pos.copy()
+                path: Optional[np.ndarray] = self.__path
+                waypoints: List[np.ndarray] = self.__waypoints
+
+            if path is None:
+                # Plan an initial path through the waypoints.
+                start = timer()
+                ay: float = 10
+                path = planner.plan_multipath(
+                    [current_pos] + waypoints,
+                    d=PlanningToolkit.l1_distance(ay=ay),
+                    h=PlanningToolkit.l1_distance(ay=ay),
+                    allow_shortcuts=True,
+                    pull_strings=True,
+                    use_clearance=True
+                )
+                end = timer()
+                print(f"Path Planning: {end - start}s")
+            elif len(path) > 1:
+                path = np.vstack([current_pos, path[1:, :]])
+
+            # Smooth any path found.
+            interpolated_path: Optional[np.ndarray] = None
+            if path is not None:
+                start = timer()
+                interpolated_path = PlanningToolkit.interpolate_path(path)
+                end = timer()
+                print(f"Path Smoothing: {end - start}s")
+
+            with self.__planning_lock:
+                self.__path = interpolated_path
+                self.__planning_is_needed = False
+
             # TODO
             time.sleep(0.01)
 

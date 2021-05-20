@@ -29,6 +29,7 @@ def main() -> None:
         drone_mesh_filename="C:/smglib/meshes/tello.ply",
         intrinsics=intrinsics,
         plan_paths=True,
+        planning_octree_filename=args.get("planning_octree"),
         scene_mesh_filename=args.get("scene_mesh"),
         scene_octree_filename=args.get("scene_octree")
     ) as simulator:
