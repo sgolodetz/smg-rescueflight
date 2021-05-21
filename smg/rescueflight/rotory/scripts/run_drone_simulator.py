@@ -1,7 +1,7 @@
 from argparse import ArgumentParser
 from typing import Tuple
 
-from drone_simulator import DroneSimulator
+from smg.rotorsim import DroneSimulator
 
 
 def main() -> None:
