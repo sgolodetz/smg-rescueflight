@@ -10,7 +10,7 @@ from OpenGL.GL import *
 from timeit import default_timer as timer
 from typing import List, Optional, Tuple
 
-from smg.navigation import AStarPathPlanner, OCS_OCCUPIED, PlanningToolkit
+from smg.navigation import AStarPathPlanner, OCS_OCCUPIED, Path, PlanningToolkit
 from smg.opengl import CameraRenderer, OpenGLMatrixContext, OpenGLUtil
 from smg.pyoctomap import *
 from smg.rigging.controllers import KeyboardCameraController
@@ -65,7 +65,7 @@ def main() -> None:
     # Plan a path through the waypoints.
     start = timer()
     ay: float = 10
-    path, _ = planner.plan_multipath(
+    path: Optional[Path] = planner.plan_multipath(
         waypoints,
         d=PlanningToolkit.l1_distance(ay=ay),
         h=PlanningToolkit.l1_distance(ay=ay),
@@ -78,7 +78,7 @@ def main() -> None:
 
     # Smooth any path found.
     start = timer()
-    interpolated_path: Optional[np.ndarray] = PlanningToolkit.interpolate_path(path) if path is not None else None
+    interpolated_path: Optional[Path] = PlanningToolkit.interpolate_path(path) if path is not None else None
     end = timer()
     print(f"Path Smoothing: {end - start}s")
 
@@ -123,8 +123,8 @@ def main() -> None:
 
                 # If a path was found, draw it.
                 if path is not None:
-                    OpenGLUtil.render_path(
-                        interpolated_path, start_colour=(1, 1, 0), end_colour=(1, 0, 1), width=5,
+                    interpolated_path.render(
+                        start_colour=(1, 1, 0), end_colour=(1, 0, 1), width=5,
                         waypoint_colourer=planning_toolkit.occupancy_colourer()
                     )
 
