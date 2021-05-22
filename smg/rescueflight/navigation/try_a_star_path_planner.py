@@ -78,9 +78,9 @@ def main() -> None:
 
     # Smooth any path found.
     start = timer()
-    interpolated_path: Optional[Path] = PlanningToolkit.interpolate_path(path) if path is not None else None
+    interpolated_path: Optional[Path] = path.interpolate() if path is not None else None
     end = timer()
-    print(f"Path Smoothing: {end - start}s")
+    print(f"Path Interpolation: {end - start}s")
 
     # Construct the camera controller.
     camera_controller: KeyboardCameraController = KeyboardCameraController(
