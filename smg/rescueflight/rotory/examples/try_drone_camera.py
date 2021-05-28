@@ -27,6 +27,7 @@ def main():
     with DroneFactory.make_drone(drone_type, **kwargs[drone_type]) as drone:
         while True:
             image: np.ndarray = drone.get_image()
+            print(drone.get_battery_level())
             cv2.imshow("Image", image)
             if cv2.waitKey(1) == ord('q'):
                 break
