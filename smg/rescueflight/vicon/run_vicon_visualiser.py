@@ -42,7 +42,7 @@ def main() -> None:
     )
 
     # Connect to the Vicon system.
-    with ViconInterface("169.254.185.150:801") as vicon:
+    with ViconInterface() as vicon:
         # Repeatedly:
         while True:
             # Process any PyGame events.
