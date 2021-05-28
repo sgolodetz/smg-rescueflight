@@ -11,7 +11,7 @@ import pygame
 # noinspection PyPackageRequirements
 from OpenGL.GL import *
 from timeit import default_timer as timer
-from typing import Dict, Optional, Tuple
+from typing import Optional, Tuple
 
 from smg.opengl import CameraRenderer, OpenGLMatrixContext, OpenGLUtil
 from smg.rigging.cameras import SimpleCamera
@@ -84,12 +84,10 @@ def main() -> None:
                     if vicon.get_frame():
                         print(f"=== Frame {vicon.get_frame_number()} ===")
                         for subject in vicon.get_subject_names():
-                            marker_positions: Optional[Dict[str, np.ndarray]] = vicon.get_marker_positions(subject)
-                            if marker_positions is not None:
-                                for marker_name, marker_pos in marker_positions.items():
-                                    print(marker_name, marker_pos)
-                                    glColor3f(1.0, 0.0, 0.0)
-                                    OpenGLUtil.render_sphere(marker_pos, 0.014, slices=10, stacks=10)
+                            for marker_name, marker_pos in vicon.get_marker_positions(subject).items():
+                                print(marker_name, marker_pos)
+                                glColor3f(1.0, 0.0, 0.0)
+                                OpenGLUtil.render_sphere(marker_pos, 0.014, slices=10, stacks=10)
 
                             subject_pose: Optional[np.ndarray] = vicon.get_segment_pose(subject, subject)
                             if subject_pose is not None:

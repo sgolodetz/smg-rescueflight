@@ -1,7 +1,3 @@
-import numpy as np
-
-from typing import Dict, Optional
-
 from smg.vicon import ViconInterface
 
 
@@ -15,10 +11,8 @@ def main() -> None:
                         print(subject, segment, vicon.get_segment_pose(subject, segment))
 
                 print(f"=== Frame {vicon.get_frame_number()} ===")
-                marker_positions: Optional[Dict[str, np.ndarray]] = vicon.get_marker_positions("Wand")
-                if marker_positions is not None:
-                    for name, pos in marker_positions.items():
-                        print(name, pos)
+                for name, pos in vicon.get_marker_positions("Wand").items():
+                    print(name, pos)
 
 
 if __name__ == "__main__":
