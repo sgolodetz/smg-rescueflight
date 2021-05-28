@@ -22,7 +22,7 @@ def main() -> None:
     pygame.init()
     window_size: Tuple[int, int] = (640, 480)
     pygame.display.set_mode(window_size, pygame.DOUBLEBUF | pygame.OPENGL)
-    pygame.display.set_caption("Vicon Visualiser")
+    pygame.display.set_caption("Vicon Visualisation Demo")
 
     # Set the camera intrinsics.
     intrinsics: Tuple[float, float, float, float] = (532.5694641250893, 531.5410880910171, 320.0, 240.0)
@@ -92,7 +92,9 @@ def main() -> None:
                             subject_pose: Optional[np.ndarray] = vicon.get_segment_pose(subject, subject)
                             if subject_pose is not None:
                                 subject_cam: SimpleCamera = CameraPoseConverter.pose_to_camera(subject_pose)
-                                CameraRenderer.render_camera(subject_cam, body_scale=0.05)
+                                glLineWidth(5)
+                                CameraRenderer.render_camera(subject_cam, axis_scale=0.5)
+                                glLineWidth(1)
 
             # Swap the front and back buffers.
             pygame.display.flip()

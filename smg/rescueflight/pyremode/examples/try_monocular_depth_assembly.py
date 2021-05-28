@@ -11,8 +11,7 @@ from smg.open3d import VisualisationUtil
 from smg.openni import OpenNICamera, OpenNIRGBDImageSource
 from smg.pyorbslam2 import MonocularTracker
 from smg.pyremode import DepthAssembler, DepthProcessor
-from smg.rotory.drone_factory import DroneFactory
-from smg.rotory.drone_rgb_image_source import DroneRGBImageSource
+from smg.rotory import DroneFactory, DroneRGBImageSource
 
 
 def main():
