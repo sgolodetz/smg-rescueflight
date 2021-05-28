@@ -1,14 +1,9 @@
-# noinspection PyPackageRequirements
-import cv2
-# noinspection PyPackageRequirements
 import numpy as np
 import os
 
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
-# noinspection PyPackageRequirements
 import pygame
 
-# noinspection PyPackageRequirements
 from OpenGL.GL import *
 from timeit import default_timer as timer
 from typing import Optional, Tuple
@@ -49,9 +44,8 @@ def main() -> None:
             for event in pygame.event.get():
                 # If the user wants us to quit:
                 if event.type == pygame.QUIT:
-                    # Shut down pygame, and destroy any OpenCV windows.
+                    # Shut down pygame.
                     pygame.quit()
-                    cv2.destroyAllWindows()
 
                     # Forcibly terminate the whole process.
                     # noinspection PyProtectedMember
@@ -81,14 +75,20 @@ def main() -> None:
                     glColor3f(0.0, 0.0, 0.0)
                     OpenGLUtil.render_voxel_grid([-3, -5, 0], [3, 5, 2], [1, 1, 1], dotted=True)
 
+                    # If a frame of Vicon data is available:
                     if vicon.get_frame():
+                        # Print out the frame number.
                         print(f"=== Frame {vicon.get_frame_number()} ===")
+
+                        # For each Vicon subject:
                         for subject in vicon.get_subject_names():
+                            # Render all of its markers.
                             for marker_name, marker_pos in vicon.get_marker_positions(subject).items():
                                 print(marker_name, marker_pos)
                                 glColor3f(1.0, 0.0, 0.0)
                                 OpenGLUtil.render_sphere(marker_pos, 0.014, slices=10, stacks=10)
 
+                            # Assume it's a single-segment subject and try to render its coordinate axes.
                             subject_pose: Optional[np.ndarray] = vicon.get_segment_pose(subject, subject)
                             if subject_pose is not None:
                                 subject_cam: SimpleCamera = CameraPoseConverter.pose_to_camera(subject_pose)
