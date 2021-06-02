@@ -175,6 +175,12 @@ class TestDualQuaternion(unittest.TestCase):
         tr: DualQuaternion = trans * rot
         self.assertTrue(DualQuaternion.close(DualQuaternion.from_screw(tr.to_screw()), tr))
 
+    def test_to_rigid_matrix(self):
+        rot: DualQuaternion = DualQuaternion.from_axis_angle([0, 0, 1], math.pi / 4)
+        trans: DualQuaternion = DualQuaternion.from_translation([3, 4, 5])
+        tr: DualQuaternion = trans * rot
+        self.assertTrue(DualQuaternion.close(DualQuaternion.from_rigid_matrix(tr.to_rigid_matrix()), tr))
+
 
 if __name__ == "__main__":
     np.set_printoptions(suppress=True)
