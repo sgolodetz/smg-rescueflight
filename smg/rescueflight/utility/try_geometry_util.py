@@ -28,7 +28,6 @@ class TestGeometryUtil(unittest.TestCase):
 
         # Check that blending the transforms in the cluster gives a rotation by 3*PI/2.
         refined_transform: np.ndarray = GeometryUtil.blend_rigid_transforms([transforms[i] for i in cluster])
-        print(refined_transform)
         self.assertTrue(DualQuaternion.close(
             DualQuaternion.from_rigid_matrix(refined_transform),
             DualQuaternion.from_axis_angle(up, 3 * math.pi / 2)
