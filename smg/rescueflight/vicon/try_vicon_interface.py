@@ -1,7 +1,11 @@
+import numpy as np
+
 from smg.vicon import ViconInterface
 
 
 def main() -> None:
+    np.set_printoptions(suppress=True)
+
     with ViconInterface() as vicon:
         while True:
             if vicon.get_frame():

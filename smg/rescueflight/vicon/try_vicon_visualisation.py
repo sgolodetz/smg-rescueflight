@@ -12,7 +12,7 @@ from smg.opengl import CameraRenderer, OpenGLMatrixContext, OpenGLUtil
 from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
-from smg.vicon import ViconInterface
+from smg.vicon import SubjectFromSourceCache, ViconInterface
 
 
 def main() -> None:
@@ -22,7 +22,7 @@ def main() -> None:
     pygame.init()
     window_size: Tuple[int, int] = (640, 480)
     pygame.display.set_mode(window_size, pygame.DOUBLEBUF | pygame.OPENGL)
-    pygame.display.set_caption("Vicon Visualiser")
+    pygame.display.set_caption("Vicon Visualisation Demo")
 
     # Set the camera intrinsics.
     intrinsics: Tuple[float, float, float, float] = (532.5694641250893, 531.5410880910171, 320.0, 240.0)
@@ -35,6 +35,9 @@ def main() -> None:
     camera_controller: KeyboardCameraController = KeyboardCameraController(
         SimpleCamera([0, 0, 0], [0, 1, 0], [0, 0, 1]), canonical_angular_speed=0.05, canonical_linear_speed=0.1
     )
+
+    # Construct the subject-from-source cache.
+    subject_from_source_cache: SubjectFromSourceCache = SubjectFromSourceCache(".")
 
     # Connect to the Vicon system.
     with ViconInterface() as vicon:
@@ -88,11 +91,29 @@ def main() -> None:
                                 glColor3f(1.0, 0.0, 0.0)
                                 OpenGLUtil.render_sphere(marker_pos, 0.014, slices=10, stacks=10)
 
-                            # Assume it's a single-segment subject and try to render its coordinate axes.
-                            subject_pose: Optional[np.ndarray] = vicon.get_segment_pose(subject, subject)
-                            if subject_pose is not None:
-                                subject_cam: SimpleCamera = CameraPoseConverter.pose_to_camera(subject_pose)
-                                CameraRenderer.render_camera(subject_cam, body_scale=0.05)
+                            # Assume it's a single-segment subject and try to get its pose from the Vicon system.
+                            subject_from_world: Optional[np.ndarray] = vicon.get_segment_pose(subject, subject)
+
+                            # If that succeeds:
+                            if subject_from_world is not None:
+                                # Render the subject pose obtained from the Vicon system.
+                                subject_cam: SimpleCamera = CameraPoseConverter.pose_to_camera(subject_from_world)
+                                CameraRenderer.render_camera(subject_cam, axis_scale=0.5)
+
+                                # Assume that the subject corresponds to an image source, and try to get the
+                                # relative transformation from that image source to the subject.
+                                subject_from_source: Optional[np.ndarray] = subject_from_source_cache.get(subject)
+
+                                # If that succeeds (i.e. it does correspond to an image source, and we know the
+                                # relative transformation):
+                                if subject_from_source is not None:
+                                    # Render the pose of the image source as well.
+                                    source_from_world: np.ndarray = \
+                                        np.linalg.inv(subject_from_source) @ subject_from_world
+                                    source_cam: SimpleCamera = CameraPoseConverter.pose_to_camera(source_from_world)
+                                    glLineWidth(5)
+                                    CameraRenderer.render_camera(source_cam, axis_scale=0.5)
+                                    glLineWidth(1)
 
             # Swap the front and back buffers.
             pygame.display.flip()
