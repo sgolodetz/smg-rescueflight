@@ -6,38 +6,13 @@ import pygame
 
 from OpenGL.GL import *
 from timeit import default_timer as timer
-from typing import Dict, Optional, Tuple
+from typing import Optional, Tuple
 
 from smg.opengl import CameraRenderer, OpenGLMatrixContext, OpenGLUtil
 from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
-from smg.utility import PoseUtil
-from smg.vicon import ViconInterface
-
-
-class SubjectFromSourceCache:
-    """A cache of the transformations from the spaces of the image sources to those of their Vicon subjects."""
-
-    # CONSTRUCTOR
-
-    def __init__(self, directory: str):
-        self.__directory: str = directory
-        self.__subjects_from_sources: Dict[str, np.ndarray] = {}
-
-    # PUBLIC METHODS
-
-    def get(self, subject_name: str) -> Optional[np.ndarray]:
-        subject_from_source: Optional[np.ndarray] = self.__subjects_from_sources.get(subject_name)
-        if subject_from_source is not None:
-            return subject_from_source
-        else:
-            filename: str = os.path.join(self.__directory, f"subject_from_source-{subject_name}.txt")
-            if os.path.exists(filename):
-                subject_from_source = PoseUtil.load_pose(filename)
-                self.__subjects_from_sources[subject_name] = subject_from_source
-            else:
-                return None
+from smg.vicon import SubjectFromSourceCache, ViconInterface
 
 
 def main() -> None:
