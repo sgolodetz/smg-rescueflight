@@ -125,7 +125,7 @@ def main() -> None:
         source_from_world: Optional[np.ndarray] = None
 
         # TODO
-        subject_from_source: np.ndarray = PoseUtil.load_pose("Tello.txt")
+        subject_from_source: np.ndarray = PoseUtil.load_pose("subject_from_source-Tello.txt")
 
         # Connect to the Vicon system.
         with ViconInterface() as vicon:
