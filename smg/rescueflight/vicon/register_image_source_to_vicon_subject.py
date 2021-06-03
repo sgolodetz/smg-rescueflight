@@ -117,7 +117,8 @@ def main() -> None:
                     # If both estimates were successfully obtained, multiply them to get an estimate of the relative
                     # transformation from the camera space of the image source to the space of its Vicon subject.
                     if subject_from_world_estimate is not None and world_from_source_estimate is not None:
-                        subject_from_source_estimate = subject_from_world_estimate @ world_from_source_estimate
+                        subject_from_source_estimate: np.ndarray = \
+                            subject_from_world_estimate @ world_from_source_estimate
                         subject_from_source_estimates.append(subject_from_source_estimate)
 
                         print(subject_from_source_estimate)
@@ -127,7 +128,9 @@ def main() -> None:
             subject_from_source: np.ndarray = GeometryUtil.blend_rigid_transforms(subject_from_source_estimates)
 
             # Print out the estimate, and save it to disk if requested.
+            print("=== Result ===")
             print(subject_from_source)
+
             output_filename: Optional[str] = args.get("output_filename")
             if output_filename is not None:
                 PoseUtil.save_pose(output_filename, subject_from_source)
