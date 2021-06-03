@@ -12,6 +12,7 @@ from smg.opengl import CameraRenderer, OpenGLMatrixContext, OpenGLUtil
 from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
+from smg.utility import PoseUtil
 from smg.vicon import ViconInterface
 
 
@@ -89,12 +90,20 @@ def main() -> None:
                                 OpenGLUtil.render_sphere(marker_pos, 0.014, slices=10, stacks=10)
 
                             # Assume it's a single-segment subject and try to render its coordinate axes.
-                            subject_pose: Optional[np.ndarray] = vicon.get_segment_pose(subject, subject)
-                            if subject_pose is not None:
-                                subject_cam: SimpleCamera = CameraPoseConverter.pose_to_camera(subject_pose)
-                                glLineWidth(5)
+                            subject_from_world: Optional[np.ndarray] = vicon.get_segment_pose(subject, subject)
+                            if subject_from_world is not None:
+                                subject_cam: SimpleCamera = CameraPoseConverter.pose_to_camera(subject_from_world)
+                                # glLineWidth(5)
                                 CameraRenderer.render_camera(subject_cam, axis_scale=0.5)
-                                glLineWidth(1)
+                                # glLineWidth(1)
+
+                                if subject == "Tello":
+                                    subject_from_source: np.ndarray = PoseUtil.load_pose("Tello.txt")
+                                    source_from_world: np.ndarray = np.linalg.inv(subject_from_source) @ subject_from_world
+                                    source_cam: SimpleCamera = CameraPoseConverter.pose_to_camera(source_from_world)
+                                    glLineWidth(5)
+                                    CameraRenderer.render_camera(source_cam, axis_scale=0.5)
+                                    glLineWidth(1)
 
             # Swap the front and back buffers.
             pygame.display.flip()
