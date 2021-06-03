@@ -91,16 +91,23 @@ def main() -> None:
                                 glColor3f(1.0, 0.0, 0.0)
                                 OpenGLUtil.render_sphere(marker_pos, 0.014, slices=10, stacks=10)
 
-                            # Assume it's a single-segment subject and try to render its coordinate axes.
+                            # Assume it's a single-segment subject and try to get its pose from the Vicon system.
                             subject_from_world: Optional[np.ndarray] = vicon.get_segment_pose(subject, subject)
-                            if subject_from_world is not None:
-                                subject_cam: SimpleCamera = CameraPoseConverter.pose_to_camera(subject_from_world)
-                                # glLineWidth(5)
-                                CameraRenderer.render_camera(subject_cam, axis_scale=0.5)
-                                # glLineWidth(1)
 
+                            # If that succeeds:
+                            if subject_from_world is not None:
+                                # Render the subject pose obtained from the Vicon system.
+                                subject_cam: SimpleCamera = CameraPoseConverter.pose_to_camera(subject_from_world)
+                                CameraRenderer.render_camera(subject_cam, axis_scale=0.5)
+
+                                # Assume that the subject corresponds to an image source, and try to get the
+                                # relative transformation from that image source to the subject.
                                 subject_from_source: Optional[np.ndarray] = subject_from_source_cache.get(subject)
+
+                                # If that succeeds (i.e. it does correspond to an image source, and we know the
+                                # relative transformation):
                                 if subject_from_source is not None:
+                                    # Render the pose of the image source as well.
                                     source_from_world: np.ndarray = \
                                         np.linalg.inv(subject_from_source) @ subject_from_world
                                     source_cam: SimpleCamera = CameraPoseConverter.pose_to_camera(source_from_world)
