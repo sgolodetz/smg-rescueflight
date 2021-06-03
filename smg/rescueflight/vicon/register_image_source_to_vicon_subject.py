@@ -12,8 +12,25 @@ from smg.utility import GeometryUtil, PoseUtil
 from smg.vicon import ViconInterface
 
 
-def estimate_source_pose(*, image: np.ndarray, intrinsics: Tuple[float, float, float, float],
-                         registrar_subject_name: str, vicon: ViconInterface) -> Optional[np.ndarray]:
+def estimate_world_from_source(*, image: np.ndarray, intrinsics: Tuple[float, float, float, float],
+                               registrar_subject_name: str, vicon: ViconInterface) -> Optional[np.ndarray]:
+    """
+    Try to estimate the transformation from the camera space of an image source to the Vicon coordinate system.
+
+    .. note::
+        The approach uses a registration board that has Vicon markers stuck to the corners of an ArUco marker. First,
+        the 3D positions of the corners of the marker are queried from the Vicon system. These are then passed to an
+        ArUco+PnP relocaliser that detects the ArUco marker in the image, establishes correspondences between the 2D
+        corners of the marker and their 3D positions obtained from the Vicon, and then uses PnP to estimate the
+        transformation.
+
+    :param image:                   An image captured by the image source.
+    :param intrinsics:              The camera intrinsics.
+    :param registrar_subject_name:  The name of the registration board's Vicon subject.
+    :param vicon:                   The Vicon interface.
+    :return:                        An estimate of the transformation from the camera space of the image source
+                                    to the Vicon coordinate system.
+    """
     # Try to determine the positions of the fiducials using the Vicon system. This can fail if the fiducials can't
     # currently be seen by the Vicon system, in which case an empty dictionary will be returned.
     fiducials: Dict[str, np.narray] = vicon.get_marker_positions(registrar_subject_name)
@@ -90,7 +107,7 @@ def main() -> None:
 
                     # Try to estimate the relative transformation from the camera space of the image source to
                     # world space, using the ArUco marker and the Vicon system.
-                    world_from_source_estimate: Optional[np.ndarray] = estimate_source_pose(
+                    world_from_source_estimate: Optional[np.ndarray] = estimate_world_from_source(
                         image=image,
                         intrinsics=image_source.get_intrinsics(),
                         registrar_subject_name=args["registrar_subject_name"],
