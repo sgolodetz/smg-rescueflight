@@ -12,56 +12,16 @@ from typing import Dict, Optional, Tuple
 from smg.imagesources import RGBFromRGBDImageSource, RGBImageSource
 from smg.opengl import CameraRenderer, OpenGLImageRenderer, OpenGLMatrixContext, OpenGLUtil
 from smg.openni import OpenNICamera, OpenNIRGBDImageSource
-from smg.relocalisation import ArUcoPnPRelocaliser
 from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
 from smg.rotory import DroneFactory, DroneRGBImageSource
-from smg.utility import ImageUtil
+from smg.utility import ImageUtil, PoseUtil
 from smg.vicon import ViconInterface
 
 
-def estimate_source_pose(*, image: np.ndarray, intrinsics: Tuple[float, float, float, float],
-                         subject_from_source: Optional[np.ndarray], vicon: ViconInterface):
-    # Approach #1
-
-    # If we've previously estimated the transformation from the source to the subject:
-    if subject_from_source is not None:
-        # Try to determine the pose of the subject using the Vicon system. This can fail if the subject can't
-        # currently be seen by the Vicon system.
-        # TODO
-        subject_from_world: Optional[np.ndarray] = vicon.get_segment_pose("Tello", "Tello")
-
-        # TODO
-        if subject_from_world is not None:
-            # TODO
-            return np.linalg.inv(subject_from_world) @ subject_from_source
-
-    # Approach #2
-
-    # Try to determine the positions of the fiducials using the Vicon system. This can fail if the fiducials can't
-    # currently be seen by the Vicon system.
-    fiducials: Dict[str, np.narray] = vicon.get_marker_positions("Registrar")
-
-    # # FIXME: Stop hard-coding this.
-    # height: float = 1.5  # 1.5m (the height of the centre of the printed marker)
-    # offset: float = 0.0705  # 7.05cm (half the width of the printed marker)
-    # fiducials: Dict[str, np.ndarray] = {
-    #     "0_0": np.array([-offset, 0, height + offset]),
-    #     "0_1": np.array([offset, 0, height + offset]),
-    #     "0_2": np.array([offset, 0, height - offset]),
-    #     "0_3": np.array([-offset, 0, height - offset])
-    # }
-
-    # Set up a relocaliser that uses the known positions of the fiducials.
-    relocaliser: ArUcoPnPRelocaliser = ArUcoPnPRelocaliser(fiducials)
-
-    # Estimate the pose of the source using the relocaliser.
-    return relocaliser.estimate_pose(image, intrinsics, draw_detections=False)
-
-
-def render_window(*, image: np.ndarray, image_renderer: OpenGLImageRenderer, vicon: ViconInterface,
-                  viewing_pose: np.ndarray, window_size: Tuple[int, int], world_from_source: Optional[np.ndarray]) \
+def render_window(*, image: np.ndarray, image_renderer: OpenGLImageRenderer, source_from_world: Optional[np.ndarray],
+                  vicon: ViconInterface, viewing_pose: np.ndarray, window_size: Tuple[int, int]) \
         -> None:
     # Clear the window.
     OpenGLUtil.set_viewport((0.0, 0.0), (1.0, 1.0), window_size)
@@ -91,10 +51,10 @@ def render_window(*, image: np.ndarray, image_renderer: OpenGLImageRenderer, vic
             OpenGLUtil.render_voxel_grid([-3, -5, 0], [3, 5, 2], [1, 1, 1], dotted=True)
 
             # Render coordinate axes for the image source (if its current pose is known).
-            if world_from_source is not None:
+            if source_from_world is not None:
                 glLineWidth(5)
                 CameraRenderer.render_camera(
-                    CameraPoseConverter.pose_to_camera(np.linalg.inv(world_from_source)),
+                    CameraPoseConverter.pose_to_camera(source_from_world),
                     # axes_type=CameraRenderer.AXES_NUV
                 )
                 glLineWidth(1)
@@ -162,10 +122,10 @@ def main() -> None:
         )
 
         # TODO
-        world_from_source: Optional[np.ndarray] = None
+        source_from_world: Optional[np.ndarray] = None
 
         # TODO
-        subject_from_source: Optional[np.ndarray] = None
+        subject_from_source: np.ndarray = PoseUtil.load_pose("Tello.txt")
 
         # Connect to the Vicon system.
         with ViconInterface() as vicon:
@@ -195,32 +155,21 @@ def main() -> None:
                         # Print out the frame number.
                         print(f"=== Frame {vicon.get_frame_number()} ===")
 
-                        # Try to estimate the pose of the image source.
-                        world_from_source = estimate_source_pose(
-                            image=image,
-                            intrinsics=image_source.get_intrinsics(),
-                            subject_from_source=subject_from_source,
-                            vicon=vicon
-                        )
-
-                        print(world_from_source)
-
-                        if world_from_source is not None:
-                            ret = vicon.get_segment_pose("Tello", "Tello")
-                            if ret is not None:
-                                subject_from_world = ret
-                                subject_from_source = subject_from_world @ world_from_source
+                        # TODO
+                        subject_from_world: Optional[np.ndarray] = vicon.get_segment_pose("Tello", "Tello")
+                        if subject_from_world is not None:
+                            source_from_world = np.linalg.inv(subject_from_source) @ subject_from_world
                     else:
-                        world_from_source = None
+                        source_from_world = None
 
                     # Render the contents of the window.
                     render_window(
                         image=image,
                         image_renderer=image_renderer,
+                        source_from_world=source_from_world,
                         vicon=vicon,
                         viewing_pose=camera_controller.get_pose(),
-                        window_size=window_size,
-                        world_from_source=world_from_source
+                        window_size=window_size
                     )
     finally:
         # Terminate the image source.
