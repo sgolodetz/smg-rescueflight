@@ -23,6 +23,16 @@ from smg.vicon import SubjectFromSourceCache, ViconInterface
 def render_window(*, image: np.ndarray, image_renderer: OpenGLImageRenderer,
                   subject_from_source_cache: SubjectFromSourceCache, vicon: ViconInterface,
                   viewing_pose: np.ndarray, window_size: Tuple[int, int]) -> None:
+    """
+    Render the application window.
+
+    :param image:                       The most recent image from the camera.
+    :param image_renderer:              An OpenGL-based image renderer.
+    :param subject_from_source_cache:   A cache of the transformations from image sources to their Vicon subjects.
+    :param vicon:                       The Vicon interface.
+    :param viewing_pose:                The pose from which the scene is being viewed.
+    :param window_size:                 The application window size, as a (width, height) tuple.
+    """
     # Clear the window.
     OpenGLUtil.set_viewport((0.0, 0.0), (1.0, 1.0), window_size)
     glClearColor(1.0, 1.0, 1.0, 0.0)
