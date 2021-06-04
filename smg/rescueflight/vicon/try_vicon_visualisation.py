@@ -75,7 +75,7 @@ def main() -> None:
         help="the folder from which to load the scene mesh"
     )
     parser.add_argument(
-        "--scene_timestamp", "-t", type=str, default="20210604-124834",
+        "--scene_timestamp", "-t", type=str,
         help="a timestamp indicating which scene mesh to load"
     )
     args: dict = vars(parser.parse_args())
@@ -105,8 +105,9 @@ def main() -> None:
     with ViconInterface() as vicon:
         # Load in the scene mesh (if any), transforming it as needed in the process.
         scene_mesh: Optional[OpenGLTriMesh] = None
-        if vicon.get_frame():
-            scene_mesh = load_scene_mesh(args["scenes_folder"], args["scene_timestamp"], vicon)
+        scene_timestamp: Optional[str] = args.get("scene_timestamp")
+        if scene_timestamp is not None and vicon.get_frame():
+            scene_mesh = load_scene_mesh(args["scenes_folder"], scene_timestamp, vicon)
 
         # Repeatedly:
         while True:
