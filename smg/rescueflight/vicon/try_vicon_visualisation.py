@@ -9,30 +9,13 @@ from OpenGL.GL import *
 from timeit import default_timer as timer
 from typing import Dict, Optional, Tuple
 
+from smg.meshing import MeshUtil
 from smg.opengl import CameraRenderer, OpenGLMatrixContext, OpenGLTriMesh, OpenGLUtil
 from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
 from smg.utility import FiducialUtil, GeometryUtil
 from smg.vicon import SubjectFromSourceCache, ViconInterface
-
-
-# FIXME: This is a temporary copy of the one from DroneSimulator - it should be put somewhere more central.
-def convert_trimesh_to_opengl(o3d_mesh: o3d.geometry.TriangleMesh) -> OpenGLTriMesh:
-    """
-    Convert an Open3D triangle mesh to an OpenGL one.
-
-    :param o3d_mesh:    The Open3D triangle mesh.
-    :return:            The OpenGL mesh.
-    """
-    # FIXME: This should probably be moved somewhere more central at some point.
-    o3d_mesh.compute_vertex_normals(True)
-    return OpenGLTriMesh(
-        np.asarray(o3d_mesh.vertices),
-        np.asarray(o3d_mesh.vertex_colors),
-        np.asarray(o3d_mesh.triangles),
-        vertex_normals=np.asarray(o3d_mesh.vertex_normals)
-    )
 
 
 def estimate_scene_transformation(vicon: ViconInterface) -> np.ndarray:
@@ -105,7 +88,7 @@ def main() -> None:
                 "C:/spaint/build/bin/apps/spaintgui/meshes/TangoCapture-20210604-124834-cleaned.ply"
             )
             scene_mesh_o3d.transform(estimate_scene_transformation(vicon))
-            scene_mesh: Optional[OpenGLTriMesh] = convert_trimesh_to_opengl(scene_mesh_o3d)
+            scene_mesh: Optional[OpenGLTriMesh] = MeshUtil.convert_trimesh_to_opengl(scene_mesh_o3d)
 
         # Repeatedly:
         while True:

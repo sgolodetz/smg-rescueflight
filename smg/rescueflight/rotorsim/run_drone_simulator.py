@@ -27,7 +27,7 @@ def main() -> None:
     # Construct the drone simulator.
     with DroneSimulator(
         debug=False,
-        drone_mesh_filename="C:/smglib/meshes/tello.ply",
+        drone_mesh_filename="C:/smglib/smg-meshing/resources/tello.ply",
         intrinsics=intrinsics,
         plan_paths=True,
         planning_octree_filename=args.get("planning_octree"),
