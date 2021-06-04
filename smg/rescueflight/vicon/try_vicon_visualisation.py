@@ -19,7 +19,19 @@ from smg.utility import FiducialUtil, GeometryUtil
 from smg.vicon import SubjectFromSourceCache, ViconInterface
 
 
-def load_scene_mesh(*, fiducials_filename: str, mesh_filename: str, vicon: ViconInterface) -> OpenGLTriMesh:
+def load_scene_mesh(scenes_folder: str, scene_timestamp: str, vicon: ViconInterface) -> OpenGLTriMesh:
+    """
+    Load in a scene mesh, transforming it into the Vicon coordinate system in the process.
+
+    :param scenes_folder:   The folder from which to load the scene mesh.
+    :param scene_timestamp: A timestamp indicating which scene mesh to load.
+    :param vicon:           The Vicon interface.
+    :return:                The scene mesh.
+    """
+    # Specify the file paths.
+    mesh_filename: str = os.path.join(scenes_folder, f"TangoCapture-{scene_timestamp}-cleaned.ply")
+    fiducials_filename: str = os.path.join(scenes_folder, f"TangoCapture-{scene_timestamp}-fiducials.txt")
+
     # Load in the positions of the four ArUco marker corners as estimated during the ground-truth reconstruction.
     fiducials: Dict[str, np.ndarray] = FiducialUtil.load_fiducials(fiducials_filename)
 
@@ -56,6 +68,18 @@ def load_scene_mesh(*, fiducials_filename: str, mesh_filename: str, vicon: Vicon
 def main() -> None:
     np.set_printoptions(suppress=True)
 
+    # Parse any command-line arguments.
+    parser = ArgumentParser()
+    parser.add_argument(
+        "--scenes_folder", type=str, default="C:/spaint/build/bin/apps/spaintgui/meshes",
+        help="the folder from which to load the scene mesh"
+    )
+    parser.add_argument(
+        "--scene_timestamp", "-t", type=str, default="20210604-124834",
+        help="a timestamp indicating which scene mesh to load"
+    )
+    args: dict = vars(parser.parse_args())
+
     # Initialise PyGame and create the window.
     pygame.init()
     window_size: Tuple[int, int] = (640, 480)
@@ -82,11 +106,7 @@ def main() -> None:
         # Load in the scene mesh (if any), transforming it as needed in the process.
         scene_mesh: Optional[OpenGLTriMesh] = None
         if vicon.get_frame():
-            scene_mesh = load_scene_mesh(
-                fiducials_filename="C:/spaint/build/bin/apps/spaintgui/meshes/TangoCapture-20210604-124834-fiducials.txt",
-                mesh_filename="C:/spaint/build/bin/apps/spaintgui/meshes/TangoCapture-20210604-124834-cleaned.ply",
-                vicon=vicon
-            )
+            scene_mesh = load_scene_mesh(args["scenes_folder"], args["scene_timestamp"], vicon)
 
         # Repeatedly:
         while True:
