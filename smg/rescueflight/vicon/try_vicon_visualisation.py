@@ -32,7 +32,7 @@ def load_scene_mesh(scenes_folder: str, scene_timestamp: str, vicon: ViconInterf
     mesh_filename: str = os.path.join(scenes_folder, f"TangoCapture-{scene_timestamp}-cleaned.ply")
     fiducials_filename: str = os.path.join(scenes_folder, f"TangoCapture-{scene_timestamp}-fiducials.txt")
 
-    # Load in the positions of the four ArUco marker corners as estimated during the ground-truth reconstruction.
+    # Load in the positions of the four ArUco marker corners as estimated during the reconstruction process.
     fiducials: Dict[str, np.ndarray] = FiducialUtil.load_fiducials(fiducials_filename)
 
     # Stack these positions into a 3x4 matrix.
@@ -47,6 +47,7 @@ def load_scene_mesh(scenes_folder: str, scene_timestamp: str, vicon: ViconInterf
     # by the Vicon system, hopefully including ones for the ArUco marker corners.
     marker_positions: Dict[str, np.ndarray] = vicon.get_marker_positions("Registrar")
 
+    # Again, stack the relevant positions into a 3x4 matrix.
     q: np.ndarray = np.column_stack([
         marker_positions["0_0"],
         marker_positions["0_1"],
