@@ -5,6 +5,7 @@ import os
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame
 
+from argparse import ArgumentParser
 from OpenGL.GL import *
 from timeit import default_timer as timer
 from typing import Dict, Optional, Tuple
@@ -18,11 +19,9 @@ from smg.utility import FiducialUtil, GeometryUtil
 from smg.vicon import SubjectFromSourceCache, ViconInterface
 
 
-def estimate_scene_transformation(vicon: ViconInterface) -> np.ndarray:
-    # Load in the positions of the four marker corners as estimated during the ground-truth reconstruction.
-    fiducials: Dict[str, np.ndarray] = FiducialUtil.load_fiducials(
-        "C:/spaint/build/bin/apps/spaintgui/meshes/TangoCapture-20210604-124834-fiducials.txt"
-    )
+def load_scene_mesh(*, fiducials_filename: str, mesh_filename: str, vicon: ViconInterface) -> OpenGLTriMesh:
+    # Load in the positions of the four ArUco marker corners as estimated during the ground-truth reconstruction.
+    fiducials: Dict[str, np.ndarray] = FiducialUtil.load_fiducials(fiducials_filename)
 
     # Stack these positions into a 3x4 matrix.
     p: np.ndarray = np.column_stack([
@@ -32,7 +31,8 @@ def estimate_scene_transformation(vicon: ViconInterface) -> np.ndarray:
         fiducials["0_3"]
     ])
 
-    # TODO
+    # Look up the Vicon coordinate system positions of the all of the Vicon markers that can currently be seen
+    # by the Vicon system, hopefully including ones for the ArUco marker corners.
     marker_positions: Dict[str, np.ndarray] = vicon.get_marker_positions("Registrar")
 
     q: np.ndarray = np.column_stack([
@@ -42,18 +42,15 @@ def estimate_scene_transformation(vicon: ViconInterface) -> np.ndarray:
         marker_positions["0_3"]
     ])
 
-    print(p)
-    print(q)
-
-    # Estimate and return the rigid transformation between the two sets of points.
+    # Estimate the rigid transformation between the two sets of points.
     transform: np.ndarray = GeometryUtil.estimate_rigid_transform(p, q)
-    print(transform)
-    # transform[0:3, 0:3] = np.array([
-    #     [1.0, 0.0, 0.0],
-    #     [0.0, 0.0, 1.0],
-    #     [0.0, -1.0, 0.0]
-    # ])
-    return transform
+
+    # Load in the scene mesh and transform it into the Vicon coordinate system.
+    scene_mesh_o3d: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(mesh_filename)
+    scene_mesh_o3d.transform(transform)
+
+    # Convert the scene mesh to OpenGL format and return it.
+    return MeshUtil.convert_trimesh_to_opengl(scene_mesh_o3d)
 
 
 def main() -> None:
@@ -82,13 +79,14 @@ def main() -> None:
 
     # Connect to the Vicon system.
     with ViconInterface() as vicon:
+        # Load in the scene mesh (if any), transforming it as needed in the process.
+        scene_mesh: Optional[OpenGLTriMesh] = None
         if vicon.get_frame():
-            # Load in the scene mesh (if any).
-            scene_mesh_o3d: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(
-                "C:/spaint/build/bin/apps/spaintgui/meshes/TangoCapture-20210604-124834-cleaned.ply"
+            scene_mesh = load_scene_mesh(
+                fiducials_filename="C:/spaint/build/bin/apps/spaintgui/meshes/TangoCapture-20210604-124834-fiducials.txt",
+                mesh_filename="C:/spaint/build/bin/apps/spaintgui/meshes/TangoCapture-20210604-124834-cleaned.ply",
+                vicon=vicon
             )
-            scene_mesh_o3d.transform(estimate_scene_transformation(vicon))
-            scene_mesh: Optional[OpenGLTriMesh] = MeshUtil.convert_trimesh_to_opengl(scene_mesh_o3d)
 
         # Repeatedly:
         while True:
