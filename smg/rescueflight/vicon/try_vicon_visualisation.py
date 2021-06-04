@@ -1,22 +1,85 @@
 import numpy as np
+import open3d as o3d
 import os
 
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame
 
+from argparse import ArgumentParser
 from OpenGL.GL import *
 from timeit import default_timer as timer
-from typing import Optional, Tuple
+from typing import Dict, Optional, Tuple
 
-from smg.opengl import CameraRenderer, OpenGLMatrixContext, OpenGLUtil
+from smg.meshing import MeshUtil
+from smg.opengl import CameraRenderer, OpenGLMatrixContext, OpenGLTriMesh, OpenGLUtil
 from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
+from smg.utility import FiducialUtil, GeometryUtil
 from smg.vicon import SubjectFromSourceCache, ViconInterface
+
+
+def load_scene_mesh(scenes_folder: str, scene_timestamp: str, vicon: ViconInterface) -> OpenGLTriMesh:
+    """
+    Load in a scene mesh, transforming it into the Vicon coordinate system in the process.
+
+    :param scenes_folder:   The folder from which to load the scene mesh.
+    :param scene_timestamp: A timestamp indicating which scene mesh to load.
+    :param vicon:           The Vicon interface.
+    :return:                The scene mesh.
+    """
+    # Specify the file paths.
+    mesh_filename: str = os.path.join(scenes_folder, f"TangoCapture-{scene_timestamp}-cleaned.ply")
+    fiducials_filename: str = os.path.join(scenes_folder, f"TangoCapture-{scene_timestamp}-fiducials.txt")
+
+    # Load in the positions of the four ArUco marker corners as estimated during the reconstruction process.
+    fiducials: Dict[str, np.ndarray] = FiducialUtil.load_fiducials(fiducials_filename)
+
+    # Stack these positions into a 3x4 matrix.
+    p: np.ndarray = np.column_stack([
+        fiducials["0_0"],
+        fiducials["0_1"],
+        fiducials["0_2"],
+        fiducials["0_3"]
+    ])
+
+    # Look up the Vicon coordinate system positions of the all of the Vicon markers that can currently be seen
+    # by the Vicon system, hopefully including ones for the ArUco marker corners.
+    marker_positions: Dict[str, np.ndarray] = vicon.get_marker_positions("Registrar")
+
+    # Again, stack the relevant positions into a 3x4 matrix.
+    q: np.ndarray = np.column_stack([
+        marker_positions["0_0"],
+        marker_positions["0_1"],
+        marker_positions["0_2"],
+        marker_positions["0_3"]
+    ])
+
+    # Estimate the rigid transformation between the two sets of points.
+    transform: np.ndarray = GeometryUtil.estimate_rigid_transform(p, q)
+
+    # Load in the scene mesh and transform it into the Vicon coordinate system.
+    scene_mesh_o3d: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(mesh_filename)
+    scene_mesh_o3d.transform(transform)
+
+    # Convert the scene mesh to OpenGL format and return it.
+    return MeshUtil.convert_trimesh_to_opengl(scene_mesh_o3d)
 
 
 def main() -> None:
     np.set_printoptions(suppress=True)
+
+    # Parse any command-line arguments.
+    parser = ArgumentParser()
+    parser.add_argument(
+        "--scenes_folder", type=str, default="C:/spaint/build/bin/apps/spaintgui/meshes",
+        help="the folder from which to load the scene mesh"
+    )
+    parser.add_argument(
+        "--scene_timestamp", "-t", type=str,
+        help="a timestamp indicating which scene mesh to load"
+    )
+    args: dict = vars(parser.parse_args())
 
     # Initialise PyGame and create the window.
     pygame.init()
@@ -41,6 +104,12 @@ def main() -> None:
 
     # Connect to the Vicon system.
     with ViconInterface() as vicon:
+        # Load in the scene mesh (if any), transforming it as needed in the process.
+        scene_mesh: Optional[OpenGLTriMesh] = None
+        scene_timestamp: Optional[str] = args.get("scene_timestamp")
+        if scene_timestamp is not None and vicon.get_frame():
+            scene_mesh = load_scene_mesh(args["scenes_folder"], scene_timestamp, vicon)
+
         # Repeatedly:
         while True:
             # Process any PyGame events.
@@ -77,6 +146,10 @@ def main() -> None:
                     # Render a voxel grid.
                     glColor3f(0.0, 0.0, 0.0)
                     OpenGLUtil.render_voxel_grid([-3, -5, 0], [3, 5, 2], [1, 1, 1], dotted=True)
+
+                    # Render the scene mesh (if any).
+                    if scene_mesh is not None:
+                        scene_mesh.render()
 
                     # If a frame of Vicon data is available:
                     if vicon.get_frame():
