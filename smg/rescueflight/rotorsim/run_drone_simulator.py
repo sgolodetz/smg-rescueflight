@@ -1,6 +1,7 @@
 from argparse import ArgumentParser
 from typing import Tuple
 
+from smg.meshing import MeshUtil
 from smg.rotorsim import DroneSimulator
 
 
@@ -27,7 +28,7 @@ def main() -> None:
     # Construct the drone simulator.
     with DroneSimulator(
         debug=False,
-        drone_mesh_filename="C:/smglib/smg-meshing/resources/tello.ply",
+        drone_mesh=MeshUtil.load_tello_mesh(),
         intrinsics=intrinsics,
         plan_paths=True,
         planning_octree_filename=args.get("planning_octree"),
