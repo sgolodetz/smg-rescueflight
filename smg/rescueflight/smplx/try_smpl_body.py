@@ -49,7 +49,7 @@ def main() -> None:
     )
 
     # Construct the SMPL body.
-    body: SMPLBody = SMPLBody("male")
+    body: SMPLBody = SMPLBody("female")
 
     try:
         # Construct the remote skeleton detector.
