@@ -135,10 +135,11 @@ def main() -> None:
                         OpenGLUtil.render_voxel_grid([-2, -2, -2], [2, 0, 2], [1, 1, 1], dotted=True)
 
                         # Render the people.
-                        for skeleton in skeletons:
-                            SkeletonRenderer.render_skeleton(skeleton)
-                            body.set_from_skeleton(skeleton)
-                            body.render()
+                        with SkeletonRenderer.default_lighting_context():
+                            for skeleton in skeletons:
+                                SkeletonRenderer.render_skeleton(skeleton)
+                                body.set_from_skeleton(skeleton)
+                                body.render()
 
                 # Swap the front and back buffers.
                 pygame.display.flip()
