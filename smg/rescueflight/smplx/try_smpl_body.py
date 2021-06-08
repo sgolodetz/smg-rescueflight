@@ -106,9 +106,9 @@ def main() -> None:
                     process_next = not pause
 
                 # Show the most recent colour image (if any) so that the user can see what's going on.
-                if colour_image is not None:
-                    cv2.imshow("Colour Image", colour_image)
-                    cv2.waitKey(1)
+                # if colour_image is not None:
+                #     cv2.imshow("Colour Image", colour_image)
+                #     cv2.waitKey(1)
 
                 # Allow the user to control the camera.
                 camera_controller.update(pygame.key.get_pressed(), timer() * 1000)
@@ -138,10 +138,10 @@ def main() -> None:
                         with SkeletonRenderer.default_lighting_context():
                             for skeleton in skeletons:
                                 glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
-                                SkeletonRenderer.render_skeleton(skeleton)
+                                # SkeletonRenderer.render_skeleton(skeleton)
                                 glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
                                 SkeletonRenderer.render_keypoint_orienters(skeleton)
-                                # body.set_from_skeleton(skeleton)
+                                body.set_from_skeleton(skeleton)
                                 # body.render()
 
                 # Swap the front and back buffers.
