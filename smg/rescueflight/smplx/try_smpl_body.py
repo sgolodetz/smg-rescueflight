@@ -15,7 +15,7 @@ from smg.comms.skeletons import RemoteSkeletonDetector
 from smg.opengl import CameraRenderer, OpenGLMatrixContext, OpenGLUtil
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
-from smg.skeletons import Skeleton, SkeletonRenderer
+from smg.skeletons import Skeleton3D, SkeletonRenderer
 from smg.smplx import SMPLBody
 from smg.utility import CameraParameters, GeometryUtil, RGBDSequenceUtil
 
@@ -66,7 +66,7 @@ def main() -> None:
             frame_idx: int = 0
             pause: bool = True
             process_next: bool = True
-            skeletons: List[Skeleton] = []
+            skeletons: List[Skeleton3D] = []
 
             # TODO
             while True:

@@ -6,7 +6,7 @@ from typing import List, Optional, Tuple
 
 from smg.comms.skeletons import RemoteSkeletonDetector
 from smg.openni import OpenNICamera
-from smg.skeletons import Skeleton, SkeletonUtil
+from smg.skeletons import Skeleton3D, SkeletonUtil
 
 
 def main() -> None:

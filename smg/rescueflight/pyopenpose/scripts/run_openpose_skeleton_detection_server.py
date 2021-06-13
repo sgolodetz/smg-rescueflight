@@ -16,7 +16,7 @@ from smg.pyopenpose import BoneLengthEstimator, SkeletonDetector
 from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter
-from smg.skeletons import Skeleton, SkeletonRenderer
+from smg.skeletons import Skeleton3D, SkeletonRenderer
 from smg.utility import GeometryUtil, PooledQueue
 
 
@@ -47,7 +47,7 @@ def main() -> None:
         image_size: Optional[Tuple[int, int]] = None
         intrinsics: Optional[Tuple[float, float, float, float]] = None
         receiver: RGBDFrameReceiver = RGBDFrameReceiver()
-        skeletons_3d: List[Skeleton] = []
+        skeletons_3d: List[Skeleton3D] = []
 
         # Construct the skeleton detector.
         params: Dict[str, Any] = {"model_folder": "D:/openpose-1.6.0/models/"}
