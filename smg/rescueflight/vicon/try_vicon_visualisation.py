@@ -8,15 +8,16 @@ import pygame
 from argparse import ArgumentParser
 from OpenGL.GL import *
 from timeit import default_timer as timer
-from typing import Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from smg.meshing import MeshUtil
 from smg.opengl import CameraRenderer, OpenGLMatrixContext, OpenGLTriMesh, OpenGLUtil
 from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
+from smg.skeletons import Skeleton3D, SkeletonRenderer
 from smg.utility import FiducialUtil, GeometryUtil
-from smg.vicon import SubjectFromSourceCache, ViconInterface
+from smg.vicon import SubjectFromSourceCache, ViconInterface, ViconSkeletonDetector
 
 
 def load_scene_mesh(scenes_folder: str, scene_timestamp: str, vicon: ViconInterface) -> OpenGLTriMesh:
@@ -104,6 +105,9 @@ def main() -> None:
 
     # Connect to the Vicon system.
     with ViconInterface() as vicon:
+        # Construct the skeleton detector.
+        skeleton_detector: ViconSkeletonDetector = ViconSkeletonDetector(vicon)
+
         # Load in the scene mesh (if any), transforming it as needed in the process.
         scene_mesh: Optional[OpenGLTriMesh] = None
         scene_timestamp: Optional[str] = args.get("scene_timestamp")
@@ -156,11 +160,19 @@ def main() -> None:
                         # Print out the frame number.
                         print(f"=== Frame {vicon.get_frame_number()} ===")
 
+                        # TODO
+                        skeletons: List[Skeleton3D] = skeleton_detector.detect_skeletons()
+                        print(skeletons)
+
+                        with SkeletonRenderer.default_lighting_context():
+                            for skeleton_3d in skeletons:
+                                SkeletonRenderer.render_skeleton(skeleton_3d)
+
                         # For each Vicon subject:
                         for subject in vicon.get_subject_names():
                             # Render all of its markers.
                             for marker_name, marker_pos in vicon.get_marker_positions(subject).items():
-                                print(marker_name, marker_pos)
+                                # print(marker_name, marker_pos)
                                 glColor3f(1.0, 0.0, 0.0)
                                 OpenGLUtil.render_sphere(marker_pos, 0.014, slices=10, stacks=10)
 
