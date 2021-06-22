@@ -16,6 +16,7 @@ from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
 from smg.skeletons import Skeleton3D, SkeletonRenderer
+from smg.smplx import SMPLBody
 from smg.utility import FiducialUtil, GeometryUtil
 from smg.vicon import SubjectFromSourceCache, ViconInterface, ViconSkeletonDetector
 
@@ -108,6 +109,8 @@ def main() -> None:
         # Construct the skeleton detector.
         skeleton_detector: ViconSkeletonDetector = ViconSkeletonDetector(vicon)
 
+        body: SMPLBody = SMPLBody("male")
+
         # Load in the scene mesh (if any), transforming it as needed in the process.
         scene_mesh: Optional[OpenGLTriMesh] = None
         scene_timestamp: Optional[str] = args.get("scene_timestamp")
@@ -165,8 +168,9 @@ def main() -> None:
                         print(skeletons)
 
                         with SkeletonRenderer.default_lighting_context():
-                            for skeleton_3d in skeletons:
-                                SkeletonRenderer.render_skeleton(skeleton_3d)
+                            for skeleton in skeletons:
+                                SkeletonRenderer.render_skeleton(skeleton)
+                                body.render_from_skeleton(skeleton)
 
                         # For each Vicon subject:
                         for subject in vicon.get_subject_names():
