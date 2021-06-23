@@ -51,9 +51,10 @@ def main() -> None:
     # Construct the SMPL body.
     body: SMPLBody = SMPLBody(
         "female",
-        texture_coords_filename="D:/smplx/models/smpl/texture_coords.npy",
-        # texture_image_filename="D:/smplx/models/smpl/texture_flipped.png"
-        texture_image_filename="D:/smplx/models/smpl/nongrey_female_0891.png"
+        texture_coords_filename="D:/smplx/textures/smpl/texture_coords.npy",
+        # texture_image_filename="D:/smplx/textures/smpl/texture.png"
+        # texture_image_filename="D:/smplx/textures/smpl/surreal/nongrey_female_0103.jpg"
+        texture_image_filename="D:/smplx/textures/smpl/surreal/nongrey_female_0891.jpg"
     )
 
     try:
