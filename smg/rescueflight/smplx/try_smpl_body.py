@@ -53,7 +53,6 @@ def main() -> None:
         "female",
         texture_coords_filename="D:/smplx/textures/smpl/texture_coords.npy",
         # texture_image_filename="D:/smplx/textures/smpl/texture.png"
-        # texture_image_filename="D:/smplx/textures/smpl/surreal/nongrey_female_0103.jpg"
         texture_image_filename="D:/smplx/textures/smpl/surreal/nongrey_female_0891.jpg"
     )
 
@@ -147,11 +146,10 @@ def main() -> None:
 
                                 SkeletonRenderer.render_skeleton(skeleton)
                                 SkeletonRenderer.render_keypoint_orienters(skeleton)
-
+                                body.render_from_skeleton(skeleton)
 
                                 glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
 
-                                body.render_from_skeleton(skeleton)
                                 body.render_joints()
 
                 # Swap the front and back buffers.
