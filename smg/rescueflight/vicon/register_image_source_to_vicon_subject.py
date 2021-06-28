@@ -9,7 +9,7 @@ from smg.openni import OpenNICamera, OpenNIRGBDImageSource
 from smg.relocalisation import ArUcoPnPRelocaliser
 from smg.rotory import DroneFactory, DroneRGBImageSource
 from smg.utility import GeometryUtil, PoseUtil
-from smg.vicon import ViconInterface
+from smg.vicon import LiveViconInterface, ViconInterface
 
 
 def estimate_world_from_source(*, image: np.ndarray, intrinsics: Tuple[float, float, float, float],
@@ -80,7 +80,7 @@ def main() -> None:
             image_source = DroneRGBImageSource(DroneFactory.make_drone(source_type, **kwargs[source_type]))
 
         # Connect to the Vicon system.
-        with ViconInterface() as vicon:
+        with LiveViconInterface() as vicon:
             subject_from_source_estimates: List[np.ndarray] = []
 
             # Repeatedly:

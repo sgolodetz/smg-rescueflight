@@ -4,6 +4,7 @@ import os
 
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame
+import time
 
 from argparse import ArgumentParser
 from OpenGL.GL import *
@@ -18,7 +19,8 @@ from smg.rigging.helpers import CameraPoseConverter, CameraUtil
 from smg.skeletons import Skeleton3D, SkeletonRenderer
 from smg.smplx import SMPLBody
 from smg.utility import FiducialUtil, GeometryUtil
-from smg.vicon import SubjectFromSourceCache, ViconInterface, ViconSkeletonDetector
+from smg.vicon import LiveViconInterface, OfflineViconInterface, SubjectFromSourceCache
+from smg.vicon import ViconFrameSaver, ViconInterface, ViconSkeletonDetector
 
 
 def is_person(subject_name: str) -> bool:
@@ -84,6 +86,14 @@ def main() -> None:
     # Parse any command-line arguments.
     parser = ArgumentParser()
     parser.add_argument(
+        "--persistence_folder", type=str,
+        help="the folder (if any) that should be used for Vicon persistence"
+    )
+    parser.add_argument(
+        "--persistence_mode", type=str, default="none", choices=("input", "none", "output"),
+        help="the Vicon persistence mode"
+    )
+    parser.add_argument(
         "--scenes_folder", type=str, default="C:/spaint/build/bin/apps/spaintgui/meshes",
         help="the folder from which to load the scene mesh"
     )
@@ -92,6 +102,16 @@ def main() -> None:
         help="a timestamp indicating which scene mesh to load"
     )
     args: dict = vars(parser.parse_args())
+
+    persistence_folder: Optional[str] = args["persistence_folder"]
+    persistence_mode: str = args["persistence_mode"]
+
+    if persistence_mode != "none" and persistence_folder is None:
+        raise RuntimeError(f"Cannot {persistence_mode}: need to specify a persistence folder")
+    if persistence_mode == "input" and not os.path.exists(persistence_folder):
+        raise RuntimeError("Cannot input: persistence folder does not exist")
+    if persistence_mode == "output" and os.path.exists(persistence_folder):
+        raise RuntimeError("Cannot output: persistence folder already exists")
 
     # Initialise PyGame and create the window.
     pygame.init()
@@ -114,8 +134,23 @@ def main() -> None:
     # Construct the subject-from-source cache.
     subject_from_source_cache: SubjectFromSourceCache = SubjectFromSourceCache(".")
 
+    # Set the target frame time.
+    target_frame_time: float = 1/300
+
     # Connect to the Vicon system.
-    with ViconInterface() as vicon:
+    vicon: Optional[ViconInterface] = None
+
+    try:
+        if persistence_mode == "input":
+            vicon = OfflineViconInterface(folder=persistence_folder)
+        else:
+            vicon = LiveViconInterface()
+
+        # If we're in output mode, construct the frame saver.
+        frame_saver: Optional[ViconFrameSaver] = None
+        if persistence_mode == "output":
+            frame_saver = ViconFrameSaver(folder=persistence_folder, vicon=vicon)
+
         # Construct the skeleton detector.
         skeleton_detector: ViconSkeletonDetector = ViconSkeletonDetector(vicon, is_person=is_person)
 
@@ -139,6 +174,9 @@ def main() -> None:
                     # Forcibly terminate the whole process.
                     # noinspection PyProtectedMember
                     os._exit(0)
+
+            # Work out the earliest desired end time for the frame.
+            delay_until: float = timer() + target_frame_time
 
             # Allow the user to control the camera.
             camera_controller.update(pygame.key.get_pressed(), timer() * 1000)
@@ -170,6 +208,10 @@ def main() -> None:
 
                     # If a frame of Vicon data is available:
                     if vicon.get_frame():
+                        # If we're in output mode, save the frame to disk.
+                        if persistence_mode == "output":
+                            frame_saver.save_frame()
+
                         # Print out the frame number.
                         print(f"=== Frame {vicon.get_frame_number()} ===")
 
@@ -219,6 +261,15 @@ def main() -> None:
 
             # Swap the front and back buffers.
             pygame.display.flip()
+
+            # Wait before moving onto the next frame if necessary.
+            delay: float = delay_until - timer()
+            if delay > 0:
+                time.sleep(delay)
+    finally:
+        # Terminate the Vicon system.
+        if vicon is not None:
+            vicon.terminate()
 
 
 if __name__ == "__main__":
