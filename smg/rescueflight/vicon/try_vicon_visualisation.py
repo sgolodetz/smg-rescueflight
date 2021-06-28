@@ -21,6 +21,16 @@ from smg.utility import FiducialUtil, GeometryUtil
 from smg.vicon import SubjectFromSourceCache, ViconInterface, ViconSkeletonDetector
 
 
+def is_person(subject_name: str) -> bool:
+    """
+    Determine whether or not the specified Vicon subject is a person.
+
+    :param subject_name:    The name of the subject.
+    :return:                True, if the specified Vicon subject is a person, or False otherwise.
+    """
+    return subject_name == "Madhu"
+
+
 def load_scene_mesh(scenes_folder: str, scene_timestamp: str, vicon: ViconInterface) -> OpenGLTriMesh:
     """
     Load in a scene mesh, transforming it into the Vicon coordinate system in the process.
@@ -107,7 +117,7 @@ def main() -> None:
     # Connect to the Vicon system.
     with ViconInterface() as vicon:
         # Construct the skeleton detector.
-        skeleton_detector: ViconSkeletonDetector = ViconSkeletonDetector(vicon)
+        skeleton_detector: ViconSkeletonDetector = ViconSkeletonDetector(vicon, is_person=is_person)
 
         body: SMPLBody = SMPLBody("male")
 
@@ -180,7 +190,11 @@ def main() -> None:
                                 glColor3f(1.0, 0.0, 0.0)
                                 OpenGLUtil.render_sphere(marker_pos, 0.014, slices=10, stacks=10)
 
-                            # Assume it's a single-segment subject and try to get its pose from the Vicon system.
+                            # If the subject is a person, don't bother trying to render its pose.
+                            if is_person(subject):
+                                continue
+
+                            # Otherwise, assume it's a single-segment subject and try to get its pose.
                             subject_from_world: Optional[np.ndarray] = vicon.get_segment_pose(subject, subject)
 
                             # If that succeeds:
