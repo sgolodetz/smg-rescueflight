@@ -173,24 +173,14 @@ def main() -> None:
                         # Print out the frame number.
                         print(f"=== Frame {vicon.get_frame_number()} ===")
 
-                        # TODO
-                        skeletons: List[Skeleton3D] = skeleton_detector.detect_skeletons()
-                        print(skeletons)
-
-                        with SkeletonRenderer.default_lighting_context():
-                            for skeleton in skeletons:
-                                SkeletonRenderer.render_skeleton(skeleton)
-                                body.render_from_skeleton(skeleton)
-
                         # For each Vicon subject:
                         for subject in vicon.get_subject_names():
                             # Render all of its markers.
                             for marker_name, marker_pos in vicon.get_marker_positions(subject).items():
-                                # print(marker_name, marker_pos)
                                 glColor3f(1.0, 0.0, 0.0)
                                 OpenGLUtil.render_sphere(marker_pos, 0.014, slices=10, stacks=10)
 
-                            # If the subject is a person, don't bother trying to render its pose.
+                            # If the subject is a person, don't bother trying to render its (rigid-body) pose.
                             if is_person(subject):
                                 continue
 
@@ -217,6 +207,15 @@ def main() -> None:
                                     glLineWidth(5)
                                     CameraRenderer.render_camera(source_cam, axis_scale=0.5)
                                     glLineWidth(1)
+
+                        # Detect any skeletons in the frame.
+                        skeletons: List[Skeleton3D] = skeleton_detector.detect_skeletons()
+
+                        # Render the skeletons and their corresponding SMPL bodies.
+                        with SkeletonRenderer.default_lighting_context():
+                            for skeleton in skeletons:
+                                SkeletonRenderer.render_skeleton(skeleton)
+                                body.render_from_skeleton(skeleton)
 
             # Swap the front and back buffers.
             pygame.display.flip()
