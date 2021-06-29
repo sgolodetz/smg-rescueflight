@@ -154,6 +154,7 @@ def main() -> None:
         # Construct the skeleton detector.
         skeleton_detector: ViconSkeletonDetector = ViconSkeletonDetector(vicon, is_person=is_person)
 
+        # Load the SMPL body model.
         body: SMPLBody = SMPLBody("male")
 
         # Load in the scene mesh (if any), transforming it as needed in the process.
