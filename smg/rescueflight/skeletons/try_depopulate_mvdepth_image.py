@@ -8,7 +8,7 @@ from smg.comms.skeletons import RemoteSkeletonDetector
 from smg.mvdepthnet import MonocularDepthEstimator
 from smg.openni import OpenNICamera
 from smg.pyorbslam2 import RGBDTracker
-from smg.skeletons import Skeleton, SkeletonUtil
+from smg.skeletons import Skeleton3D, SkeletonUtil
 from smg.utility import GeometryUtil
 
 

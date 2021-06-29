@@ -1,12 +1,12 @@
 import numpy as np
 
-from smg.vicon import ViconInterface
+from smg.vicon import LiveViconInterface
 
 
 def main() -> None:
     np.set_printoptions(suppress=True)
 
-    with ViconInterface() as vicon:
+    with LiveViconInterface() as vicon:
         while True:
             if vicon.get_frame():
                 print(f"=== Frame {vicon.get_frame_number()} ===")
