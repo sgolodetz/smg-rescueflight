@@ -135,7 +135,7 @@ def main() -> None:
     subject_from_source_cache: SubjectFromSourceCache = SubjectFromSourceCache(".")
 
     # Set the target frame time.
-    target_frame_time: float = 1/300
+    target_frame_time: float = 1/30
 
     # Connect to the Vicon system.
     vicon: Optional[ViconInterface] = None
