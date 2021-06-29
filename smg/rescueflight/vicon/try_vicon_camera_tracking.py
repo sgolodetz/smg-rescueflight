@@ -17,7 +17,7 @@ from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
 from smg.rotory import DroneFactory, DroneRGBImageSource
 from smg.utility import ImageUtil
-from smg.vicon import SubjectFromSourceCache, ViconInterface
+from smg.vicon import LiveViconInterface, SubjectFromSourceCache, ViconInterface
 
 
 def render_window(*, image: np.ndarray, image_renderer: OpenGLImageRenderer,
@@ -147,7 +147,7 @@ def main() -> None:
         subject_from_source_cache: SubjectFromSourceCache = SubjectFromSourceCache(".")
 
         # Connect to the Vicon system.
-        with ViconInterface() as vicon:
+        with LiveViconInterface() as vicon:
             # Construct the image renderer.
             with OpenGLImageRenderer() as image_renderer:
                 # Repeatedly:

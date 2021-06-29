@@ -17,7 +17,7 @@ from smg.pyorbslam2 import RGBDTracker
 from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter
-from smg.skeletons import Skeleton, SkeletonRenderer
+from smg.skeletons import Skeleton3D, SkeletonRenderer
 from smg.utility import GeometryUtil
 
 
@@ -100,7 +100,7 @@ def main() -> None:
                     mask: np.ndarray = np.where(depth_image != 0, 255, 0).astype(np.uint8)
 
                     # Lift the 2D skeletons into 3D.
-                    skeletons_3d: List[Skeleton] = skeleton_detector.lift_skeletons_to_3d(skeletons_2d, ws_points, mask)
+                    skeletons_3d: List[Skeleton3D] = skeleton_detector.lift_skeletons_to_3d(skeletons_2d, ws_points, mask)
 
                     # If there's only one skeleton in the frame:
                     # TODO: Once we can associate skeletons between frames, this limitation can be relaxed.
@@ -147,8 +147,9 @@ def main() -> None:
                             OpenGLUtil.render_voxel_grid([-2, -2, -2], [2, 0, 2], [1, 1, 1], dotted=True)
 
                             # Render the 3D skeletons.
-                            for skeleton_3d in skeletons_3d:
-                                SkeletonRenderer.render_skeleton(skeleton_3d)
+                            with SkeletonRenderer.default_lighting_context():
+                                for skeleton_3d in skeletons_3d:
+                                    SkeletonRenderer.render_skeleton(skeleton_3d)
 
                     # Swap the front and back buffers.
                     pygame.display.flip()
