@@ -13,6 +13,7 @@ from OpenGL.GL import *
 from OpenGL.GLU import *
 from timeit import default_timer as timer
 
+from smg.opengl import OpenGLUtil
 from smg.skeletons import SkeletonRenderer
 from smg.smplx import SMPLBody
 
@@ -29,6 +30,9 @@ def draw_frame(body: SMPLBody) -> None:
     glMatrixMode(GL_MODELVIEW)
     glLoadIdentity()
     gluLookAt(-3, 0, 3, 0, 0, 0, 0, 1, 0)
+
+    glColor3f(0.0, 0.0, 0.0)
+    OpenGLUtil.render_voxel_grid([-2, -2, -2], [2, 2, 2], [1, 1, 1], dotted=True)
 
     glColor3f(0.75, 0.75, 0.75)
 
@@ -92,6 +96,7 @@ def main():
         body_pose[21:24] = np.array([1, 0, 0]) * angle / 2 * math.pi / 180
         body_pose[48:51] = -np.array([1, 0, 0]) * math.pi / 2
         body_pose[54:57] = np.array([0, 0, 1]) * math.pi / 2
+
         body.set_manual_pose(body_pose, np.eye(4))
 
         # Draw the current frame.
