@@ -261,6 +261,7 @@ def main() -> None:
                                 glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
                                 body.render_from_skeleton(skeleton)
                                 glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
+                                SkeletonRenderer.render_keypoint_orienters(skeleton)
 
             # Swap the front and back buffers.
             pygame.display.flip()
