@@ -245,7 +245,7 @@ def main() -> None:
                                 continue
 
                             # Otherwise, assume it's a single-segment subject and try to get its pose.
-                            subject_from_world: Optional[np.ndarray] = vicon.get_segment_pose(subject, subject)
+                            subject_from_world: Optional[np.ndarray] = vicon.get_segment_global_pose(subject, subject)
 
                             # If that succeeds:
                             if subject_from_world is not None:
