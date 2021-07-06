@@ -258,10 +258,11 @@ def main() -> None:
                         with SkeletonRenderer.default_lighting_context():
                             for skeleton in skeletons:
                                 SkeletonRenderer.render_skeleton(skeleton)
+                                SkeletonRenderer.render_keypoint_poses(skeleton)
+
                                 glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
                                 body.render_from_skeleton(skeleton)
                                 glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
-                                SkeletonRenderer.render_keypoint_orienters(skeleton)
 
             # Swap the front and back buffers.
             pygame.display.flip()

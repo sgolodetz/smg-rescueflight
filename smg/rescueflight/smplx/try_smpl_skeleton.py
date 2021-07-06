@@ -150,6 +150,7 @@ def main() -> None:
 
                                 SkeletonRenderer.render_skeleton(skeleton)
                                 SkeletonRenderer.render_keypoint_orienters(skeleton)
+                                SkeletonRenderer.render_keypoint_poses(skeleton)
                                 body.render_from_skeleton(skeleton)
 
                                 glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
