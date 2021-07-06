@@ -12,7 +12,7 @@ from timeit import default_timer as timer
 from typing import Dict, List, Optional, Tuple
 
 from smg.meshing import MeshUtil
-from smg.opengl import CameraRenderer, OpenGLMatrixContext, OpenGLTriMesh, OpenGLUtil
+from smg.opengl import CameraRenderer, OpenGLLightingContext, OpenGLMatrixContext, OpenGLTriMesh, OpenGLUtil
 from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
@@ -78,6 +78,19 @@ def load_scene_mesh(scenes_folder: str, scene_timestamp: str, vicon: ViconInterf
 
     # Convert the scene mesh to OpenGL format and return it.
     return MeshUtil.convert_trimesh_to_opengl(scene_mesh_o3d)
+
+
+def vicon_lighting_context() -> OpenGLLightingContext:
+    """
+    Get the OpenGL lighting context to use when rendering Vicon scenes.
+
+    :return:    The OpenGL lighting context to use when rendering Vicon scenes.
+    """
+    direction = np.array([0.0, 1.0, 0.0, 0.0])  # type: np.ndarray
+    return OpenGLLightingContext({
+        0: OpenGLLightingContext.DirectionalLight(direction),
+        1: OpenGLLightingContext.DirectionalLight(-direction),
+    })
 
 
 def main() -> None:
@@ -155,7 +168,11 @@ def main() -> None:
         skeleton_detector: ViconSkeletonDetector = ViconSkeletonDetector(vicon, is_person=is_person)
 
         # Load the SMPL body model.
-        body: SMPLBody = SMPLBody("male")
+        body: SMPLBody = SMPLBody(
+            "male",
+            texture_coords_filename="D:/smplx/textures/smpl/texture_coords.npy",
+            texture_image_filename="D:/smplx/textures/smpl/surreal/nongrey_male_0445.jpg"
+        )
 
         # Load in the scene mesh (if any), transforming it as needed in the process.
         scene_mesh: Optional[OpenGLTriMesh] = None
@@ -255,14 +272,15 @@ def main() -> None:
                         skeletons: List[Skeleton3D] = skeleton_detector.detect_skeletons()
 
                         # Render the skeletons and their corresponding SMPL bodies.
-                        with SkeletonRenderer.default_lighting_context():
-                            for skeleton in skeletons:
+                        for skeleton in skeletons:
+                            with vicon_lighting_context():
                                 SkeletonRenderer.render_skeleton(skeleton)
-                                SkeletonRenderer.render_keypoint_poses(skeleton)
 
                                 glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
                                 body.render_from_skeleton(skeleton)
                                 glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
+
+                            SkeletonRenderer.render_keypoint_poses(skeleton)
 
             # Swap the front and back buffers.
             pygame.display.flip()
