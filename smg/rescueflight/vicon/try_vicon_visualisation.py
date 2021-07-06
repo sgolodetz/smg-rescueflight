@@ -86,7 +86,7 @@ def vicon_lighting_context() -> OpenGLLightingContext:
 
     :return:    The OpenGL lighting context to use when rendering Vicon scenes.
     """
-    direction = np.array([0.0, 1.0, 0.0, 0.0])  # type: np.ndarray
+    direction: np.ndarray = np.array([0.0, 1.0, 0.0, 0.0])
     return OpenGLLightingContext({
         0: OpenGLLightingContext.DirectionalLight(direction),
         1: OpenGLLightingContext.DirectionalLight(-direction),
