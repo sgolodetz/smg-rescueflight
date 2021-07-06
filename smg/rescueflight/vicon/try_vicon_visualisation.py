@@ -171,7 +171,7 @@ def main() -> None:
         body: SMPLBody = SMPLBody(
             "male",
             texture_coords_filename="D:/smplx/textures/smpl/texture_coords.npy",
-            texture_image_filename="D:/smplx/textures/smpl/surreal/nongrey_male_0445.jpg"
+            texture_image_filename="D:/smplx/textures/smpl/surreal/nongrey_male_0170.jpg"
         )
 
         # Load in the scene mesh (if any), transforming it as needed in the process.
