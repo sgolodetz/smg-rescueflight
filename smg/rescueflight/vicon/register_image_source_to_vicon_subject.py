@@ -101,7 +101,7 @@ def main() -> None:
                     # Try to estimate the transformation from world space to the space of the image's Vicon subject,
                     # using the Vicon system.
                     source_subject_name: str = args["source_subject_name"]
-                    subject_from_world_estimate: Optional[np.ndarray] = vicon.get_segment_pose(
+                    subject_from_world_estimate: Optional[np.ndarray] = vicon.get_segment_global_pose(
                         source_subject_name, source_subject_name
                     )
 

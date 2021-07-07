@@ -12,7 +12,7 @@ from timeit import default_timer as timer
 from typing import Dict, List, Optional, Tuple
 
 from smg.meshing import MeshUtil
-from smg.opengl import CameraRenderer, OpenGLMatrixContext, OpenGLTriMesh, OpenGLUtil
+from smg.opengl import CameraRenderer, OpenGLLightingContext, OpenGLMatrixContext, OpenGLTriMesh, OpenGLUtil
 from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
@@ -80,11 +80,28 @@ def load_scene_mesh(scenes_folder: str, scene_timestamp: str, vicon: ViconInterf
     return MeshUtil.convert_trimesh_to_opengl(scene_mesh_o3d)
 
 
+def vicon_lighting_context() -> OpenGLLightingContext:
+    """
+    Get the OpenGL lighting context to use when rendering Vicon scenes.
+
+    :return:    The OpenGL lighting context to use when rendering Vicon scenes.
+    """
+    direction: np.ndarray = np.array([0.0, 1.0, 0.0, 0.0])
+    return OpenGLLightingContext({
+        0: OpenGLLightingContext.DirectionalLight(direction),
+        1: OpenGLLightingContext.DirectionalLight(-direction),
+    })
+
+
 def main() -> None:
     np.set_printoptions(suppress=True)
 
     # Parse any command-line arguments.
     parser = ArgumentParser()
+    parser.add_argument(
+        "--pause", action="store_true",
+        help="whether to start the visualisation in its paused state"
+    )
     parser.add_argument(
         "--persistence_folder", type=str,
         help="the folder (if any) that should be used for Vicon persistence"
@@ -100,6 +117,10 @@ def main() -> None:
     parser.add_argument(
         "--scene_timestamp", "-t", type=str,
         help="a timestamp indicating which scene mesh to load"
+    )
+    parser.add_argument(
+        "--use_vicon_poses", action="store_true",
+        help="whether to use the joint poses produced by the Vicon system"
     )
     args: dict = vars(parser.parse_args())
 
@@ -152,10 +173,16 @@ def main() -> None:
             frame_saver = ViconFrameSaver(folder=persistence_folder, vicon=vicon)
 
         # Construct the skeleton detector.
-        skeleton_detector: ViconSkeletonDetector = ViconSkeletonDetector(vicon, is_person=is_person)
+        skeleton_detector: ViconSkeletonDetector = ViconSkeletonDetector(
+            vicon, is_person=is_person, use_vicon_poses=args["use_vicon_poses"]
+        )
 
         # Load the SMPL body model.
-        body: SMPLBody = SMPLBody("male")
+        body: SMPLBody = SMPLBody(
+            "male",
+            texture_coords_filename="D:/smplx/textures/smpl/texture_coords.npy",
+            texture_image_filename="D:/smplx/textures/smpl/surreal/nongrey_male_0170.jpg"
+        )
 
         # Load in the scene mesh (if any), transforming it as needed in the process.
         scene_mesh: Optional[OpenGLTriMesh] = None
@@ -163,16 +190,29 @@ def main() -> None:
         if scene_timestamp is not None and vicon.get_frame():
             scene_mesh = load_scene_mesh(args["scenes_folder"], scene_timestamp, vicon)
 
+        # Initialise the playback variables.
+        pause: bool = args["pause"]
+        process_next: bool = True
+
         # Repeatedly:
         while True:
             # Process any PyGame events.
             for event in pygame.event.get():
-                # If the user wants us to quit:
-                if event.type == pygame.QUIT:
-                    # Shut down pygame.
+                if event.type == pygame.KEYDOWN:
+                    # If the user presses the 'b' key, process frames without pausing.
+                    if event.key == pygame.K_b:
+                        pause = False
+                        process_next = True
+
+                    # Otherwise, if the user presses the 'n' key, process the next frame and then pause.
+                    elif event.key == pygame.K_n:
+                        pause = True
+                        process_next = True
+                elif event.type == pygame.QUIT:
+                    # If the user wants us to quit, shut down pygame.
                     pygame.quit()
 
-                    # Forcibly terminate the whole process.
+                    # Then forcibly terminate the whole process.
                     # noinspection PyProtectedMember
                     os._exit(0)
 
@@ -207,58 +247,66 @@ def main() -> None:
                     if scene_mesh is not None:
                         scene_mesh.render()
 
-                    # If a frame of Vicon data is available:
-                    if vicon.get_frame():
-                        # If we're in output mode, save the frame to disk.
-                        if persistence_mode == "output":
+                    # If we're ready to process the next Vicon frame:
+                    if process_next:
+                        # Try to get a frame from the Vicon system. If that succeeds and we're in output mode:
+                        if vicon.get_frame() and persistence_mode == "output":
+                            # Save the frame to disk.
                             frame_saver.save_frame()
 
-                        # Print out the frame number.
-                        print(f"=== Frame {vicon.get_frame_number()} ===")
+                    # Print out the frame number.
+                    print(f"=== Frame {vicon.get_frame_number()} ===")
 
-                        # For each Vicon subject:
-                        for subject in vicon.get_subject_names():
-                            # Render all of its markers.
-                            for marker_name, marker_pos in vicon.get_marker_positions(subject).items():
-                                glColor3f(1.0, 0.0, 0.0)
-                                OpenGLUtil.render_sphere(marker_pos, 0.014, slices=10, stacks=10)
+                    # For each Vicon subject:
+                    for subject in vicon.get_subject_names():
+                        # Render all of its markers.
+                        for marker_name, marker_pos in vicon.get_marker_positions(subject).items():
+                            glColor3f(1.0, 0.0, 0.0)
+                            OpenGLUtil.render_sphere(marker_pos, 0.014, slices=10, stacks=10)
 
-                            # If the subject is a person, don't bother trying to render its (rigid-body) pose.
-                            if is_person(subject):
-                                continue
+                        # If the subject is a person, don't bother trying to render its (rigid-body) pose.
+                        if is_person(subject):
+                            continue
 
-                            # Otherwise, assume it's a single-segment subject and try to get its pose.
-                            subject_from_world: Optional[np.ndarray] = vicon.get_segment_pose(subject, subject)
+                        # Otherwise, assume it's a single-segment subject and try to get its pose.
+                        subject_from_world: Optional[np.ndarray] = vicon.get_segment_global_pose(subject, subject)
 
-                            # If that succeeds:
-                            if subject_from_world is not None:
-                                # Render the subject pose obtained from the Vicon system.
-                                subject_cam: SimpleCamera = CameraPoseConverter.pose_to_camera(subject_from_world)
-                                CameraRenderer.render_camera(subject_cam, axis_scale=0.5)
+                        # If that succeeds:
+                        if subject_from_world is not None:
+                            # Render the subject pose obtained from the Vicon system.
+                            subject_cam: SimpleCamera = CameraPoseConverter.pose_to_camera(subject_from_world)
+                            CameraRenderer.render_camera(subject_cam, axis_scale=0.5)
 
-                                # Assume that the subject corresponds to an image source, and try to get the
-                                # relative transformation from that image source to the subject.
-                                subject_from_source: Optional[np.ndarray] = subject_from_source_cache.get(subject)
+                            # Assume that the subject corresponds to an image source, and try to get the
+                            # relative transformation from that image source to the subject.
+                            subject_from_source: Optional[np.ndarray] = subject_from_source_cache.get(subject)
 
-                                # If that succeeds (i.e. it does correspond to an image source, and we know the
-                                # relative transformation):
-                                if subject_from_source is not None:
-                                    # Render the pose of the image source as well.
-                                    source_from_world: np.ndarray = \
-                                        np.linalg.inv(subject_from_source) @ subject_from_world
-                                    source_cam: SimpleCamera = CameraPoseConverter.pose_to_camera(source_from_world)
-                                    glLineWidth(5)
-                                    CameraRenderer.render_camera(source_cam, axis_scale=0.5)
-                                    glLineWidth(1)
+                            # If that succeeds (i.e. it does correspond to an image source, and we know the
+                            # relative transformation):
+                            if subject_from_source is not None:
+                                # Render the pose of the image source as well.
+                                source_from_world: np.ndarray = np.linalg.inv(subject_from_source) @ subject_from_world
+                                source_cam: SimpleCamera = CameraPoseConverter.pose_to_camera(source_from_world)
+                                glLineWidth(5)
+                                CameraRenderer.render_camera(source_cam, axis_scale=0.5)
+                                glLineWidth(1)
 
-                        # Detect any skeletons in the frame.
-                        skeletons: List[Skeleton3D] = skeleton_detector.detect_skeletons()
+                    # Detect any skeletons in the frame.
+                    skeletons: List[Skeleton3D] = skeleton_detector.detect_skeletons()
 
-                        # Render the skeletons and their corresponding SMPL bodies.
-                        with SkeletonRenderer.default_lighting_context():
-                            for skeleton in skeletons:
-                                SkeletonRenderer.render_skeleton(skeleton)
-                                body.render_from_skeleton(skeleton)
+                    # Render the skeletons and their corresponding SMPL bodies.
+                    for skeleton in skeletons:
+                        with vicon_lighting_context():
+                            SkeletonRenderer.render_skeleton(skeleton)
+
+                            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
+                            body.render_from_skeleton(skeleton)
+                            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
+
+                        SkeletonRenderer.render_keypoint_poses(skeleton)
+
+                    # Decide whether to continue processing subsequent frames or wait.
+                    process_next = not pause
 
             # Swap the front and back buffers.
             pygame.display.flip()
