@@ -118,6 +118,10 @@ def main() -> None:
         "--scene_timestamp", "-t", type=str,
         help="a timestamp indicating which scene mesh to load"
     )
+    parser.add_argument(
+        "--use_vicon_poses", action="store_true",
+        help="whether to use the joint poses produced by the Vicon system"
+    )
     args: dict = vars(parser.parse_args())
 
     persistence_folder: Optional[str] = args["persistence_folder"]
@@ -169,7 +173,9 @@ def main() -> None:
             frame_saver = ViconFrameSaver(folder=persistence_folder, vicon=vicon)
 
         # Construct the skeleton detector.
-        skeleton_detector: ViconSkeletonDetector = ViconSkeletonDetector(vicon, is_person=is_person)
+        skeleton_detector: ViconSkeletonDetector = ViconSkeletonDetector(
+            vicon, is_person=is_person, use_vicon_poses=args["use_vicon_poses"]
+        )
 
         # Load the SMPL body model.
         body: SMPLBody = SMPLBody(
