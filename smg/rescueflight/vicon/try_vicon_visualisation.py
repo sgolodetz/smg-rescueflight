@@ -279,8 +279,7 @@ def main() -> None:
                             # relative transformation):
                             if subject_from_source is not None:
                                 # Render the pose of the image source as well.
-                                source_from_world: np.ndarray = \
-                                    np.linalg.inv(subject_from_source) @ subject_from_world
+                                source_from_world: np.ndarray = np.linalg.inv(subject_from_source) @ subject_from_world
                                 source_cam: SimpleCamera = CameraPoseConverter.pose_to_camera(source_from_world)
                                 glLineWidth(5)
                                 CameraRenderer.render_camera(source_cam, axis_scale=0.5)
