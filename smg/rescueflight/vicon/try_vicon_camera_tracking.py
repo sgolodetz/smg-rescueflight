@@ -72,7 +72,7 @@ def render_window(*, image: np.ndarray, image_renderer: OpenGLImageRenderer,
                         OpenGLUtil.render_sphere(marker_pos, 0.014, slices=10, stacks=10)
 
                     # Assume it's a single-segment subject and try to get its pose from the Vicon system.
-                    subject_from_world: Optional[np.ndarray] = vicon.get_segment_pose(subject, subject)
+                    subject_from_world: Optional[np.ndarray] = vicon.get_segment_global_pose(subject, subject)
 
                     # If that succeeds:
                     if subject_from_world is not None:

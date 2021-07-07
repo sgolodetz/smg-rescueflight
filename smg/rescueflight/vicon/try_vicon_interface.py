@@ -17,7 +17,7 @@ def main() -> None:
                 print(vicon.get_subject_names())
                 for subject in vicon.get_subject_names():
                     for segment in vicon.get_segment_names(subject):
-                        print(subject, segment, vicon.get_segment_pose(subject, segment))
+                        print(subject, segment, vicon.get_segment_global_pose(subject, segment))
 
 
 if __name__ == "__main__":
