@@ -9,7 +9,7 @@ import time
 from argparse import ArgumentParser
 from OpenGL.GL import *
 from timeit import default_timer as timer
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 from smg.meshing import MeshUtil
 from smg.opengl import CameraRenderer, OpenGLLightingContext, OpenGLMatrixContext, OpenGLTriMesh, OpenGLUtil
@@ -30,7 +30,7 @@ def is_person(subject_name: str) -> bool:
     :param subject_name:    The name of the subject.
     :return:                True, if the specified Vicon subject is a person, or False otherwise.
     """
-    return subject_name == "Madhu"
+    return subject_name == "Aluna" or subject_name == "Madhu"
 
 
 def load_scene_mesh(scenes_folder: str, scene_timestamp: str, vicon: ViconInterface) -> OpenGLTriMesh:
@@ -177,12 +177,19 @@ def main() -> None:
             vicon, is_person=is_person, use_vicon_poses=args["use_vicon_poses"]
         )
 
-        # Load the SMPL body model.
-        body: SMPLBody = SMPLBody(
-            "male",
-            texture_coords_filename="D:/smplx/textures/smpl/texture_coords.npy",
-            texture_image_filename="D:/smplx/textures/smpl/surreal/nongrey_male_0170.jpg"
-        )
+        # Load the SMPL body models.
+        bodies: Dict[str, SMPLBody] = {
+            "Aluna": SMPLBody(
+                "female",
+                texture_coords_filename="D:/smplx/textures/smpl/texture_coords.npy",
+                texture_image_filename="D:/smplx/textures/smpl/surreal/nongrey_female_0891.jpg"
+            ),
+            "Madhu": SMPLBody(
+                "male",
+                texture_coords_filename="D:/smplx/textures/smpl/texture_coords.npy",
+                texture_image_filename="D:/smplx/textures/smpl/surreal/nongrey_male_0170.jpg"
+            )
+        }
 
         # Load in the scene mesh (if any), transforming it as needed in the process.
         scene_mesh: Optional[OpenGLTriMesh] = None
@@ -292,15 +299,15 @@ def main() -> None:
                                 glLineWidth(1)
 
                     # Detect any skeletons in the frame.
-                    skeletons: List[Skeleton3D] = skeleton_detector.detect_skeletons()
+                    skeletons: Dict[str, Skeleton3D] = skeleton_detector.detect_skeletons()
 
                     # Render the skeletons and their corresponding SMPL bodies.
-                    for skeleton in skeletons:
+                    for subject, skeleton in skeletons.items():
                         with vicon_lighting_context():
                             SkeletonRenderer.render_skeleton(skeleton)
 
                             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
-                            body.render_from_skeleton(skeleton)
+                            bodies[subject].render_from_skeleton(skeleton)
                             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
 
                         SkeletonRenderer.render_keypoint_poses(skeleton)
