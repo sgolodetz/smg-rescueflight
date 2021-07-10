@@ -155,9 +155,6 @@ def main() -> None:
     # Construct the subject-from-source cache.
     subject_from_source_cache: SubjectFromSourceCache = SubjectFromSourceCache(".")
 
-    # Set the target frame time.
-    target_frame_time: float = 1/30
-
     # Connect to the Vicon system.
     vicon: Optional[ViconInterface] = None
 
@@ -199,6 +196,8 @@ def main() -> None:
 
         # Initialise the playback variables.
         pause: bool = args["pause"]
+        previous_frame_number: Optional[int] = None
+        previous_frame_start: Optional[float] = None
         process_next: bool = True
 
         # Repeatedly:
@@ -222,9 +221,6 @@ def main() -> None:
                     # Then forcibly terminate the whole process.
                     # noinspection PyProtectedMember
                     os._exit(0)
-
-            # Work out the earliest desired end time for the frame.
-            delay_until: float = timer() + target_frame_time
 
             # Allow the user to control the camera.
             camera_controller.update(pygame.key.get_pressed(), timer() * 1000)
@@ -256,10 +252,26 @@ def main() -> None:
 
                     # If we're ready to process the next Vicon frame:
                     if process_next:
-                        # Try to get a frame from the Vicon system. If that succeeds and we're in output mode:
-                        if vicon.get_frame() and persistence_mode == "output":
-                            # Save the frame to disk.
-                            frame_saver.save_frame()
+                        # Try to get a frame from the Vicon system. If that succeeds:
+                        if vicon.get_frame():
+                            # If we're in output mode, save the frame to disk.
+                            if persistence_mode == "output":
+                                frame_saver.save_frame()
+
+                            # Check how long has elapsed since the start of the previous frame. If it's not long
+                            # enough, pause until the expected amount of time has elapsed.
+                            frame_number: int = vicon.get_frame_number()
+                            frame_start: float = timer()
+                            if previous_frame_number is not None:
+                                recording_fps: int = 200
+                                expected_time_delta: float = (frame_number - previous_frame_number) / recording_fps
+                                time_delta: float = frame_start - previous_frame_start
+                                time_delta_offset: float = expected_time_delta - time_delta
+                                if time_delta_offset > 0:
+                                    time.sleep(time_delta_offset)
+
+                            previous_frame_number = frame_number
+                            previous_frame_start = frame_start
 
                     # Print out the frame number.
                     print(f"=== Frame {vicon.get_frame_number()} ===")
@@ -317,11 +329,6 @@ def main() -> None:
 
             # Swap the front and back buffers.
             pygame.display.flip()
-
-            # Wait before moving onto the next frame if necessary.
-            delay: float = delay_until - timer()
-            if delay > 0:
-                time.sleep(delay)
     finally:
         # Terminate the Vicon system.
         if vicon is not None:
