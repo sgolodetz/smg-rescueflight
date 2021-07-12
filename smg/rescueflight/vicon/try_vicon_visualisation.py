@@ -23,14 +23,15 @@ from smg.vicon import LiveViconInterface, OfflineViconInterface, SubjectFromSour
 from smg.vicon import ViconFrameSaver, ViconInterface, ViconSkeletonDetector
 
 
-def is_person(subject_name: str) -> bool:
+def is_person(subject_name: str, vicon: ViconInterface) -> bool:
     """
     Determine whether or not the specified Vicon subject is a person.
 
     :param subject_name:    The name of the subject.
+    :param vicon:           The Vicon interface.
     :return:                True, if the specified Vicon subject is a person, or False otherwise.
     """
-    return subject_name == "Aluna" or subject_name == "Madhu"
+    return "Root" in vicon.get_segment_names(subject_name)
 
 
 def load_scene_mesh(scenes_folder: str, scene_timestamp: str, vicon: ViconInterface) -> OpenGLTriMesh:
@@ -284,7 +285,7 @@ def main() -> None:
                             OpenGLUtil.render_sphere(marker_pos, 0.014, slices=10, stacks=10)
 
                         # If the subject is a person, don't bother trying to render its (rigid-body) pose.
-                        if is_person(subject):
+                        if is_person(subject, vicon):
                             continue
 
                         # Otherwise, assume it's a single-segment subject and try to get its pose.
