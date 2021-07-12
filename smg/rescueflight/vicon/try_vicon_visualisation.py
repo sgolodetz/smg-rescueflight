@@ -9,7 +9,7 @@ import time
 from argparse import ArgumentParser
 from OpenGL.GL import *
 from timeit import default_timer as timer
-from typing import Dict, Optional, Tuple
+from typing import Callable, Dict, Optional, Tuple
 
 from smg.meshing import MeshUtil
 from smg.opengl import CameraRenderer, OpenGLLightingContext, OpenGLMatrixContext, OpenGLTriMesh, OpenGLUtil
@@ -193,6 +193,12 @@ def main() -> None:
             "Madhu": male_body
         }
 
+        # Initialise the subject mesh cache and specify the subject mesh loaders.
+        subject_mesh_cache: Dict[str, OpenGLTriMesh] = {}
+        subject_mesh_loaders: Dict[str, Callable[[], OpenGLTriMesh]] = {
+            "Tello": lambda: MeshUtil.convert_trimesh_to_opengl(MeshUtil.load_tello_mesh())
+        }
+
         # Load in the scene mesh (if any), transforming it as needed in the process.
         scene_mesh: Optional[OpenGLTriMesh] = None
         scene_timestamp: Optional[str] = args.get("scene_timestamp")
@@ -297,23 +303,46 @@ def main() -> None:
 
                         # If that succeeds:
                         if subject_from_world is not None:
-                            # Render the subject pose obtained from the Vicon system.
-                            subject_cam: SimpleCamera = CameraPoseConverter.pose_to_camera(subject_from_world)
-                            CameraRenderer.render_camera(subject_cam, axis_scale=0.5)
-
                             # Assume that the subject corresponds to an image source, and try to get the
                             # relative transformation from that image source to the subject.
                             subject_from_source: Optional[np.ndarray] = subject_from_source_cache.get(subject)
 
-                            # If that succeeds (i.e. it does correspond to an image source, and we know the
+                            # If that succeeds (i.e. the subject does correspond to an image source, and we know the
                             # relative transformation):
                             if subject_from_source is not None:
-                                # Render the pose of the image source as well.
+                                # Render the pose of the image source.
                                 source_from_world: np.ndarray = np.linalg.inv(subject_from_source) @ subject_from_world
                                 source_cam: SimpleCamera = CameraPoseConverter.pose_to_camera(source_from_world)
                                 glLineWidth(5)
                                 CameraRenderer.render_camera(source_cam, axis_scale=0.5)
                                 glLineWidth(1)
+
+                                # Try to look up the mesh for the subject in the cache.
+                                subject_mesh: Optional[OpenGLTriMesh] = subject_mesh_cache.get(subject)
+
+                                # If it's not there, try to load it into the cache.
+                                if subject_mesh is None:
+                                    subject_mesh_loader: Optional[Callable[[], OpenGLTriMesh]] = \
+                                        subject_mesh_loaders.get(subject)
+                                    if subject_mesh_loader is not None:
+                                        subject_mesh = subject_mesh_loader()
+                                        subject_mesh_cache[subject] = subject_mesh
+
+                                # If the mesh for the subject is now available (one way or the other), render it.
+                                if subject_mesh is not None:
+                                    world_from_source: np.ndarray = np.linalg.inv(source_from_world)
+                                    with vicon_lighting_context():
+                                        with OpenGLMatrixContext(
+                                            GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(world_from_source)
+                                        ):
+                                            subject_mesh.render()
+
+                            # Otherwise, if the subject doesn't correspond to an image source, or we don't know the
+                            # relative transformation:
+                            else:
+                                # Render the subject pose obtained from the Vicon system.
+                                subject_cam: SimpleCamera = CameraPoseConverter.pose_to_camera(subject_from_world)
+                                CameraRenderer.render_camera(subject_cam, axis_scale=0.5)
 
                     # Detect any skeletons in the frame.
                     skeletons: Dict[str, Skeleton3D] = skeleton_detector.detect_skeletons()
