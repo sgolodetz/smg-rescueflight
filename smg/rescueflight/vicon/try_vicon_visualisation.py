@@ -176,17 +176,21 @@ def main() -> None:
         )
 
         # Load the SMPL body models.
+        female_body: SMPLBody = SMPLBody(
+            "female",
+            texture_coords_filename="D:/smplx/textures/smpl/texture_coords.npy",
+            texture_image_filename="D:/smplx/textures/smpl/surreal/nongrey_female_0891.jpg"
+        )
+
+        male_body: SMPLBody = SMPLBody(
+            "male",
+            texture_coords_filename="D:/smplx/textures/smpl/texture_coords.npy",
+            texture_image_filename="D:/smplx/textures/smpl/surreal/nongrey_male_0170.jpg"
+        )
+
         bodies: Dict[str, SMPLBody] = {
-            "Aluna": SMPLBody(
-                "female",
-                texture_coords_filename="D:/smplx/textures/smpl/texture_coords.npy",
-                texture_image_filename="D:/smplx/textures/smpl/surreal/nongrey_female_0891.jpg"
-            ),
-            "Madhu": SMPLBody(
-                "male",
-                texture_coords_filename="D:/smplx/textures/smpl/texture_coords.npy",
-                texture_image_filename="D:/smplx/textures/smpl/surreal/nongrey_male_0170.jpg"
-            )
+            "Aluna": female_body,
+            "Madhu": male_body
         }
 
         # Load in the scene mesh (if any), transforming it as needed in the process.
@@ -320,7 +324,8 @@ def main() -> None:
                             SkeletonRenderer.render_skeleton(skeleton)
 
                             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
-                            bodies[subject].render_from_skeleton(skeleton)
+                            body: SMPLBody = bodies.get(subject, male_body)
+                            body.render_from_skeleton(skeleton)
                             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
 
                         SkeletonRenderer.render_keypoint_poses(skeleton)
