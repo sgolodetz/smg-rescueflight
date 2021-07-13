@@ -9,7 +9,7 @@ import time
 from argparse import ArgumentParser
 from OpenGL.GL import *
 from timeit import default_timer as timer
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, Optional, Tuple
 
 from smg.meshing import MeshUtil
 from smg.opengl import CameraRenderer, OpenGLLightingContext, OpenGLMatrixContext, OpenGLTriMesh, OpenGLUtil
@@ -23,14 +23,15 @@ from smg.vicon import LiveViconInterface, OfflineViconInterface, SubjectFromSour
 from smg.vicon import ViconFrameSaver, ViconInterface, ViconSkeletonDetector
 
 
-def is_person(subject_name: str) -> bool:
+def is_person(subject_name: str, vicon: ViconInterface) -> bool:
     """
     Determine whether or not the specified Vicon subject is a person.
 
     :param subject_name:    The name of the subject.
+    :param vicon:           The Vicon interface.
     :return:                True, if the specified Vicon subject is a person, or False otherwise.
     """
-    return subject_name == "Madhu"
+    return "Root" in vicon.get_segment_names(subject_name)
 
 
 def load_scene_mesh(scenes_folder: str, scene_timestamp: str, vicon: ViconInterface) -> OpenGLTriMesh:
@@ -155,9 +156,6 @@ def main() -> None:
     # Construct the subject-from-source cache.
     subject_from_source_cache: SubjectFromSourceCache = SubjectFromSourceCache(".")
 
-    # Set the target frame time.
-    target_frame_time: float = 1/30
-
     # Connect to the Vicon system.
     vicon: Optional[ViconInterface] = None
 
@@ -177,12 +175,29 @@ def main() -> None:
             vicon, is_person=is_person, use_vicon_poses=args["use_vicon_poses"]
         )
 
-        # Load the SMPL body model.
-        body: SMPLBody = SMPLBody(
+        # Load the SMPL body models.
+        female_body: SMPLBody = SMPLBody(
+            "female",
+            texture_coords_filename="D:/smplx/textures/smpl/texture_coords.npy",
+            texture_image_filename="D:/smplx/textures/smpl/surreal/nongrey_female_0891.jpg"
+        )
+
+        male_body: SMPLBody = SMPLBody(
             "male",
             texture_coords_filename="D:/smplx/textures/smpl/texture_coords.npy",
             texture_image_filename="D:/smplx/textures/smpl/surreal/nongrey_male_0170.jpg"
         )
+
+        bodies: Dict[str, SMPLBody] = {
+            "Aluna": female_body,
+            "Madhu": male_body
+        }
+
+        # Initialise the subject mesh cache and specify the subject mesh loaders.
+        subject_mesh_cache: Dict[str, OpenGLTriMesh] = {}
+        subject_mesh_loaders: Dict[str, Callable[[], OpenGLTriMesh]] = {
+            "Tello": lambda: MeshUtil.convert_trimesh_to_opengl(MeshUtil.load_tello_mesh())
+        }
 
         # Load in the scene mesh (if any), transforming it as needed in the process.
         scene_mesh: Optional[OpenGLTriMesh] = None
@@ -192,6 +207,8 @@ def main() -> None:
 
         # Initialise the playback variables.
         pause: bool = args["pause"]
+        previous_frame_number: Optional[int] = None
+        previous_frame_start: Optional[float] = None
         process_next: bool = True
 
         # Repeatedly:
@@ -215,9 +232,6 @@ def main() -> None:
                     # Then forcibly terminate the whole process.
                     # noinspection PyProtectedMember
                     os._exit(0)
-
-            # Work out the earliest desired end time for the frame.
-            delay_until: float = timer() + target_frame_time
 
             # Allow the user to control the camera.
             camera_controller.update(pygame.key.get_pressed(), timer() * 1000)
@@ -249,10 +263,26 @@ def main() -> None:
 
                     # If we're ready to process the next Vicon frame:
                     if process_next:
-                        # Try to get a frame from the Vicon system. If that succeeds and we're in output mode:
-                        if vicon.get_frame() and persistence_mode == "output":
-                            # Save the frame to disk.
-                            frame_saver.save_frame()
+                        # Try to get a frame from the Vicon system. If that succeeds:
+                        if vicon.get_frame():
+                            # If we're in output mode, save the frame to disk.
+                            if persistence_mode == "output":
+                                frame_saver.save_frame()
+
+                            # Check how long has elapsed since the start of the previous frame. If it's not long
+                            # enough, pause until the expected amount of time has elapsed.
+                            frame_number: int = vicon.get_frame_number()
+                            frame_start: float = timer()
+                            if previous_frame_number is not None:
+                                recording_fps: int = 200
+                                expected_time_delta: float = (frame_number - previous_frame_number) / recording_fps
+                                time_delta: float = frame_start - previous_frame_start
+                                time_delta_offset: float = expected_time_delta - time_delta
+                                if time_delta_offset > 0:
+                                    time.sleep(time_delta_offset)
+
+                            previous_frame_number = frame_number
+                            previous_frame_start = frame_start
 
                     # Print out the frame number.
                     print(f"=== Frame {vicon.get_frame_number()} ===")
@@ -265,7 +295,7 @@ def main() -> None:
                             OpenGLUtil.render_sphere(marker_pos, 0.014, slices=10, stacks=10)
 
                         # If the subject is a person, don't bother trying to render its (rigid-body) pose.
-                        if is_person(subject):
+                        if is_person(subject, vicon):
                             continue
 
                         # Otherwise, assume it's a single-segment subject and try to get its pose.
@@ -273,33 +303,57 @@ def main() -> None:
 
                         # If that succeeds:
                         if subject_from_world is not None:
-                            # Render the subject pose obtained from the Vicon system.
-                            subject_cam: SimpleCamera = CameraPoseConverter.pose_to_camera(subject_from_world)
-                            CameraRenderer.render_camera(subject_cam, axis_scale=0.5)
-
                             # Assume that the subject corresponds to an image source, and try to get the
                             # relative transformation from that image source to the subject.
                             subject_from_source: Optional[np.ndarray] = subject_from_source_cache.get(subject)
 
-                            # If that succeeds (i.e. it does correspond to an image source, and we know the
+                            # If that succeeds (i.e. the subject does correspond to an image source, and we know the
                             # relative transformation):
                             if subject_from_source is not None:
-                                # Render the pose of the image source as well.
+                                # Render the pose of the image source.
                                 source_from_world: np.ndarray = np.linalg.inv(subject_from_source) @ subject_from_world
                                 source_cam: SimpleCamera = CameraPoseConverter.pose_to_camera(source_from_world)
                                 glLineWidth(5)
                                 CameraRenderer.render_camera(source_cam, axis_scale=0.5)
                                 glLineWidth(1)
 
+                                # Try to look up the mesh for the subject in the cache.
+                                subject_mesh: Optional[OpenGLTriMesh] = subject_mesh_cache.get(subject)
+
+                                # If it's not there, try to load it into the cache.
+                                if subject_mesh is None:
+                                    subject_mesh_loader: Optional[Callable[[], OpenGLTriMesh]] = \
+                                        subject_mesh_loaders.get(subject)
+                                    if subject_mesh_loader is not None:
+                                        subject_mesh = subject_mesh_loader()
+                                        subject_mesh_cache[subject] = subject_mesh
+
+                                # If the mesh for the subject is now available (one way or the other), render it.
+                                if subject_mesh is not None:
+                                    world_from_source: np.ndarray = np.linalg.inv(source_from_world)
+                                    with vicon_lighting_context():
+                                        with OpenGLMatrixContext(
+                                            GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(world_from_source)
+                                        ):
+                                            subject_mesh.render()
+
+                            # Otherwise, if the subject doesn't correspond to an image source, or we don't know the
+                            # relative transformation:
+                            else:
+                                # Render the subject pose obtained from the Vicon system.
+                                subject_cam: SimpleCamera = CameraPoseConverter.pose_to_camera(subject_from_world)
+                                CameraRenderer.render_camera(subject_cam, axis_scale=0.5)
+
                     # Detect any skeletons in the frame.
-                    skeletons: List[Skeleton3D] = skeleton_detector.detect_skeletons()
+                    skeletons: Dict[str, Skeleton3D] = skeleton_detector.detect_skeletons()
 
                     # Render the skeletons and their corresponding SMPL bodies.
-                    for skeleton in skeletons:
+                    for subject, skeleton in skeletons.items():
                         with vicon_lighting_context():
                             SkeletonRenderer.render_skeleton(skeleton)
 
                             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
+                            body: SMPLBody = bodies.get(subject, male_body)
                             body.render_from_skeleton(skeleton)
                             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
 
@@ -310,11 +364,6 @@ def main() -> None:
 
             # Swap the front and back buffers.
             pygame.display.flip()
-
-            # Wait before moving onto the next frame if necessary.
-            delay: float = delay_until - timer()
-            if delay > 0:
-                time.sleep(delay)
     finally:
         # Terminate the Vicon system.
         if vicon is not None:
