@@ -1,18 +1,14 @@
 import cv2
-import numpy as np
 import os
 
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame
 
 from argparse import ArgumentParser
-from typing import Dict, Optional, Tuple
+from typing import Dict
 
-from smg.comms.base import RGBDFrameMessageUtil
-from smg.comms.mapping import MappingClient
 from smg.joysticks import FutabaT6K
 from smg.rotory import DroneFactory
-from smg.utility import ImageUtil
 
 
 def main():
@@ -21,10 +17,6 @@ def main():
     parser.add_argument(
         "--drone_type", "-t", type=str, required=True, choices=("ardrone2", "tello"),
         help="the drone type"
-    )
-    parser.add_argument(
-        "--run_client", "-r", action="store_true",
-        help="whether to connect to the mapping server"
     )
     args: dict = vars(parser.parse_args())
 
@@ -54,14 +46,6 @@ def main():
     drone_type: str = args.get("drone_type")
 
     with DroneFactory.make_drone(drone_type, **kwargs[drone_type]) as drone:
-        # Set up the mapping client if requested.
-        calibration_message_needed: bool = False
-        frame_idx: int = 0
-        mapping_client: Optional[MappingClient] = None
-        if args["run_client"]:
-            calibration_message_needed = True
-            mapping_client = MappingClient(frame_compressor=RGBDFrameMessageUtil.compress_frame_message)
-
         # Stop when both Button 0 and Button 1 on the Futaba T6K are set to their "released" state.
         while joystick.get_button(0) != 0 or joystick.get_button(1) != 0:
             for event in pygame.event.get():
@@ -86,28 +70,8 @@ def main():
                 drone.move_up(0)
 
             # Get the most recent image from the drone and show it.
-            image: np.ndarray = drone.get_image()
-            cv2.imshow("Image", image)
+            cv2.imshow("Image", drone.get_image())
             cv2.waitKey(1)
-
-            # If we're connected to a mapping server:
-            if mapping_client is not None:
-                # Send across the camera parameters if we haven't already.
-                if calibration_message_needed:
-                    height, width = image.shape[:2]
-                    intrinsics: Tuple[float, float, float, float] = drone.get_intrinsics()
-                    mapping_client.send_calibration_message(RGBDFrameMessageUtil.make_calibration_message(
-                        (width, height), (width, height), intrinsics, intrinsics
-                    ))
-                    calibration_message_needed = False
-
-                # Send the current frame across to the mapping server.
-                dummy_depth_image: np.ndarray = np.zeros(image.shape[:2], dtype=np.float32)
-                dummy_w_t_c: np.ndarray = np.eye(4)
-                mapping_client.send_frame_message(lambda msg: RGBDFrameMessageUtil.fill_frame_message(
-                    frame_idx, image, ImageUtil.to_short_depth(dummy_depth_image), dummy_w_t_c, msg
-                ))
-                frame_idx += 1
 
     # Shut down pygame cleanly.
     pygame.quit()
