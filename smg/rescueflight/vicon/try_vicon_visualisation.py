@@ -1,3 +1,4 @@
+import cv2
 import numpy as np
 import open3d as o3d
 import os
@@ -11,11 +12,14 @@ from OpenGL.GL import *
 from timeit import default_timer as timer
 from typing import Callable, Dict, Optional, Tuple
 
+from smg.imagesources import RGBFromRGBDImageSource, RGBImageSource
 from smg.meshing import MeshUtil
 from smg.opengl import CameraRenderer, OpenGLLightingContext, OpenGLMatrixContext, OpenGLTriMesh, OpenGLUtil
+from smg.openni import OpenNICamera, OpenNIRGBDImageSource
 from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
+from smg.rotory import DroneFactory, DroneRGBImageSource
 from smg.skeletons import Skeleton3D, SkeletonRenderer
 from smg.smplx import SMPLBody
 from smg.utility import FiducialUtil, GeometryUtil
@@ -116,8 +120,13 @@ def main() -> None:
         help="the folder from which to load the scene mesh"
     )
     parser.add_argument(
-        "--scene_timestamp", "-t", type=str,
+        "--scene_timestamp", type=str,
         help="a timestamp indicating which scene mesh to load"
+    )
+    parser.add_argument(
+        "--source_type", "-t", type=str, default="none",
+        choices=("anafi_thermal", "ardrone2", "kinect", "none", "tello"),
+        help="the image source type"
     )
     parser.add_argument(
         "--use_vicon_poses", action="store_true",
@@ -156,14 +165,28 @@ def main() -> None:
     # Construct the subject-from-source cache.
     subject_from_source_cache: SubjectFromSourceCache = SubjectFromSourceCache(".")
 
-    # Connect to the Vicon system.
+    # TODO: Comment here.
+    image_source: Optional[RGBImageSource] = None
     vicon: Optional[ViconInterface] = None
 
     try:
+        # Construct the Vicon interface.
         if persistence_mode == "input":
             vicon = OfflineViconInterface(folder=persistence_folder)
         else:
             vicon = LiveViconInterface()
+
+        # If we're using an RGB image source, construct it.
+        source_type: str = args["source_type"]
+        if source_type == "kinect":
+            image_source = RGBFromRGBDImageSource(OpenNIRGBDImageSource(OpenNICamera(mirror_images=True)))
+        elif source_type != "none":
+            kwargs: Dict[str, dict] = {
+                "anafi_thermal": dict(),
+                "ardrone2": dict(print_commands=False, print_control_messages=False, print_navdata_messages=False),
+                "tello": dict(print_commands=False, print_responses=False, print_state_messages=False)
+            }
+            image_source = DroneRGBImageSource(DroneFactory.make_drone(source_type, **kwargs[source_type]))
 
         # If we're in output mode, construct the frame saver.
         frame_saver: Optional[ViconFrameSaver] = None
@@ -265,14 +288,29 @@ def main() -> None:
                     if process_next:
                         # Try to get a frame from the Vicon system. If that succeeds:
                         if vicon.get_frame():
+                            frame_number: int = vicon.get_frame_number()
+                            frame_start: float = timer()
+
                             # If we're in output mode, save the frame to disk.
                             if persistence_mode == "output":
                                 frame_saver.save_frame()
 
+                            # If we're also using an image source:
+                            if image_source is not None:
+                                # Get an image from the image source.
+                                image: np.ndarray = image_source.get_image()
+
+                                # Show the image.
+                                cv2.imshow("Image", image)
+                                cv2.waitKey(1)
+
+                                # If we're in output mode, save the image to disk.
+                                if True:  # persistence_mode == "output":
+                                    filename: str = os.path.join(persistence_folder, f"{frame_number}.png")
+                                    print(f"Would save image to {filename}")
+
                             # Check how long has elapsed since the start of the previous frame. If it's not long
                             # enough, pause until the expected amount of time has elapsed.
-                            frame_number: int = vicon.get_frame_number()
-                            frame_start: float = timer()
                             if previous_frame_number is not None:
                                 recording_fps: int = 200
                                 expected_time_delta: float = (frame_number - previous_frame_number) / recording_fps
@@ -365,6 +403,10 @@ def main() -> None:
             # Swap the front and back buffers.
             pygame.display.flip()
     finally:
+        # Terminate the image source.
+        if image_source is not None:
+            image_source.terminate()
+
         # Terminate the Vicon system.
         if vicon is not None:
             vicon.terminate()
