@@ -21,7 +21,7 @@ from smg.rigging.helpers import CameraPoseConverter, CameraUtil
 from smg.skeletons import Skeleton3D, SkeletonRenderer
 from smg.smplx import SMPLBody
 from smg.vicon import LiveViconInterface, OfflineViconInterface, SubjectFromSourceCache
-from smg.vicon import ViconInterface, ViconSkeletonDetector, ViconUtil
+from smg.vicon import ViconFrameSaver, ViconInterface, ViconSkeletonDetector, ViconUtil
 
 
 class ViconVisualisationSystem:
@@ -61,6 +61,7 @@ class ViconVisualisationSystem:
         }
         self.__use_vicon_poses: bool = use_vicon_poses
         self.__vicon: Optional[ViconInterface] = None
+        self.__vicon_frame_saver: Optional[ViconFrameSaver] = None
         self.__window_size: Tuple[int, int] = window_size
 
     # SPECIAL METHODS
@@ -92,6 +93,10 @@ class ViconVisualisationSystem:
         self.__skeleton_detector = ViconSkeletonDetector(
             self.__vicon, is_person=ViconUtil.is_person, use_vicon_poses=self.__use_vicon_poses
         )
+
+        # If we're in output mode, construct the Vicon frame saver.
+        if self.__persistence_mode == "output":
+            self.__vicon_frame_saver = ViconFrameSaver(folder=self.__persistence_folder, vicon=self.__vicon)
 
         # Load the SMPL body models.
         self.__female_body = SMPLBody(
@@ -188,13 +193,13 @@ class ViconVisualisationSystem:
                 # If we aren't running a mapping server:
                 if self.__mapping_server is None:
                     # Save the Vicon frame to disk.
-                    # vicon_frame_saver.save_frame()
+                    # self.__vicon_frame_saver.save_frame()
                     print("Would save Vicon frame")
 
                 # Otherwise, if we are running a server and an image has been obtained from the client:
                 elif colour_image is not None:
                     # Save the Vicon frame to disk.
-                    # vicon_frame_saver.save_frame()
+                    # self.__vicon_frame_saver.save_frame()
                     print("Would save Vicon frame")
 
                     # Save the colour image to disk.
@@ -277,18 +282,8 @@ class ViconVisualisationSystem:
                             CameraRenderer.render_camera(source_cam, axis_scale=0.5)
                             glLineWidth(1)
 
-                            # Try to look up the mesh for the subject in the cache.
-                            subject_mesh: Optional[OpenGLTriMesh] = self.__subject_mesh_cache.get(subject)
-
-                            # If it's not there, try to load it into the cache.
-                            if subject_mesh is None:
-                                subject_mesh_loader: Optional[Callable[[], OpenGLTriMesh]] = \
-                                    self.__subject_mesh_loaders.get(subject)
-                                if subject_mesh_loader is not None:
-                                    subject_mesh = subject_mesh_loader()
-                                    self.__subject_mesh_cache[subject] = subject_mesh
-
-                            # If the mesh for the subject is now available (one way or the other), render it.
+                            # If the mesh for the subject is available, render it.
+                            subject_mesh: Optional[OpenGLTriMesh] = self.__try_get_subject_mesh(subject)
                             if subject_mesh is not None:
                                 world_from_source: np.ndarray = np.linalg.inv(source_from_world)
                                 with ViconUtil.default_lighting_context():
@@ -324,3 +319,22 @@ class ViconVisualisationSystem:
 
         # Swap the front and back buffers.
         pygame.display.flip()
+
+    def __try_get_subject_mesh(self, subject: str) -> Optional[OpenGLTriMesh]:
+        """
+        Try to get the mesh for a subject.
+
+        :param subject: The name of the subject.
+        :return:        The mesh for the subject, if possible, or None otherwise.
+        """
+        # Try to look up the mesh for the subject in the cache.
+        subject_mesh: Optional[OpenGLTriMesh] = self.__subject_mesh_cache.get(subject)
+
+        # If it's not there, try to load it into the cache.
+        if subject_mesh is None:
+            subject_mesh_loader: Optional[Callable[[], OpenGLTriMesh]] = self.__subject_mesh_loaders.get(subject)
+            if subject_mesh_loader is not None:
+                subject_mesh = subject_mesh_loader()
+                self.__subject_mesh_cache[subject] = subject_mesh
+
+        return subject_mesh
