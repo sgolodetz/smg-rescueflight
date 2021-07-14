@@ -180,6 +180,63 @@ def main() -> None:
                     # noinspection PyProtectedMember
                     os._exit(0)
 
+            # If we're ready to process the next Vicon frame:
+            if process_next:
+                # Try to get a frame from the Vicon system. If that succeeds:
+                if vicon.get_frame():
+                    frame_number: int = vicon.get_frame_number()
+
+                    # If we're running a mapping server, try to get a frame from the client.
+                    colour_image: Optional[np.ndarray] = None
+                    if mapping_server is not None and mapping_server.has_frames_now(client_id):
+                        # # Get the camera parameters from the server.
+                        # height, width, _ = mapping_server.get_image_shapes(client_id)[0]
+                        # image_size = (width, height)
+                        # intrinsics = mapping_server.get_intrinsics(client_id)[0]
+
+                        # Get the newest frame from the mapping server.
+                        mapping_server.peek_newest_frame(client_id, receiver)
+                        colour_image = receiver.get_rgb_image()
+
+                        # Show the image.
+                        cv2.imshow("Received Image", colour_image)
+                        cv2.waitKey(1)
+
+                    # If we're in output mode:
+                    if True:  # persistence_mode == "output":
+                        # If we aren't running a mapping server:
+                        if mapping_server is None:
+                            # Save the Vicon frame to disk.
+                            # vicon_frame_saver.save_frame()
+                            print("Would save Vicon frame")
+
+                        # Otherwise, if we are running a server and an image has been obtained from the client:
+                        elif colour_image is not None:
+                            # Save the Vicon frame to disk.
+                            # vicon_frame_saver.save_frame()
+                            print("Would save Vicon frame")
+
+                            # Save the colour image to disk.
+                            filename: str = os.path.join(persistence_folder, f"{frame_number}.png")
+                            print(f"Would save image to {filename}")
+
+                    # Check how long has elapsed since the start of the previous frame. If it's not long
+                    # enough, pause until the expected amount of time has elapsed.
+                    frame_start: float = timer()
+                    if previous_frame_number is not None:
+                        recording_fps: int = 200
+                        expected_time_delta: float = (frame_number - previous_frame_number) / recording_fps
+                        time_delta: float = frame_start - previous_frame_start
+                        time_delta_offset: float = expected_time_delta - time_delta
+                        if time_delta_offset > 0:
+                            time.sleep(time_delta_offset)
+
+                    previous_frame_number = frame_number
+                    previous_frame_start = frame_start
+
+            # Print out the frame number.
+            print(f"=== Frame {vicon.get_frame_number()} ===")
+
             # Allow the user to control the camera.
             camera_controller.update(pygame.key.get_pressed(), timer() * 1000)
 
@@ -207,63 +264,6 @@ def main() -> None:
                     # Render the scene mesh (if any).
                     if scene_mesh is not None:
                         scene_mesh.render()
-
-                    # If we're ready to process the next Vicon frame:
-                    if process_next:
-                        # Try to get a frame from the Vicon system. If that succeeds:
-                        if vicon.get_frame():
-                            frame_number: int = vicon.get_frame_number()
-
-                            # If we're running a mapping server, try to get a frame from the client.
-                            colour_image: Optional[np.ndarray] = None
-                            if mapping_server is not None and mapping_server.has_frames_now(client_id):
-                                # # Get the camera parameters from the server.
-                                # height, width, _ = mapping_server.get_image_shapes(client_id)[0]
-                                # image_size = (width, height)
-                                # intrinsics = mapping_server.get_intrinsics(client_id)[0]
-
-                                # Get the newest frame from the mapping server.
-                                mapping_server.peek_newest_frame(client_id, receiver)
-                                colour_image = receiver.get_rgb_image()
-
-                                # Show the image.
-                                cv2.imshow("Received Image", colour_image)
-                                cv2.waitKey(1)
-
-                            # If we're in output mode:
-                            if True:  # persistence_mode == "output":
-                                # If we aren't running a mapping server:
-                                if mapping_server is None:
-                                    # Save the Vicon frame to disk.
-                                    # vicon_frame_saver.save_frame()
-                                    print("Would save Vicon frame")
-
-                                # Otherwise, if we are running a server and an image has been obtained from the client:
-                                elif colour_image is not None:
-                                    # Save the Vicon frame to disk.
-                                    # vicon_frame_saver.save_frame()
-                                    print("Would save Vicon frame")
-
-                                    # Save the colour image to disk.
-                                    filename: str = os.path.join(persistence_folder, f"{frame_number}.png")
-                                    print(f"Would save image to {filename}")
-
-                            # Check how long has elapsed since the start of the previous frame. If it's not long
-                            # enough, pause until the expected amount of time has elapsed.
-                            frame_start: float = timer()
-                            if previous_frame_number is not None:
-                                recording_fps: int = 200
-                                expected_time_delta: float = (frame_number - previous_frame_number) / recording_fps
-                                time_delta: float = frame_start - previous_frame_start
-                                time_delta_offset: float = expected_time_delta - time_delta
-                                if time_delta_offset > 0:
-                                    time.sleep(time_delta_offset)
-
-                            previous_frame_number = frame_number
-                            previous_frame_start = frame_start
-
-                    # Print out the frame number.
-                    print(f"=== Frame {vicon.get_frame_number()} ===")
 
                     # For each Vicon subject:
                     for subject in vicon.get_subject_names():
