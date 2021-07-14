@@ -29,14 +29,29 @@ class ViconVisualisationSystem:
 
     # CONSTRUCTOR
 
-    def __init__(self, *, mapping_server: Optional[MappingServer], pause: bool = False,
-                 persistence_folder: Optional[str], persistence_mode: str,
+    def __init__(self, *, debug: bool = False, mapping_server: Optional[MappingServer],
+                 pause: bool = False, persistence_folder: Optional[str], persistence_mode: str,
                  rendering_intrinsics: Tuple[float, float, float, float], scene_timestamp: Optional[str],
                  scenes_folder: str, use_vicon_poses: bool, window_size: Tuple[int, int] = (640, 480)):
+        """
+        TODO
+
+        :param debug:                   TODO
+        :param mapping_server:          TODO
+        :param pause:                   TODO
+        :param persistence_folder:      TODO
+        :param persistence_mode:        TODO
+        :param rendering_intrinsics:    TODO
+        :param scene_timestamp:         TODO
+        :param scenes_folder:           TODO
+        :param use_vicon_poses:         TODO
+        :param window_size:             TODO
+        """
         self.__camera_controller: KeyboardCameraController = KeyboardCameraController(
             SimpleCamera([0, 0, 0], [0, 1, 0], [0, 0, 1]), canonical_angular_speed=0.05, canonical_linear_speed=0.1
         )
         self.__client_id: int = 0
+        self.__debug: bool = debug
         self.__female_body: Optional[SMPLBody] = None
         self.__male_body: Optional[SMPLBody] = None
         self.__mapping_server: Optional[MappingServer] = mapping_server
@@ -141,7 +156,7 @@ class ViconVisualisationSystem:
             # If we're ready to process the next frame:
             if self.__process_next:
                 # Process the frame.
-                self.__process_frame()
+                self.__advance_to_next_frame()
 
                 # Decide whether to continue processing subsequent frames or wait.
                 self.__process_next = not self.__pause
@@ -166,8 +181,8 @@ class ViconVisualisationSystem:
 
     # PRIVATE METHODS
 
-    def __process_frame(self) -> None:
-        """TODO"""
+    def __advance_to_next_frame(self) -> None:
+        """Try to advance to the next frame."""
         # Try to get a frame from the Vicon system. If that succeeds:
         if self.__vicon.get_frame():
             frame_number: int = self.__vicon.get_frame_number()
@@ -184,9 +199,10 @@ class ViconVisualisationSystem:
                 self.__mapping_server.peek_newest_frame(self.__client_id, self.__receiver)
                 colour_image = self.__receiver.get_rgb_image()
 
-                # Show the image.
-                cv2.imshow("Received Image", colour_image)
-                cv2.waitKey(1)
+                # If we're debugging, show the received colour image:
+                if self.__debug:
+                    cv2.imshow("Received Image", colour_image)
+                    cv2.waitKey(1)
 
             # If we're in output mode:
             if True:  # self.__persistence_mode == "output":
@@ -221,7 +237,7 @@ class ViconVisualisationSystem:
             self.__previous_frame_start = frame_start
 
     def __render_frame(self) -> None:
-        """TODO"""
+        """Render the current frame."""
         # Clear the colour and depth buffers.
         glClearColor(1.0, 1.0, 1.0, 1.0)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)

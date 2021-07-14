@@ -8,6 +8,7 @@ from smg.comms.base import RGBDFrameMessageUtil
 from smg.comms.mapping import MappingServer
 from smg.utility import PooledQueue
 
+# FIXME: This shouldn't be in the current directory (it's not a package).
 from vicon_visualisation_system import ViconVisualisationSystem
 
 
@@ -71,6 +72,7 @@ def main() -> None:
 
         # Construct the visualisation system.
         with ViconVisualisationSystem(
+            debug=False,
             mapping_server=mapping_server,
             pause=args["pause"] or args["run_server"],
             persistence_folder=persistence_folder,
