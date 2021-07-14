@@ -1,6 +1,5 @@
 import cv2
 import numpy as np
-import open3d as o3d
 import os
 
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
@@ -15,86 +14,15 @@ from typing import Callable, Dict, Optional, Tuple
 from smg.comms.base import RGBDFrameMessageUtil, RGBDFrameReceiver
 from smg.comms.mapping import MappingServer
 from smg.meshing import MeshUtil
-from smg.opengl import CameraRenderer, OpenGLLightingContext, OpenGLMatrixContext, OpenGLTriMesh, OpenGLUtil
+from smg.opengl import CameraRenderer, OpenGLMatrixContext, OpenGLTriMesh, OpenGLUtil
 from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
 from smg.skeletons import Skeleton3D, SkeletonRenderer
 from smg.smplx import SMPLBody
-from smg.utility import FiducialUtil, GeometryUtil, PooledQueue
+from smg.utility import PooledQueue
 from smg.vicon import LiveViconInterface, OfflineViconInterface, SubjectFromSourceCache
-from smg.vicon import ViconFrameSaver, ViconInterface, ViconSkeletonDetector
-
-
-def is_person(subject_name: str, vicon: ViconInterface) -> bool:
-    """
-    Determine whether or not the specified Vicon subject is a person.
-
-    :param subject_name:    The name of the subject.
-    :param vicon:           The Vicon interface.
-    :return:                True, if the specified Vicon subject is a person, or False otherwise.
-    """
-    return "Root" in vicon.get_segment_names(subject_name)
-
-
-def load_scene_mesh(scenes_folder: str, scene_timestamp: str, vicon: ViconInterface) -> OpenGLTriMesh:
-    """
-    Load in a scene mesh, transforming it into the Vicon coordinate system in the process.
-
-    :param scenes_folder:   The folder from which to load the scene mesh.
-    :param scene_timestamp: A timestamp indicating which scene mesh to load.
-    :param vicon:           The Vicon interface.
-    :return:                The scene mesh.
-    """
-    # Specify the file paths.
-    mesh_filename: str = os.path.join(scenes_folder, f"TangoCapture-{scene_timestamp}-cleaned.ply")
-    fiducials_filename: str = os.path.join(scenes_folder, f"TangoCapture-{scene_timestamp}-fiducials.txt")
-
-    # Load in the positions of the four ArUco marker corners as estimated during the reconstruction process.
-    fiducials: Dict[str, np.ndarray] = FiducialUtil.load_fiducials(fiducials_filename)
-
-    # Stack these positions into a 3x4 matrix.
-    p: np.ndarray = np.column_stack([
-        fiducials["0_0"],
-        fiducials["0_1"],
-        fiducials["0_2"],
-        fiducials["0_3"]
-    ])
-
-    # Look up the Vicon coordinate system positions of the all of the Vicon markers that can currently be seen
-    # by the Vicon system, hopefully including ones for the ArUco marker corners.
-    marker_positions: Dict[str, np.ndarray] = vicon.get_marker_positions("Registrar")
-
-    # Again, stack the relevant positions into a 3x4 matrix.
-    q: np.ndarray = np.column_stack([
-        marker_positions["0_0"],
-        marker_positions["0_1"],
-        marker_positions["0_2"],
-        marker_positions["0_3"]
-    ])
-
-    # Estimate the rigid transformation between the two sets of points.
-    transform: np.ndarray = GeometryUtil.estimate_rigid_transform(p, q)
-
-    # Load in the scene mesh and transform it into the Vicon coordinate system.
-    scene_mesh_o3d: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(mesh_filename)
-    scene_mesh_o3d.transform(transform)
-
-    # Convert the scene mesh to OpenGL format and return it.
-    return MeshUtil.convert_trimesh_to_opengl(scene_mesh_o3d)
-
-
-def vicon_lighting_context() -> OpenGLLightingContext:
-    """
-    Get the OpenGL lighting context to use when rendering Vicon scenes.
-
-    :return:    The OpenGL lighting context to use when rendering Vicon scenes.
-    """
-    direction: np.ndarray = np.array([0.0, 1.0, 0.0, 0.0])
-    return OpenGLLightingContext({
-        0: OpenGLLightingContext.DirectionalLight(direction),
-        1: OpenGLLightingContext.DirectionalLight(-direction),
-    })
+from smg.vicon import ViconFrameSaver, ViconInterface, ViconSkeletonDetector, ViconUtil
 
 
 def main() -> None:
@@ -191,7 +119,7 @@ def main() -> None:
 
         # Construct the skeleton detector.
         skeleton_detector: ViconSkeletonDetector = ViconSkeletonDetector(
-            vicon, is_person=is_person, use_vicon_poses=args["use_vicon_poses"]
+            vicon, is_person=ViconUtil.is_person, use_vicon_poses=args["use_vicon_poses"]
         )
 
         # Load the SMPL body models.
@@ -222,7 +150,7 @@ def main() -> None:
         scene_mesh: Optional[OpenGLTriMesh] = None
         scene_timestamp: Optional[str] = args.get("scene_timestamp")
         if scene_timestamp is not None and vicon.get_frame():
-            scene_mesh = load_scene_mesh(args["scenes_folder"], scene_timestamp, vicon)
+            scene_mesh = ViconUtil.load_scene_mesh(args["scenes_folder"], scene_timestamp, vicon)
 
         # Initialise the playback variables.
         pause: bool = args["pause"] or args["run_server"]
@@ -345,7 +273,7 @@ def main() -> None:
                             OpenGLUtil.render_sphere(marker_pos, 0.014, slices=10, stacks=10)
 
                         # If the subject is a person, don't bother trying to render its (rigid-body) pose.
-                        if is_person(subject, vicon):
+                        if ViconUtil.is_person(subject, vicon):
                             continue
 
                         # Otherwise, assume it's a single-segment subject and try to get its pose.
@@ -381,7 +309,7 @@ def main() -> None:
                                 # If the mesh for the subject is now available (one way or the other), render it.
                                 if subject_mesh is not None:
                                     world_from_source: np.ndarray = np.linalg.inv(source_from_world)
-                                    with vicon_lighting_context():
+                                    with ViconUtil.default_lighting_context():
                                         with OpenGLMatrixContext(
                                             GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(world_from_source)
                                         ):
@@ -399,7 +327,7 @@ def main() -> None:
 
                     # Render the skeletons and their corresponding SMPL bodies.
                     for subject, skeleton in skeletons.items():
-                        with vicon_lighting_context():
+                        with ViconUtil.default_lighting_context():
                             SkeletonRenderer.render_skeleton(skeleton)
 
                             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
