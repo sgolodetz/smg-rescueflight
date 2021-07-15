@@ -24,7 +24,7 @@ from smg.vicon import LiveViconInterface, OfflineViconInterface, SubjectFromSour
 from smg.vicon import ViconFrameSaver, ViconInterface, ViconSkeletonDetector, ViconUtil
 
 
-class ViconVisualisationSystem:
+class ViconVisualiser:
     """TODO"""
 
     # CONSTRUCTOR
@@ -82,21 +82,21 @@ class ViconVisualisationSystem:
     # SPECIAL METHODS
 
     def __enter__(self):
-        """No-op (needed to allow the visualisation system's lifetime to be managed by a with statement)."""
+        """No-op (needed to allow the visualiser's lifetime to be managed by a with statement)."""
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """Destroy the visualisation system at the end of the with statement that's used to manage its lifetime."""
+        """Destroy the visualiser at the end of the with statement that's used to manage its lifetime."""
         self.terminate()
 
     # PUBLIC METHODS
 
     def run(self) -> None:
-        """Run the visualisation system."""
+        """Run the visualiser."""
         # Initialise PyGame and create the window.
         pygame.init()
         pygame.display.set_mode(self.__window_size, pygame.DOUBLEBUF | pygame.OPENGL)
-        pygame.display.set_caption("Vicon Visualisation System")
+        pygame.display.set_caption("Vicon Visualiser")
 
         # Construct the Vicon interface.
         if self.__persistence_mode == "input":
@@ -133,7 +133,7 @@ class ViconVisualisationSystem:
         if self.__scene_timestamp is not None and self.__vicon.get_frame():
             self.__scene_mesh = ViconUtil.load_scene_mesh(self.__scenes_folder, self.__scene_timestamp, self.__vicon)
 
-        # Until the visualisation system should terminate:
+        # Until the visualiser should terminate:
         while not self.__should_terminate.is_set():
             # Process any PyGame events.
             for event in pygame.event.get():
@@ -171,7 +171,7 @@ class ViconVisualisationSystem:
             self.__render_frame()
 
     def terminate(self) -> None:
-        """Destroy the visualisation system."""
+        """Destroy the visualiser."""
         if not self.__should_terminate.is_set():
             self.__should_terminate.set()
 
@@ -260,7 +260,7 @@ class ViconVisualisationSystem:
 
                 # Render a voxel grid.
                 glColor3f(0.0, 0.0, 0.0)
-                OpenGLUtil.render_voxel_grid([-3, -5, 0], [3, 5, 2], [1, 1, 1], dotted=True)
+                OpenGLUtil.render_voxel_grid([-3, -7, 0], [3, 7, 2], [1, 1, 1], dotted=True)
 
                 # Render the scene mesh (if any).
                 if self.__scene_mesh is not None:

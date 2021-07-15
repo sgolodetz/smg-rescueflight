@@ -9,7 +9,7 @@ from smg.comms.mapping import MappingServer
 from smg.utility import PooledQueue
 
 # FIXME: This shouldn't be in the current directory (it's not a package).
-from vicon_visualisation_system import ViconVisualisationSystem
+from vicon_visualiser import ViconVisualiser
 
 
 def main() -> None:
@@ -19,7 +19,7 @@ def main() -> None:
     parser = ArgumentParser()
     parser.add_argument(
         "--pause", action="store_true",
-        help="whether to start the visualisation system in its paused state"
+        help="whether to start the visualiser in its paused state"
     )
     parser.add_argument(
         "--persistence_folder", type=str,
@@ -70,20 +70,15 @@ def main() -> None:
             )
             mapping_server.start()
 
-        # Construct the visualisation system.
-        with ViconVisualisationSystem(
-            debug=False,
-            mapping_server=mapping_server,
-            pause=args["pause"] or args["run_server"],
-            persistence_folder=persistence_folder,
-            persistence_mode=persistence_mode,
-            rendering_intrinsics=rendering_intrinsics,
-            scene_timestamp=args["scene_timestamp"],
-            scenes_folder=args["scenes_folder"],
-            use_vicon_poses=args["use_vicon_poses"]
-        ) as visualisation_system:
-            # Run the visualisation system.
-            visualisation_system.run()
+        # Construct the visualiser.
+        with ViconVisualiser(
+            debug=False, mapping_server=mapping_server, pause=args["pause"] or args["run_server"],
+            persistence_folder=persistence_folder, persistence_mode=persistence_mode,
+            rendering_intrinsics=rendering_intrinsics, scene_timestamp=args["scene_timestamp"],
+            scenes_folder=args["scenes_folder"], use_vicon_poses=args["use_vicon_poses"]
+        ) as visualiser:
+            # Run the visualiser.
+            visualiser.run()
     finally:
         # Terminate the mapping server.
         if mapping_server is not None:
