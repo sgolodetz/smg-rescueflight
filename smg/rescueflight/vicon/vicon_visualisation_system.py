@@ -205,22 +205,20 @@ class ViconVisualisationSystem:
                     cv2.waitKey(1)
 
             # If we're in output mode:
-            if True:  # self.__persistence_mode == "output":
+            if self.__persistence_mode == "output":
                 # If we aren't running a mapping server:
                 if self.__mapping_server is None:
                     # Save the Vicon frame to disk.
-                    # self.__vicon_frame_saver.save_frame()
-                    print("Would save Vicon frame")
+                    self.__vicon_frame_saver.save_frame()
 
                 # Otherwise, if we are running a server and an image has been obtained from the client:
                 elif colour_image is not None:
                     # Save the Vicon frame to disk.
-                    # self.__vicon_frame_saver.save_frame()
-                    print("Would save Vicon frame")
+                    self.__vicon_frame_saver.save_frame()
 
                     # Save the colour image to disk.
                     filename: str = os.path.join(self.__persistence_folder, f"{frame_number}.png")
-                    print(f"Would save image to {filename}")
+                    cv2.imwrite(filename, colour_image)
 
             # Check how long has elapsed since the start of the previous frame. If it's not long
             # enough, pause until the expected amount of time has elapsed.
