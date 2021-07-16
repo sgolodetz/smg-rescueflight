@@ -27,7 +27,7 @@ from smg.vicon import ViconFrameSaver, ViconInterface, ViconSkeletonDetector, Vi
 
 
 class ViconVisualiser:
-    """TODO"""
+    """A visualiser that supports the rendering, saving and replaying of Vicon-based scenes."""
 
     # CONSTRUCTOR
 
@@ -36,18 +36,18 @@ class ViconVisualiser:
                  rendering_intrinsics: Tuple[float, float, float, float], scene_timestamp: Optional[str],
                  scenes_folder: str, use_vicon_poses: bool, window_size: Tuple[int, int] = (640, 480)):
         """
-        TODO
+        Construct a Vicon visualiser.
 
-        :param debug:                   TODO
-        :param mapping_server:          TODO
-        :param pause:                   TODO
-        :param persistence_folder:      TODO
-        :param persistence_mode:        TODO
-        :param rendering_intrinsics:    TODO
-        :param scene_timestamp:         TODO
-        :param scenes_folder:           TODO
-        :param use_vicon_poses:         TODO
-        :param window_size:             TODO
+        :param debug:                   Whether to enable debugging.
+        :param mapping_server:          The mapping server (if any) that should be used to receive images from a drone.
+        :param pause:                   Whether to start the visualiser in its paused state.
+        :param persistence_folder:      The folder (if any) that should be used for Vicon persistence.
+        :param persistence_mode:        The Vicon persistence mode.
+        :param rendering_intrinsics:    The camera intrinsics to use when rendering the scene.
+        :param scene_timestamp:         A timestamp indicating which scene mesh to load (if any).
+        :param scenes_folder:           The folder from which to load the scene mesh (if any).
+        :param use_vicon_poses:         Whether to use the joint poses produced by the Vicon system.
+        :param window_size:             The application window size, as a (width, height) tuple.
         """
         self.__camera_controller: KeyboardCameraController = KeyboardCameraController(
             SimpleCamera([0, 0, 0], [0, 1, 0], [0, 0, 1]), canonical_angular_speed=0.05, canonical_linear_speed=0.1
@@ -194,10 +194,8 @@ class ViconVisualiser:
             # If we're running a mapping server, try to get a frame from the client.
             colour_image: Optional[np.ndarray] = None
             if self.__mapping_server is not None and self.__mapping_server.has_frames_now(self.__client_id):
-                # # Get the camera parameters from the server.
-                # height, width, _ = self.__mapping_server.get_image_shapes(client_id)[0]
-                # image_size = (width, height)
-                # intrinsics = self.__mapping_server.get_intrinsics(client_id)[0]
+                # Get the camera parameters from the server.
+                # TODO
 
                 # Get the newest frame from the mapping server.
                 self.__mapping_server.peek_newest_frame(self.__client_id, self.__receiver)
@@ -219,6 +217,9 @@ class ViconVisualiser:
                 elif colour_image is not None:
                     # Save the Vicon frame to disk.
                     self.__vicon_frame_saver.save_frame()
+
+                    # If the camera parameters haven't already been saved to disk, save them now.
+                    # TODO
 
                     # Save the colour image to disk.
                     filename: str = os.path.join(self.__persistence_folder, f"{frame_number}.png")
