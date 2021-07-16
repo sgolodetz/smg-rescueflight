@@ -6,10 +6,8 @@ from typing import Optional, Tuple
 
 from smg.comms.base import RGBDFrameMessageUtil
 from smg.comms.mapping import MappingServer
+from smg.rescueflight.vicon.vicon_visualiser import ViconVisualiser
 from smg.utility import PooledQueue
-
-# FIXME: This shouldn't be in the current directory (it's not a package).
-from vicon_visualiser import ViconVisualiser
 
 
 def main() -> None:
