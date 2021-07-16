@@ -6,11 +6,12 @@ os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame
 
 from argparse import ArgumentParser
-from typing import Dict, Tuple
+from typing import Dict, Optional, Tuple
 
 from smg.comms.base import RGBDFrameMessageUtil
 from smg.comms.mapping import MappingClient
 from smg.joysticks import FutabaT6K
+from smg.pyorbslam2 import MonocularTracker
 from smg.rotory import DroneFactory
 from smg.utility import ImageUtil
 
@@ -22,7 +23,12 @@ def main():
         "--drone_type", "-t", type=str, required=True, choices=("ardrone2", "tello"),
         help="the drone type"
     )
+    parser.add_argument(
+        "--with_tracker", action="store_true", help="whether to use the tracker"
+    )
     args: dict = vars(parser.parse_args())
+
+    drone_type: str = args.get("drone_type")
 
     # Initialise pygame and its joystick module.
     pygame.init()
@@ -47,7 +53,13 @@ def main():
         "tello": dict(print_commands=True, print_responses=True, print_state_messages=False)
     }
 
-    drone_type: str = args.get("drone_type")
+    # If requested, construct the tracker.
+    tracker: Optional[MonocularTracker] = None
+    if args["with_tracker"]:
+        tracker = MonocularTracker(
+            settings_file=f"settings-{drone_type}.yaml", use_viewer=True,
+            voc_file="C:/orbslam2/Vocabulary/ORBvoc.txt", wait_till_ready=False
+        )
 
     with DroneFactory.make_drone(drone_type, **kwargs[drone_type]) as drone:
         with MappingClient(frame_compressor=RGBDFrameMessageUtil.compress_frame_message) as client:
@@ -77,10 +89,21 @@ def main():
                     drone.move_right(joystick.get_roll())
                     drone.move_up(0)
 
-                # Get the most recent image from the drone and show it.
+                # Get the most recent frame from the drone.
                 image: np.ndarray = drone.get_image()
-                cv2.imshow("Image", image)
-                cv2.waitKey(1)
+                pose: Optional[np.ndarray] = None
+
+                # If we're using the tracker:
+                if tracker is not None:
+                    # If the tracker's ready:
+                    if tracker.is_ready():
+                        # Try to estimate the pose of the camera.
+                        inv_pose: np.ndarray = tracker.estimate_pose(image)
+                        if inv_pose is not None:
+                            pose = np.linalg.inv(inv_pose)
+                else:
+                    # Otherwise, simply use the identity matrix as a dummy pose.
+                    pose = np.eye(4)
 
                 # Send the camera parameters across to the mapping server if we haven't already.
                 if calibration_message_needed:
@@ -91,16 +114,32 @@ def main():
                     ))
                     calibration_message_needed = False
 
-                # Send the current frame across to the mapping server.
-                dummy_depth_image: np.ndarray = np.zeros(image.shape[:2], dtype=np.float32)
-                dummy_w_t_c: np.ndarray = np.eye(4)
-                client.send_frame_message(lambda msg: RGBDFrameMessageUtil.fill_frame_message(
-                    frame_idx, image, ImageUtil.to_short_depth(dummy_depth_image), dummy_w_t_c, msg
-                ))
+                # If a pose is available (i.e. unless we were using the tracker and it failed):
+                if pose is not None:
+                    # Send the frame across to the mapping server.
+                    dummy_depth_image: np.ndarray = np.zeros(image.shape[:2], dtype=np.float32)
+                    client.send_frame_message(lambda msg: RGBDFrameMessageUtil.fill_frame_message(
+                        frame_idx, image, ImageUtil.to_short_depth(dummy_depth_image), pose, msg
+                    ))
+
+                # Show the image so that the user can see what's going on (and exit if desired).
+                cv2.imshow("Drone Client", image)
+                c: int = cv2.waitKey(1)
+                if c == ord('q'):
+                    break
+
+                # Increment the frame index.
                 frame_idx += 1
 
     # Shut down pygame cleanly.
     pygame.quit()
+
+    # Forcibly terminate the whole process. This isn't graceful, but ORB-SLAM can sometimes take a long time to
+    # shut down, and it's dull to wait for it. For example, if we don't do this, then if we wanted to quit whilst
+    # the tracker was still initialising, we'd have to sit around and wait for it to finish, as there's no way to
+    # cancel the initialisation.
+    # noinspection PyProtectedMember
+    os._exit(0)
 
 
 if __name__ == "__main__":
