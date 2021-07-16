@@ -271,6 +271,9 @@ class ViconVisualiser:
                 if self.__scene_mesh is not None:
                     self.__scene_mesh.render()
 
+                # Detect any skeletons in the frame.
+                skeletons: Dict[str, Skeleton3D] = self.__skeleton_detector.detect_skeletons()
+
                 # For each Vicon subject:
                 for subject in self.__vicon.get_subject_names():
                     # Render all of its markers.
@@ -314,12 +317,28 @@ class ViconVisualiser:
                         # Otherwise, if the subject doesn't correspond to an image source, or we don't know the
                         # relative transformation:
                         else:
-                            # Render the subject pose obtained from the Vicon system.
                             subject_cam: SimpleCamera = CameraPoseConverter.pose_to_camera(subject_from_world)
-                            CameraRenderer.render_camera(subject_cam, axis_scale=0.5)
 
-                # Detect any skeletons in the frame.
-                skeletons: Dict[str, Skeleton3D] = self.__skeleton_detector.detect_skeletons()
+                            body_colour: Optional[Tuple[float, float, float]] = None
+                            for _, skeleton in skeletons.items():
+                                rshoulder = skeleton.keypoints.get("RShoulder")
+                                relbow = skeleton.keypoints.get("RElbow")
+                                if rshoulder is not None and relbow is not None:
+                                    closest_point = GeometryUtil.find_closest_point_on_half_ray(
+                                        subject_cam.p(), rshoulder.position, relbow.position - rshoulder.position
+                                    )
+                                    dist = np.linalg.norm(subject_cam.p() - closest_point)
+                                    t = dist / 0.5
+                                    if t > 1:
+                                        t = 1
+                                    print(subject, dist)
+                                    body_colour = (t, 1 - t, 0)
+                                break
+
+                            # Render the subject pose obtained from the Vicon system.
+                            CameraRenderer.render_camera(
+                                subject_cam, axis_scale=0.05, body_colour=body_colour, body_scale=0.1
+                            )
 
                 # Render the skeletons and their corresponding SMPL bodies.
                 for subject, skeleton in skeletons.items():
