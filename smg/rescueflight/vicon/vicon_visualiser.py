@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import open3d as o3d
 import os
 
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
@@ -20,6 +21,7 @@ from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
 from smg.skeletons import Skeleton3D, SkeletonRenderer
 from smg.smplx import SMPLBody
+from smg.utility import FiducialUtil, GeometryUtil
 from smg.vicon import LiveViconInterface, OfflineViconInterface, SubjectFromSourceCache
 from smg.vicon import ViconFrameSaver, ViconInterface, ViconSkeletonDetector, ViconUtil
 
@@ -131,7 +133,9 @@ class ViconVisualiser:
 
         # Load in the scene mesh (if any), transforming it as needed in the process.
         if self.__scene_timestamp is not None and self.__vicon.get_frame():
-            self.__scene_mesh = ViconUtil.load_scene_mesh(self.__scenes_folder, self.__scene_timestamp, self.__vicon)
+            self.__scene_mesh = ViconVisualiser.__load_scene_mesh(
+                self.__scenes_folder, self.__scene_timestamp, self.__vicon
+            )
 
         # Until the visualiser should terminate:
         while not self.__should_terminate.is_set():
@@ -352,3 +356,52 @@ class ViconVisualiser:
                 self.__subject_mesh_cache[subject] = subject_mesh
 
         return subject_mesh
+
+    # PRIVATE STATIC METHODS
+
+    @staticmethod
+    def __load_scene_mesh(scenes_folder: str, scene_timestamp: str, vicon: ViconInterface) -> OpenGLTriMesh:
+        """
+        Load in a scene mesh, transforming it into the Vicon coordinate system in the process.
+
+        :param scenes_folder:   The folder from which to load the scene mesh.
+        :param scene_timestamp: A timestamp indicating which scene mesh to load.
+        :param vicon:           The Vicon interface.
+        :return:                The scene mesh.
+        """
+        # Specify the file paths.
+        mesh_filename: str = os.path.join(scenes_folder, f"TangoCapture-{scene_timestamp}-cleaned.ply")
+        fiducials_filename: str = os.path.join(scenes_folder, f"TangoCapture-{scene_timestamp}-fiducials.txt")
+
+        # Load in the positions of the four ArUco marker corners as estimated during the reconstruction process.
+        fiducials: Dict[str, np.ndarray] = FiducialUtil.load_fiducials(fiducials_filename)
+
+        # Stack these positions into a 3x4 matrix.
+        p: np.ndarray = np.column_stack([
+            fiducials["0_0"],
+            fiducials["0_1"],
+            fiducials["0_2"],
+            fiducials["0_3"]
+        ])
+
+        # Look up the Vicon coordinate system positions of the all of the Vicon markers that can currently be seen
+        # by the Vicon system, hopefully including ones for the ArUco marker corners.
+        marker_positions: Dict[str, np.ndarray] = vicon.get_marker_positions("Registrar")
+
+        # Again, stack the relevant positions into a 3x4 matrix.
+        q: np.ndarray = np.column_stack([
+            marker_positions["0_0"],
+            marker_positions["0_1"],
+            marker_positions["0_2"],
+            marker_positions["0_3"]
+        ])
+
+        # Estimate the rigid transformation between the two sets of points.
+        transform: np.ndarray = GeometryUtil.estimate_rigid_transform(p, q)
+
+        # Load in the scene mesh and transform it into the Vicon coordinate system.
+        scene_mesh_o3d: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(mesh_filename)
+        scene_mesh_o3d.transform(transform)
+
+        # Convert the scene mesh to OpenGL format and return it.
+        return MeshUtil.convert_trimesh_to_opengl(scene_mesh_o3d)
