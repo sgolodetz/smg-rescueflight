@@ -8,6 +8,18 @@ from smg.utility import DualQuaternion, GeometryUtil
 
 
 class TestGeometryUtil(unittest.TestCase):
+    def test_find_closest_point_on_half_ray(self):
+        tolerance: float = 1e-4
+        self.assertTrue(np.linalg.norm(GeometryUtil.find_closest_point_on_half_ray(
+            np.array([0, 0, 0]), np.array([1, -1, 0]), np.array([0, 1, 0])
+        ) - np.array([1, 0, 0])) <= tolerance)
+        self.assertTrue(np.linalg.norm(GeometryUtil.find_closest_point_on_half_ray(
+            np.array([0, 0, 0]), np.array([1, 1, 0]), np.array([0, 1, 0])
+        ) - np.array([1, 1, 0])) <= tolerance)
+        self.assertTrue(np.linalg.norm(GeometryUtil.find_closest_point_on_half_ray(
+            np.array([0, 0, 0]), np.array([2, -1, 0]), np.array([-1, 1, 0])
+        ) - np.array([0.5, 0.5, 0])) <= tolerance)
+
     def test_find_largest_cluster(self):
         # Generate increasingly large clusters of transforms that rotate around the z axis by different angles.
         up: np.ndarray = np.array([0, 0, 1])
