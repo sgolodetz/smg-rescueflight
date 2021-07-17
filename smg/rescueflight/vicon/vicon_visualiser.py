@@ -246,17 +246,15 @@ class ViconVisualiser:
 
         .. note::
             The subject will be rendered as a coloured sphere, where the colour depends on the extent to which
-            the subject is currently being designated by the first detected skeleton in the frame (if any).
-            Roughly speaking, a subject is being designated by a skeleton if the skeleton's right upper arm
-            points at it.
+            the subject is currently being designated by any detected skeleton in the frame. Roughly speaking,
+            a subject is being designated by a skeleton if the skeleton's right upper arm points at it.
 
         :param subject:     The name of the subject.
         :param subject_pos: The position of the subject (i.e. the origin of its coordinate system).
         :param skeletons:   The skeletons that have been detected in the frame.
         """
-        # FIXME: This should ultimately take all of the detected skeletons in the frame into account.
-        # Compute the extent to which the subject is currently being designated by the first detected skeleton (if any).
-        body_colour: Tuple[float, float, float] = (0.0, 0.0, 0.0)
+        # Compute the extent to which the subject is currently being designated by a skeleton.
+        min_dist: float = np.inf
 
         for _, skeleton in skeletons.items():
             right_shoulder: Optional[Keypoint] = skeleton.keypoints.get("RShoulder")
@@ -269,18 +267,19 @@ class ViconVisualiser:
                     subject_pos, right_shoulder_pos, right_elbow_pos - right_shoulder_pos
                 )
 
-                dist: float = np.linalg.norm(subject_pos - closest_point)
-                t: float = np.clip(dist / 0.5, 0.0, 1.0)
-                body_colour = (t, 1 - t, 0)
+                min_dist = min(min_dist, np.linalg.norm(subject_pos - closest_point))
 
-                if self.__debug:
-                    print(f"{subject}: {dist}m")
+        if self.__debug:
+            print(f"{subject}: {min_dist}m")
 
-            break
+        # Render a sphere at the location of the subject that is coloured accordingly.
+        colour: Tuple[float, float, float] = (0.0, 0.0, 0.0)
+        if min_dist < np.inf:
+            t: float = np.clip(min_dist / 0.5, 0.0, 1.0)
+            colour = (t, 1 - t, 0)
 
-        # Render a sphere at its location that is coloured accordingly.
         with ViconUtil.default_lighting_context():
-            glColor3f(body_colour[0], body_colour[1], body_colour[2])
+            glColor3f(*colour)
             OpenGLUtil.render_sphere(subject_pos, 0.1, slices=10, stacks=10)
 
     def __render_frame(self) -> None:
