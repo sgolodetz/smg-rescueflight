@@ -239,14 +239,29 @@ class ViconVisualiser:
             self.__previous_frame_number = frame_number
             self.__previous_frame_start = frame_start
 
-    def __render_designatable_object(self, subject: str, subject_pos: np.ndarray,
-                                     skeletons: Dict[str, Skeleton3D]) -> None:
-        # Compute the extent to which the object is currently being designated by the first detected person (if any).
+    def __render_designatable_subject(self, subject: str, subject_pos: np.ndarray,
+                                      skeletons: Dict[str, Skeleton3D]) -> None:
+        """
+        Render a designatable subject.
+
+        .. note::
+            The subject will be rendered as a coloured sphere, where the colour depends on the extent to which
+            the subject is currently being designated by the first detected skeleton in the frame (if any).
+            Roughly speaking, a subject is being designated by a skeleton if the skeleton's right upper arm
+            points at it.
+
+        :param subject:     The name of the subject.
+        :param subject_pos: The position of the subject (i.e. the origin of its coordinate system).
+        :param skeletons:   The skeletons that have been detected in the frame.
+        """
+        # FIXME: This should ultimately take all of the detected skeletons in the frame into account.
+        # Compute the extent to which the subject is currently being designated by the first detected skeleton (if any).
         body_colour: Tuple[float, float, float] = (0.0, 0.0, 0.0)
 
         for _, skeleton in skeletons.items():
             right_shoulder: Optional[Keypoint] = skeleton.keypoints.get("RShoulder")
             right_elbow: Optional[Keypoint] = skeleton.keypoints.get("RElbow")
+
             if right_shoulder is not None and right_elbow is not None:
                 right_shoulder_pos: np.ndarray = right_shoulder.position
                 right_elbow_pos: np.ndarray = right_elbow.position
@@ -330,8 +345,8 @@ class ViconVisualiser:
                             if subject_from_source is not None:
                                 source_from_world: np.ndarray = np.linalg.inv(subject_from_source) @ subject_from_world
                                 self.__render_image_source(subject, source_from_world)
-                            elif subject.startswith("Object"):
-                                self.__render_designatable_object(subject, subject_cam.p(), skeletons)
+                            elif ViconUtil.is_designatable(subject):
+                                self.__render_designatable_subject(subject, subject_cam.p(), skeletons)
                             else:
                                 # Treat the subject as a generic one and simply render its Vicon-obtained pose.
                                 CameraRenderer.render_camera(subject_cam, axis_scale=0.5)
