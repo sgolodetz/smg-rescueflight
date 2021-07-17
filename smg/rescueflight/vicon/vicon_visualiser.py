@@ -320,18 +320,16 @@ class ViconVisualiser:
                 # For each Vicon subject:
                 for subject in self.__vicon.get_subject_names():
                     # Render all of its markers.
-                    for marker_name, marker_pos in self.__vicon.get_marker_positions(subject).items():
-                        glColor3f(1.0, 0.0, 0.0)
-                        OpenGLUtil.render_sphere(marker_pos, 0.014, slices=10, stacks=10)
+                    with ViconUtil.default_lighting_context():
+                        for marker_name, marker_pos in self.__vicon.get_marker_positions(subject).items():
+                            glColor3f(1.0, 0.0, 0.0)
+                            OpenGLUtil.render_sphere(marker_pos, 0.014, slices=10, stacks=10)
 
-                    # If the subject is a person:
+                    # If the subject is a person, try to render its skeleton and SMPL body (if available).
                     if ViconUtil.is_person(subject, self.__vicon):
-                        # Try to render its skeleton and SMPL body (if available).
-                        self.__try_render_person(subject, skeletons)
-
-                    # Otherwise:
+                        self.__render_person(subject, skeletons)
                     else:
-                        # Hypothesise that it's a single-segment subject and try to get its pose.
+                        # Otherwise, hypothesise that it's a single-segment subject and try to get its pose.
                         subject_from_world: Optional[np.ndarray] = self.__vicon.get_segment_global_pose(
                             subject, subject
                         )
@@ -358,26 +356,44 @@ class ViconVisualiser:
 
     def __render_image_source(self, subject: str, source_from_world: np.ndarray) -> None:
         """
-        TODO
+        Render an image source (e.g. a drone).
 
-        :param subject:             TODO
-        :param source_from_world:   TODO
+        :param subject:             The Vicon subject corresponding to the image source.
+        :param source_from_world:   A transformation from world space to the space of the image source.
         """
-        # Render the pose of the image source.
+        # Render the coordinate axes of the image source.
         source_cam: SimpleCamera = CameraPoseConverter.pose_to_camera(source_from_world)
         glLineWidth(5)
         CameraRenderer.render_camera(source_cam, axis_scale=0.5)
         glLineWidth(1)
 
-        # If the mesh for the subject is available, render it.
+        # If a mesh for the image source is available, render it.
         subject_mesh: Optional[OpenGLTriMesh] = self.__try_get_subject_mesh(subject)
         if subject_mesh is not None:
             world_from_source: np.ndarray = np.linalg.inv(source_from_world)
             with ViconUtil.default_lighting_context():
-                with OpenGLMatrixContext(
-                    GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(world_from_source)
-                ):
+                with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(world_from_source)):
                     subject_mesh.render()
+
+    def __render_person(self, subject: str, skeletons: Dict[str, Skeleton3D]) -> None:
+        """
+        Render a person.
+
+        :param subject:     The name of the Vicon subject corresponding to the person.
+        :param skeletons:   The skeletons that have been detected in the frame.
+        """
+        # If a skeleton was detected for the person, render both that and the corresponding SMPL body.
+        skeleton: Optional[Skeleton3D] = skeletons.get(subject)
+        if skeleton is not None:
+            with ViconUtil.default_lighting_context():
+                SkeletonRenderer.render_skeleton(skeleton)
+
+                glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
+                body: SMPLBody = self.__smpl_bodies.get(subject, self.__male_body)
+                body.render_from_skeleton(skeleton)
+                glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
+
+            SkeletonRenderer.render_keypoint_poses(skeleton)
 
     def __try_get_subject_mesh(self, subject: str) -> Optional[OpenGLTriMesh]:
         """
@@ -397,26 +413,6 @@ class ViconVisualiser:
                 self.__subject_mesh_cache[subject] = subject_mesh
 
         return subject_mesh
-
-    def __try_render_person(self, subject: str, skeletons: Dict[str, Skeleton3D]) -> None:
-        """
-        TODO
-
-        :param subject:     TODO
-        :param skeletons:   TODO
-        """
-        # If a skeleton was detected for the person, render both that and the corresponding SMPL body.
-        skeleton: Optional[Skeleton3D] = skeletons.get(subject)
-        if skeleton is not None:
-            with ViconUtil.default_lighting_context():
-                SkeletonRenderer.render_skeleton(skeleton)
-
-                glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
-                body: SMPLBody = self.__smpl_bodies.get(subject, self.__male_body)
-                body.render_from_skeleton(skeleton)
-                glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
-
-            SkeletonRenderer.render_keypoint_poses(skeleton)
 
     # PRIVATE STATIC METHODS
 
