@@ -10,7 +10,7 @@ import time
 
 from OpenGL.GL import *
 from timeit import default_timer as timer
-from typing import Dict, Callable, Optional, Tuple
+from typing import Dict, Callable, List, Optional, Tuple
 
 from smg.comms.base import RGBDFrameReceiver
 from smg.comms.mapping import MappingServer
@@ -19,7 +19,7 @@ from smg.opengl import CameraRenderer, OpenGLMatrixContext, OpenGLTriMesh, OpenG
 from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
-from smg.skeletons import Keypoint, Skeleton3D, SkeletonRenderer
+from smg.skeletons import Skeleton3D, SkeletonRenderer
 from smg.smplx import SMPLBody
 from smg.utility import FiducialUtil, GeometryUtil
 from smg.vicon import LiveViconInterface, OfflineViconInterface, SubjectFromSourceCache
@@ -239,8 +239,9 @@ class ViconVisualiser:
             self.__previous_frame_number = frame_number
             self.__previous_frame_start = frame_start
 
-    def __render_designatable_subject(self, subject: str, subject_pos: np.ndarray,
-                                      skeletons: Dict[str, Skeleton3D]) -> None:
+    @staticmethod
+    def __render_designatable_subject(subject_name: str, subject_pos: np.ndarray,
+                                      designations: Dict[str, List[Tuple[str, float]]]) -> None:
         """
         Render a designatable subject.
 
@@ -249,32 +250,15 @@ class ViconVisualiser:
             the subject is currently being designated by any detected skeleton in the frame. Roughly speaking,
             a subject is being designated by a skeleton if the skeleton's right upper arm points at it.
 
-        :param subject:     The name of the subject.
-        :param subject_pos: The position of the subject (i.e. the origin of its coordinate system).
-        :param skeletons:   The skeletons that have been detected in the frame.
+        :param subject_name:    The name of the subject.
+        :param subject_pos:     The position of the subject (i.e. the origin of its coordinate system).
+        :param designations:    The subject designations for the frame (see ViconUtil.compute_subject_designations).
         """
-        # Compute the extent to which the subject is currently being designated by a skeleton.
-        min_dist: float = np.inf
-
-        for _, skeleton in skeletons.items():
-            right_shoulder: Optional[Keypoint] = skeleton.keypoints.get("RShoulder")
-            right_elbow: Optional[Keypoint] = skeleton.keypoints.get("RElbow")
-
-            if right_shoulder is not None and right_elbow is not None:
-                right_shoulder_pos: np.ndarray = right_shoulder.position
-                right_elbow_pos: np.ndarray = right_elbow.position
-                closest_point: np.ndarray = GeometryUtil.find_closest_point_on_half_ray(
-                    subject_pos, right_shoulder_pos, right_elbow_pos - right_shoulder_pos
-                )
-
-                min_dist = min(min_dist, np.linalg.norm(subject_pos - closest_point))
-
-        if self.__debug:
-            print(f"{subject}: {min_dist}m")
-
-        # Render a sphere at the location of the subject that is coloured accordingly.
         colour: Tuple[float, float, float] = (0.0, 0.0, 0.0)
-        if min_dist < np.inf:
+        designations_for_subject: Optional[List[Tuple[str, float]]] = designations.get(subject_name)
+        if designations_for_subject is not None:
+            # Note: The designations for each subject are sorted in non-decreasing order of distance.
+            _, min_dist = designations_for_subject[0]
             t: float = np.clip(min_dist / 0.5, 0.0, 1.0)
             colour = (t, 1 - t, 0)
 
@@ -317,6 +301,14 @@ class ViconVisualiser:
                 # Detect any skeletons in the frame.
                 skeletons: Dict[str, Skeleton3D] = self.__skeleton_detector.detect_skeletons()
 
+                # Compute the subject designations for the frame. If we're debugging, also print them out.
+                subject_designations: Dict[str, List[Tuple[str, float]]] = ViconUtil.compute_subject_designations(
+                    self.__vicon, skeletons
+                )
+
+                if self.__debug:
+                    print(subject_designations)
+
                 # For each Vicon subject:
                 for subject in self.__vicon.get_subject_names():
                     # Render all of its markers.
@@ -343,7 +335,7 @@ class ViconVisualiser:
                                 source_from_world: np.ndarray = np.linalg.inv(subject_from_source) @ subject_from_world
                                 self.__render_image_source(subject, source_from_world)
                             elif ViconUtil.is_designatable(subject):
-                                self.__render_designatable_subject(subject, subject_cam.p(), skeletons)
+                                self.__render_designatable_subject(subject, subject_cam.p(), subject_designations)
                             else:
                                 # Treat the subject as a generic one and simply render its Vicon-obtained pose.
                                 CameraRenderer.render_camera(subject_cam, axis_scale=0.5)
