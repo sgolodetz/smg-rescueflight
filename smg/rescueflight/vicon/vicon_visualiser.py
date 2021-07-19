@@ -247,12 +247,12 @@ class ViconVisualiser:
 
         .. note::
             The subject will be rendered as a coloured sphere, where the colour depends on the extent to which
-            the subject is currently being designated by any detected skeleton in the frame. Roughly speaking,
-            a subject is being designated by a skeleton if the skeleton's right upper arm points at it.
+            the subject is currently being designated by any detected skeleton in the frame. The way in which
+            designation is specified can be found in ViconUtil.compute_subject_designations.
 
         :param subject_name:    The name of the subject.
         :param subject_pos:     The position of the subject (i.e. the origin of its coordinate system).
-        :param designations:    The subject designations for the frame (see ViconUtil.compute_subject_designations).
+        :param designations:    The subject designations for the frame.
         """
         colour: Tuple[float, float, float] = (0.0, 0.0, 0.0)
         designations_for_subject: Optional[List[Tuple[str, float]]] = designations.get(subject_name)
