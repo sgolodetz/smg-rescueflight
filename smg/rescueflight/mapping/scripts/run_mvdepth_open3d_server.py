@@ -96,6 +96,16 @@ def main() -> None:
 
         VisualisationUtil.visualise_geometries(to_visualise)
 
+        ###
+        # See: http://www.open3d.org/docs/release/tutorial/geometry/mesh.html
+        triangle_clusters, cluster_n_triangles, cluster_area = mesh.cluster_connected_triangles()
+        triangle_clusters = np.asarray(triangle_clusters)
+        cluster_n_triangles = np.asarray(cluster_n_triangles)
+        triangles_to_remove = cluster_n_triangles[triangle_clusters] < 500
+        mesh.remove_triangles_by_mask(triangles_to_remove)
+        VisualisationUtil.visualise_geometries([grid, mesh])
+        ###
+
         # If an output directory has been specified and we're saving the reconstruction, save it now.
         if output_dir is not None and args["save_reconstruction"]:
             os.makedirs(output_dir, exist_ok=True)
