@@ -64,7 +64,7 @@ def main() -> None:
                         # If the tracker's ready:
                         if tracker.is_ready():
                             # Try to estimate the pose of the camera.
-                            inv_pose: np.ndarray = tracker.estimate_pose(image)
+                            inv_pose: Optional[np.ndarray] = tracker.estimate_pose(image)
                             if inv_pose is not None:
                                 pose = np.linalg.inv(inv_pose)
                     else:
