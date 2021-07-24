@@ -54,8 +54,7 @@ def main() -> None:
 
     # Construct the depth estimator.
     depth_estimator: MonocularDepthEstimator = MonocularDepthEstimator(
-        "C:/Users/Stuart Golodetz/Downloads/MVDepthNet/opensource_model.pth.tar", debug=True,
-        max_consistent_depth_diff=0.05
+        "C:/Users/Stuart Golodetz/Downloads/MVDepthNet/opensource_model.pth.tar", debug=True
     )
 
     # Construct the mapping server.
