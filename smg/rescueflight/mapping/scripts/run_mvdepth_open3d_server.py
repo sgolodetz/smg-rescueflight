@@ -20,6 +20,10 @@ def main() -> None:
     # Parse any command-line arguments.
     parser = ArgumentParser()
     parser.add_argument(
+        "--debug", action="store_true",
+        help="whether to enable debugging"
+    )
+    parser.add_argument(
         "--detect_objects", "-d", action="store_true",
         help="whether to detect 3D objects"
     )
@@ -54,7 +58,7 @@ def main() -> None:
 
     # Construct the depth estimator.
     depth_estimator: MonocularDepthEstimator = MonocularDepthEstimator(
-        "C:/Users/Stuart Golodetz/Downloads/MVDepthNet/opensource_model.pth.tar", debug=True
+        "C:/Users/Stuart Golodetz/Downloads/MVDepthNet/opensource_model.pth.tar", debug=args["debug"]
     )
 
     # Construct the mapping server.
@@ -64,7 +68,7 @@ def main() -> None:
     ) as server:
         # Construct the mapping system.
         mapping_system: MVDepthOpen3DMappingSystem = MVDepthOpen3DMappingSystem(
-            server, depth_estimator, detect_objects=args["detect_objects"], output_dir=output_dir,
+            server, depth_estimator, debug=args["debug"], detect_objects=args["detect_objects"], output_dir=output_dir,
             save_frames=args["save_frames"], use_received_depth=args["use_received_depth"]
         )
 
