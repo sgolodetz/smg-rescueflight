@@ -13,7 +13,7 @@ from smg.comms.mapping import MappingClient
 from smg.joysticks import FutabaT6K
 from smg.pyorbslam2 import MonocularTracker
 from smg.rotory import DroneFactory
-from smg.utility import ImageUtil
+from smg.utility import ImageUtil, RGBDSequenceUtil
 
 
 def main():
@@ -22,6 +22,14 @@ def main():
     parser.add_argument(
         "--drone_type", "-t", type=str, required=True, choices=("ardrone2", "tello"),
         help="the drone type"
+    )
+    parser.add_argument(
+        "--output_dir", "-o", type=str,
+        help="an optional directory into which to save output files"
+    )
+    parser.add_argument(
+        "--save_frames", action="store_true",
+        help="whether to save the sequence of frames that have been obtained from the drone"
     )
     parser.add_argument(
         "--with_tracker", action="store_true", help="whether to use the tracker"
@@ -106,9 +114,9 @@ def main():
                     pose = np.eye(4)
 
                 # Send the camera parameters across to the mapping server if we haven't already.
+                intrinsics: Tuple[float, float, float, float] = drone.get_intrinsics()
                 if calibration_message_needed:
                     height, width = image.shape[:2]
-                    intrinsics: Tuple[float, float, float, float] = drone.get_intrinsics()
                     client.send_calibration_message(RGBDFrameMessageUtil.make_calibration_message(
                         (width, height), (width, height), intrinsics, intrinsics
                     ))
@@ -122,14 +130,23 @@ def main():
                         frame_idx, image, ImageUtil.to_short_depth(dummy_depth_image), pose, msg
                     ))
 
+                    # If an output directory was specified and we're saving frames, save the frame to disk.
+                    output_dir: Optional[str] = args.get("output_dir")
+                    save_frames: bool = args.get("save_frames")
+                    if output_dir is not None and save_frames:
+                        RGBDSequenceUtil.save_frame(
+                            frame_idx, output_dir, image, dummy_depth_image, pose,
+                            colour_intrinsics=intrinsics, depth_intrinsics=intrinsics
+                        )
+
+                    # Increment the frame index.
+                    frame_idx += 1
+
                 # Show the image so that the user can see what's going on (and exit if desired).
                 cv2.imshow("Drone Client", image)
                 c: int = cv2.waitKey(1)
                 if c == ord('q'):
                     break
-
-                # Increment the frame index.
-                frame_idx += 1
 
     # Shut down pygame cleanly.
     pygame.quit()
