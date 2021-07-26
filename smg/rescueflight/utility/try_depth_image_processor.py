@@ -12,7 +12,7 @@ def main() -> None:
     start = timer()
 
     segmentation, stats, depth_edges = DepthImageProcessor.segment_depth_image(
-        depth_image, threshold=0.02
+        depth_image, max_depth_difference=0.02
     )
 
     end = timer()
@@ -20,7 +20,7 @@ def main() -> None:
 
     start = timer()
 
-    depth_image, segmentation = DepthImageProcessor.remove_isolated_regions(
+    depth_image, segmentation = DepthImageProcessor.remove_small_regions(
         depth_image, segmentation, stats, min_region_size=500
     )
 
