@@ -20,6 +20,10 @@ def main() -> None:
     # Parse any command-line arguments.
     parser = ArgumentParser()
     parser.add_argument(
+        "--debug", action="store_true",
+        help="whether to enable debugging"
+    )
+    parser.add_argument(
         "--detect_objects", "-d", action="store_true",
         help="whether to detect 3D objects"
     )
@@ -41,6 +45,10 @@ def main() -> None:
         help="whether to save the reconstructed mesh"
     )
     parser.add_argument(
+        "--show_clean_mesh", action="store_true",
+        help="whether to show a cleaned version of the mesh at the end of the process"
+    )
+    parser.add_argument(
         "--show_keyframes", action="store_true",
         help="whether to visualise the MVDepth keyframes"
     )
@@ -54,7 +62,7 @@ def main() -> None:
 
     # Construct the depth estimator.
     depth_estimator: MonocularDepthEstimator = MonocularDepthEstimator(
-        "C:/Users/Stuart Golodetz/Downloads/MVDepthNet/opensource_model.pth.tar", debug=True
+        "C:/Users/Stuart Golodetz/Downloads/MVDepthNet/opensource_model.pth.tar", debug=args["debug"]
     )
 
     # Construct the mapping server.
@@ -64,7 +72,7 @@ def main() -> None:
     ) as server:
         # Construct the mapping system.
         mapping_system: MVDepthOpen3DMappingSystem = MVDepthOpen3DMappingSystem(
-            server, depth_estimator, detect_objects=args["detect_objects"], output_dir=output_dir,
+            server, depth_estimator, debug=args["debug"], detect_objects=args["detect_objects"], output_dir=output_dir,
             save_frames=args["save_frames"], use_received_depth=args["use_received_depth"]
         )
 
@@ -101,6 +109,16 @@ def main() -> None:
 
             # noinspection PyTypeChecker
             o3d.io.write_triangle_mesh(os.path.join(output_dir, "mesh.ply"), mesh, print_progress=True)
+
+        # If requested, make and visualise a clean version of the mesh.
+        if args["show_clean_mesh"]:
+            # See: http://www.open3d.org/docs/release/tutorial/geometry/mesh.html.
+            triangle_clusters, cluster_n_triangles, cluster_area = mesh.cluster_connected_triangles()
+            triangle_clusters: np.ndarray = np.asarray(triangle_clusters)
+            cluster_n_triangles: np.ndarray = np.asarray(cluster_n_triangles)
+            triangles_to_remove: np.ndarray = cluster_n_triangles[triangle_clusters] < 500
+            mesh.remove_triangles_by_mask(triangles_to_remove)
+            VisualisationUtil.visualise_geometries([grid, mesh])
 
 
 if __name__ == "__main__":
