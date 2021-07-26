@@ -45,6 +45,10 @@ def main() -> None:
         help="whether to save the reconstructed mesh"
     )
     parser.add_argument(
+        "--show_clean_mesh", action="store_true",
+        help="whether to show a cleaned version of the mesh at the end of the process"
+    )
+    parser.add_argument(
         "--show_keyframes", action="store_true",
         help="whether to visualise the MVDepth keyframes"
     )
@@ -99,22 +103,22 @@ def main() -> None:
 
         VisualisationUtil.visualise_geometries(to_visualise)
 
-        ###
-        # See: http://www.open3d.org/docs/release/tutorial/geometry/mesh.html
-        triangle_clusters, cluster_n_triangles, cluster_area = mesh.cluster_connected_triangles()
-        triangle_clusters = np.asarray(triangle_clusters)
-        cluster_n_triangles = np.asarray(cluster_n_triangles)
-        triangles_to_remove = cluster_n_triangles[triangle_clusters] < 500
-        mesh.remove_triangles_by_mask(triangles_to_remove)
-        VisualisationUtil.visualise_geometries([grid, mesh])
-        ###
-
         # If an output directory has been specified and we're saving the reconstruction, save it now.
         if output_dir is not None and args["save_reconstruction"]:
             os.makedirs(output_dir, exist_ok=True)
 
             # noinspection PyTypeChecker
             o3d.io.write_triangle_mesh(os.path.join(output_dir, "mesh.ply"), mesh, print_progress=True)
+
+        # If requested, make and visualise a clean version of the mesh.
+        if args["show_clean_mesh"]:
+            # See: http://www.open3d.org/docs/release/tutorial/geometry/mesh.html.
+            triangle_clusters, cluster_n_triangles, cluster_area = mesh.cluster_connected_triangles()
+            triangle_clusters: np.ndarray = np.asarray(triangle_clusters)
+            cluster_n_triangles: np.ndarray = np.asarray(cluster_n_triangles)
+            triangles_to_remove: np.ndarray = cluster_n_triangles[triangle_clusters] < 500
+            mesh.remove_triangles_by_mask(triangles_to_remove)
+            VisualisationUtil.visualise_geometries([grid, mesh])
 
 
 if __name__ == "__main__":
