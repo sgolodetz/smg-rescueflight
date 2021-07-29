@@ -7,6 +7,7 @@ from typing import Optional
 
 from smg.comms.base import RGBDFrameMessageUtil
 from smg.comms.mapping import MappingClient
+from smg.pyorbslam2 import MonocularTracker
 from smg.utility import CameraParameters, ImageUtil, PooledQueue, RGBDSequenceUtil
 from smg.vicon import OfflineViconInterface, SubjectFromSourceCache
 
@@ -17,32 +18,47 @@ def main() -> None:
     # Parse any command-line arguments.
     parser = ArgumentParser()
     parser.add_argument(
-        "--image_source_subject", type=str, default="Tello",
-        help="the name of the Vicon subject from which the images were captured"
-    )
-    parser.add_argument(
         "--sequence_dir", "-s", type=str, required=True,
         help="the directory from which to load the sequence"
+    )
+    parser.add_argument(
+        "--source_subject", type=str, default="Tello",
+        help="the name of the Vicon subject corresponding to the source"
+    )
+    parser.add_argument(
+        "--source_type", "-t", type=str, default="tello", choices=("ardrone2", "kinect", "tello"),
+        help="the source type"
+    )
+    parser.add_argument(
+        "--use_tracker", action="store_true",
+        help="whether to use a camera tracker instead of the Vicon-based camera poses"
     )
     args: dict = vars(parser.parse_args())
 
     sequence_dir: str = args["sequence_dir"]
+    source_subject: str = args["source_subject"]
+    source_type: str = args["source_type"]
+    use_tracker: bool = args["use_tracker"]
 
-    from smg.pyorbslam2 import MonocularTracker
-    tracker: MonocularTracker = MonocularTracker(
-        settings_file=f"settings-tello.yaml", use_viewer=True,
-        voc_file="C:/orbslam2/Vocabulary/ORBvoc.txt", wait_till_ready=True
-    )
+    # Construct either the subject-from-source cache or the camera tracker, depending on which we're going to need.
+    subject_from_source_cache: Optional[SubjectFromSourceCache] = None
+    tracker: Optional[MonocularTracker] = None
+    if use_tracker:
+        tracker = MonocularTracker(
+            settings_file=f"settings-{source_type}.yaml", use_viewer=True,
+            voc_file="C:/orbslam2/Vocabulary/ORBvoc.txt", wait_till_ready=True
+        )
+    else:
+        subject_from_source_cache = SubjectFromSourceCache(".")
 
     try:
+        # Connect to the Vicon interface.
         with OfflineViconInterface(folder=sequence_dir) as vicon:
+            # Connect to the mapping server.
             with MappingClient(
                 frame_compressor=RGBDFrameMessageUtil.compress_frame_message,
                 pool_empty_strategy=PooledQueue.PES_REPLACE_RANDOM
             ) as client:
-                # TODO
-                subject_from_source_cache: SubjectFromSourceCache = SubjectFromSourceCache(".")
-
                 # Try to load the camera parameters for the sequence. If this fails, raise an exception.
                 # FIXME: Move try_load_calibration somewhere more central.
                 calib: Optional[CameraParameters] = RGBDSequenceUtil.try_load_calibration(sequence_dir)
@@ -55,45 +71,60 @@ def main() -> None:
                     calib.get_intrinsics("colour"), calib.get_intrinsics("depth")
                 ))
 
+                # Prepare the variables needed to process the sequence.
                 colour_image: Optional[np.ndarray] = None
-                world_from_initial: Optional[np.ndarray] = None
                 frame_idx: int = 0
+                initial_from_world: Optional[np.ndarray] = None
                 pause: bool = True
 
                 # Until the user wants to quit:
                 while True:
                     # Try to load a Vicon frame from disk. If that succeeds:
                     if vicon.get_frame():
+                        # Get the associated frame number.
                         frame_number: int = vicon.get_frame_number()
+
+                        # Try to load in the associated colour image (originally captured by the image source).
                         colour_image_filename: str = os.path.join(sequence_dir, f"{frame_number}.png")
                         colour_image = cv2.imread(colour_image_filename)
+
+                        # If that succeeds:
                         if colour_image is not None:
-                            dummy_depth_image: np.ndarray = np.zeros(colour_image.shape[:2], dtype=np.float32)
+                            # Try to estimate the camera pose using either a camera tracker or the Vicon system.
+                            pose: Optional[np.ndarray] = None
 
-                            subject: str = args["image_source_subject"]
-                            subject_from_world: Optional[np.ndarray] = vicon.get_segment_global_pose(subject, subject)
-                            subject_from_source: Optional[np.ndarray] = subject_from_source_cache.get(subject)
-                            if subject_from_world is not None and subject_from_source is not None:
-                                world_from_source: np.ndarray = np.linalg.inv(subject_from_world) @ subject_from_source
-                                if world_from_initial is None:
-                                    world_from_initial = world_from_source
-                                initial_from_source: np.ndarray = np.linalg.inv(world_from_initial) @ world_from_source
-                                # print(frame_number, initial_from_source)
-
+                            if use_tracker:
                                 inv_pose: Optional[np.ndarray] = tracker.estimate_pose(colour_image)
                                 if inv_pose is not None:
                                     pose = np.linalg.inv(inv_pose)
+                            else:
+                                subject_from_source: Optional[np.ndarray] = subject_from_source_cache.get(
+                                    source_subject
+                                )
+                                subject_from_world: Optional[np.ndarray] = vicon.get_segment_global_pose(
+                                    source_subject, source_subject
+                                )
 
-                                    print(frame_number, initial_from_source, "\n", pose)
+                                if subject_from_source is not None and subject_from_world is not None:
+                                    world_from_subject: np.ndarray = np.linalg.inv(subject_from_world)
+                                    world_from_source: np.ndarray = world_from_subject @ subject_from_source
+                                    if initial_from_world is None:
+                                        initial_from_world = np.linalg.inv(world_from_source)
 
-                                    # TODO
-                                    client.send_frame_message(lambda msg: RGBDFrameMessageUtil.fill_frame_message(
-                                        frame_idx, colour_image, ImageUtil.to_short_depth(dummy_depth_image),
-                                        pose, msg
-                                    ))
+                                    pose = initial_from_world @ world_from_source
 
-                                    # Increment the frame index.
-                                    frame_idx += 1
+                            # If a pose is available:
+                            if pose is not None:
+                                # Construct a dummy depth image.
+                                dummy_depth_image: np.ndarray = np.zeros(colour_image.shape[:2], dtype=np.float32)
+
+                                # Send the frame across to the server.
+                                client.send_frame_message(lambda msg: RGBDFrameMessageUtil.fill_frame_message(
+                                    frame_idx, colour_image, ImageUtil.to_short_depth(dummy_depth_image), pose, msg
+                                ))
+
+                                # Increment the frame index.
+                                frame_idx += 1
 
                     # Show the most recent colour image (if any) so that the user can see what's going on.
                     if colour_image is not None:
@@ -104,12 +135,19 @@ def main() -> None:
                         else:
                             c = cv2.waitKey(50)
 
+                        # Allow the user to pause/unpause the playback, and exit if desired.
                         if c == ord('b'):
                             pause = False
                         elif c == ord('n'):
                             pause = True
                         elif c == ord('q'):
-                            break
+                            # Destroy any OpenCV windows.
+                            cv2.destroyAllWindows()
+
+                            # Forcibly terminate the whole process. This isn't graceful, but ORB-SLAM can sometimes
+                            # take a long time to shut down, and it's dull to wait for it.
+                            # noinspection PyProtectedMember
+                            os._exit(0)
     except RuntimeError as e:
         print(e)
 
