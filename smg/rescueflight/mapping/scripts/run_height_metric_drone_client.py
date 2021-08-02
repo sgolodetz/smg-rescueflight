@@ -201,7 +201,7 @@ def main() -> None:
 
                     # Update the caption of the window to reflect the current state.
                     pygame.display.set_caption(
-                        "Metric Drone Client: "
+                        "Height-Based Metric Drone Client: "
                         f"State = {int(state_machine.get_state())}; "
                         f"Battery Level = {drone.get_battery_level()}; "
                         f"Height = {drone.get_height()}"
