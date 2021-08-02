@@ -70,6 +70,8 @@ def render_window(*, drone_image: np.ndarray, image_renderer: OpenGLImageRendere
 
 
 def main() -> None:
+    np.set_printoptions(suppress=True)
+
     # Parse any command-line arguments.
     parser = ArgumentParser()
     parser.add_argument(
@@ -196,8 +198,8 @@ def main() -> None:
                     pygame.display.set_caption(
                         "Height-Based Metric Drone Client: "
                         f"State = {int(state_machine.get_state())}; "
-                        f"Battery Level = {drone.get_battery_level()}; "
-                        f"Height = {drone.get_height()}"
+                        f"Battery Level = {drone.get_battery_level()}%; "
+                        f"Height = {drone.get_height()}m"
                     )
 
                     # Render the contents of the window.
