@@ -77,8 +77,16 @@ def main() -> None:
         help="the drone type"
     )
     parser.add_argument(
+        "--output_dir", "-o", type=str,
+        help="an optional directory into which to save output files"
+    )
+    parser.add_argument(
         "--reconstruct", "-r", action="store_true",
         help="whether to connect to the mapping server to reconstruct a map"
+    )
+    parser.add_argument(
+        "--save_frames", action="store_true",
+        help="whether to save the sequence of frames that have been obtained from the drone"
     )
     args: dict = vars(parser.parse_args())
 
@@ -132,7 +140,12 @@ def main() -> None:
                 mapping_client: Optional[MappingClient] = None
                 if args["reconstruct"]:
                     mapping_client = MappingClient(frame_compressor=RGBDFrameMessageUtil.compress_frame_message)
-                state_machine: HeightMetricDroneFSM = HeightMetricDroneFSM(drone, joystick, mapping_client)
+
+                state_machine: HeightMetricDroneFSM = HeightMetricDroneFSM(
+                    drone, joystick, mapping_client,
+                    output_dir=args.get("output_dir"),
+                    save_frames=args.get("save_frames")
+                )
 
                 # Initialise the timestamp and the drone's trajectory smoother (used for visualisation).
                 timestamp: float = 0.0
