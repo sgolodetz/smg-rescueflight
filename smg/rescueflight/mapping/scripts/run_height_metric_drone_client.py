@@ -15,7 +15,6 @@ from smg.joysticks import FutabaT6K
 from smg.mapping.metric import HeightMetricDroneFSM
 from smg.opengl import CameraRenderer, OpenGLImageRenderer, OpenGLMatrixContext, OpenGLUtil
 from smg.pyorbslam2 import MonocularTracker
-from smg.relocalisation import ArUcoPnPRelocaliser
 from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter
@@ -24,18 +23,16 @@ from smg.utility import ImageUtil, TrajectorySmoother
 
 
 def render_window(*, drone_image: np.ndarray, image_renderer: OpenGLImageRenderer,
-                  relocaliser_trajectory: List[Tuple[float, np.ndarray]],
-                  tracker_trajectory: List[Tuple[float, np.ndarray]],
+                  trajectory: List[Tuple[float, np.ndarray]],
                   viewing_pose: np.ndarray, window_size: Tuple[int, int]) -> None:
     """
     Render the application window.
 
-    :param drone_image:             The most recent image from the drone.
-    :param image_renderer:          An OpenGL-based image renderer.
-    :param relocaliser_trajectory:  The metric trajectory of the drone, as estimated by the marker-based relocaliser.
-    :param tracker_trajectory:      The metric trajectory of the drone, as estimated by the tracker.
-    :param viewing_pose:            The pose from which the scene is being viewed.
-    :param window_size:             The application window size, as a (width, height) tuple.
+    :param drone_image:     The most recent image from the drone.
+    :param image_renderer:  An OpenGL-based image renderer.
+    :param trajectory:      The metric trajectory of the drone, as estimated by the tracker.
+    :param viewing_pose:    The pose from which the scene is being viewed.
+    :param window_size:     The application window size, as a (width, height) tuple.
     """
     # Clear the window.
     OpenGLUtil.set_viewport((0.0, 0.0), (1.0, 1.0), window_size)
@@ -64,8 +61,7 @@ def render_window(*, drone_image: np.ndarray, image_renderer: OpenGLImageRendere
             origin: SimpleCamera = SimpleCamera([0, 0, 0], [0, 0, 1], [0, -1, 0])
             CameraRenderer.render_camera(origin, body_colour=(1.0, 1.0, 0.0), body_scale=0.1)
 
-            OpenGLUtil.render_trajectory(relocaliser_trajectory, colour=(0.0, 1.0, 0.0))
-            OpenGLUtil.render_trajectory(tracker_trajectory, colour=(0.0, 0.0, 1.0))
+            OpenGLUtil.render_trajectory(trajectory, colour=(0.0, 0.0, 1.0))
 
     glDisable(GL_DEPTH_TEST)
 
@@ -85,16 +81,6 @@ def main() -> None:
         help="whether to connect to the mapping server to reconstruct a map"
     )
     args: dict = vars(parser.parse_args())
-
-    # Set up a relocaliser that uses an ArUco marker of a known size and at a known height to relocalise.
-    height: float = 1.5  # 1.5m (the height of the centre of the printed marker)
-    offset: float = 0.0705  # 7.05cm (half the width of the printed marker)
-    relocaliser: ArUcoPnPRelocaliser = ArUcoPnPRelocaliser({
-        "0_0": np.array([-offset, -(height + offset), 0]),
-        "0_1": np.array([offset, -(height + offset), 0]),
-        "0_2": np.array([offset, -(height - offset), 0]),
-        "0_3": np.array([-offset, -(height - offset), 0])
-    })
 
     # Initialise pygame and its joystick module.
     pygame.init()
@@ -148,10 +134,9 @@ def main() -> None:
                     mapping_client = MappingClient(frame_compressor=RGBDFrameMessageUtil.compress_frame_message)
                 state_machine: HeightMetricDroneFSM = HeightMetricDroneFSM(drone, joystick, mapping_client)
 
-                # Initialise the timestamp and the drone's trajectory smoothers (used for visualisation).
+                # Initialise the timestamp and the drone's trajectory smoother (used for visualisation).
                 timestamp: float = 0.0
-                relocaliser_trajectory_smoother: TrajectorySmoother = TrajectorySmoother(neighbourhood_size=25)
-                tracker_trajectory_smoother: TrajectorySmoother = TrajectorySmoother()
+                trajectory_smoother: TrajectorySmoother = TrajectorySmoother()
 
                 # While the state machine is still running:
                 while state_machine.alive():
@@ -183,21 +168,16 @@ def main() -> None:
                     # using the tracker.
                     tracker_c_t_i: Optional[np.ndarray] = tracker.estimate_pose(image) if tracker.is_ready() else None
 
-                    # Try to estimate a transformation from current camera space to world space using the relocaliser.
-                    intrinsics: Tuple[float, float, float, float] = drone.get_intrinsics()
-                    relocaliser_w_t_c: Optional[np.ndarray] = relocaliser.estimate_pose(image, intrinsics)
-
                     # Run an iteration of the state machine.
                     state_machine.iterate(
-                        image, intrinsics, tracker_c_t_i, drone.get_height(), takeoff_requested, landing_requested
+                        image, drone.get_intrinsics(), tracker_c_t_i, drone.get_height(),
+                        takeoff_requested, landing_requested
                     )
 
-                    # Update the drone's trajectories.
+                    # Update the drone's trajectory.
                     tracker_w_t_c: Optional[np.ndarray] = state_machine.get_tracker_w_t_c()
                     if tracker_w_t_c is not None:
-                        tracker_trajectory_smoother.append(timestamp, tracker_w_t_c)
-                        if relocaliser_w_t_c is not None:
-                            relocaliser_trajectory_smoother.append(timestamp, relocaliser_w_t_c)
+                        trajectory_smoother.append(timestamp, tracker_w_t_c)
 
                     # Update the caption of the window to reflect the current state.
                     pygame.display.set_caption(
@@ -211,8 +191,7 @@ def main() -> None:
                     render_window(
                         drone_image=image,
                         image_renderer=image_renderer,
-                        relocaliser_trajectory=relocaliser_trajectory_smoother.get_smoothed_trajectory()[::10],
-                        tracker_trajectory=tracker_trajectory_smoother.get_smoothed_trajectory()[::10],
+                        trajectory=trajectory_smoother.get_smoothed_trajectory()[::10],
                         viewing_pose=camera_controller.get_pose(),
                         window_size=window_size
                     )
