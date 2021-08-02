@@ -43,8 +43,8 @@ def make_tracker(drone_type: str):
         # noinspection PyUnresolvedReferences
         from smg.pyorbslam2 import MonocularTracker
         tracker = MonocularTracker(
-                settings_file=f"settings-{drone_type}.yaml", use_viewer=True,
-                voc_file="C:/orbslam2/Vocabulary/ORBvoc.txt", wait_till_ready=False
+            settings_file=f"settings-{drone_type}.yaml", use_viewer=True,
+            voc_file="C:/orbslam2/Vocabulary/ORBvoc.bin", wait_till_ready=False
         )
     except ImportError:
         tracker = NullTracker()

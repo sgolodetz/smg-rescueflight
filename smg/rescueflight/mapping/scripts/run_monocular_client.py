@@ -41,7 +41,7 @@ def main() -> None:
         # Construct the tracker.
         with MonocularTracker(
             settings_file=f"settings-{source_type}.yaml", use_viewer=True,
-            voc_file="C:/orbslam2/Vocabulary/ORBvoc.txt", wait_till_ready=False
+            voc_file="C:/orbslam2/Vocabulary/ORBvoc.bin", wait_till_ready=False
         ) as tracker:
             # Construct the mapping client.
             with MappingClient(frame_compressor=RGBDFrameMessageUtil.compress_frame_message) as client:

@@ -130,7 +130,7 @@ def main() -> None:
             # Construct the tracker.
             with MonocularTracker(
                 settings_file=f"settings-{drone_type}.yaml", use_viewer=True,
-                voc_file="C:/orbslam2/Vocabulary/ORBvoc.txt", wait_till_ready=False
+                voc_file="C:/orbslam2/Vocabulary/ORBvoc.bin", wait_till_ready=False
             ) as tracker:
                 # Construct and calibrate the Futaba T6K.
                 joystick: FutabaT6K = FutabaT6K(joystick_idx)
