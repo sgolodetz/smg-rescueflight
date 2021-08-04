@@ -11,6 +11,7 @@ from smg.comms.mapping import MappingServer
 from smg.mapping.mvdepth import MVDepthOpen3DMappingSystem
 from smg.mvdepthnet import MonocularDepthEstimator
 from smg.open3d import ReconstructionUtil, VisualisationUtil
+from smg.relocalisation import ArUcoPnPRelocaliser
 from smg.utility import PooledQueue
 
 
@@ -53,12 +54,28 @@ def main() -> None:
         help="whether to visualise the MVDepth keyframes"
     )
     parser.add_argument(
+        "--use_aruco_relocaliser", action="store_true",
+        help="whether to use an ArUco+PnP relocaliser to align the map with a marker"
+    )
+    parser.add_argument(
         "--use_received_depth", action="store_true",
         help="whether to use depth images received from the client instead of estimating depth"
     )
     args: dict = vars(parser.parse_args())
 
-    output_dir: Optional[str] = args["output_dir"]
+    output_dir: Optional[str] = args.get("output_dir")
+    use_aruco_relocaliser: bool = args.get("use_aruco_relocaliser")
+
+    # If requested, set up an ArUco+PnP relocaliser that can be used to align the map with a marker.
+    aruco_relocaliser: Optional[ArUcoPnPRelocaliser] = None
+    if use_aruco_relocaliser:
+        offset: float = 0.0705  # 7.05cm (half the width of the printed marker)
+        aruco_relocaliser = ArUcoPnPRelocaliser({
+            "0_0": np.array([-offset, -offset, 0]),
+            "0_1": np.array([offset, -offset, 0]),
+            "0_2": np.array([offset, offset, 0]),
+            "0_3": np.array([-offset, offset, 0])
+        })
 
     # Construct the depth estimator.
     depth_estimator: MonocularDepthEstimator = MonocularDepthEstimator(
@@ -72,7 +89,8 @@ def main() -> None:
     ) as server:
         # Construct the mapping system.
         mapping_system: MVDepthOpen3DMappingSystem = MVDepthOpen3DMappingSystem(
-            server, depth_estimator, debug=args["debug"], detect_objects=args["detect_objects"], output_dir=output_dir,
+            server, depth_estimator, aruco_relocaliser=aruco_relocaliser,
+            debug=args["debug"], detect_objects=args["detect_objects"], output_dir=output_dir,
             save_frames=args["save_frames"], use_received_depth=args["use_received_depth"]
         )
 
@@ -88,6 +106,12 @@ def main() -> None:
         # Visualise the reconstructed map.
         grid: o3d.geometry.LineSet = VisualisationUtil.make_voxel_grid([-3, -2, -3], [3, 0, 3], [1, 1, 1])
         mesh: o3d.geometry.TriangleMesh = ReconstructionUtil.make_mesh(tsdf, print_progress=True)
+
+        if use_aruco_relocaliser:
+            aruco_from_world: Optional[np.ndarray] = mapping_system.get_aruco_from_world()
+            if aruco_from_world is not None:
+                mesh.transform(aruco_from_world)
+
         to_visualise: List[o3d.geometry.Geometry] = [grid, mesh]
 
         for obj in objects:
