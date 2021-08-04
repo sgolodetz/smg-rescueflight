@@ -203,7 +203,7 @@ def main() -> None:
                     pygame.display.set_caption(
                         "ArUco-Based Metric Drone Client: "
                         f"State = {int(state_machine.get_state())}; "
-                        f"Battery Level = {drone.get_battery_level()}"
+                        f"Battery Level = {drone.get_battery_level()}%"
                     )
 
                     # Render the contents of the window.
