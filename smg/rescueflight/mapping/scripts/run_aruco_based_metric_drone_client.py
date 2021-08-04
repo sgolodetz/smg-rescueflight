@@ -12,7 +12,7 @@ from typing import Dict, List, Optional, Tuple
 from smg.comms.base import RGBDFrameMessageUtil
 from smg.comms.mapping import MappingClient
 from smg.joysticks import FutabaT6K
-from smg.mapping.metric import MetricDroneFSM
+from smg.mapping.metric import ArUcoBasedMetricDroneFSM
 from smg.opengl import CameraRenderer, OpenGLImageRenderer, OpenGLMatrixContext, OpenGLUtil
 from smg.pyorbslam2 import MonocularTracker
 from smg.relocalisation import ArUcoPnPRelocaliser
@@ -146,7 +146,7 @@ def main() -> None:
                 mapping_client: Optional[MappingClient] = None
                 if args["reconstruct"]:
                     mapping_client = MappingClient(frame_compressor=RGBDFrameMessageUtil.compress_frame_message)
-                state_machine: MetricDroneFSM = MetricDroneFSM(drone, joystick, mapping_client)
+                state_machine: ArUcoBasedMetricDroneFSM = ArUcoBasedMetricDroneFSM(drone, joystick, mapping_client)
 
                 # Initialise the timestamp and the drone's trajectory smoothers (used for visualisation).
                 timestamp: float = 0.0
@@ -201,9 +201,9 @@ def main() -> None:
 
                     # Update the caption of the window to reflect the current state.
                     pygame.display.set_caption(
-                        "Metric Drone Client: "
+                        "ArUco-Based Metric Drone Client: "
                         f"State = {int(state_machine.get_state())}; "
-                        f"Battery Level = {drone.get_battery_level()}"
+                        f"Battery Level = {drone.get_battery_level()}%"
                     )
 
                     # Render the contents of the window.

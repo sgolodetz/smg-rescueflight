@@ -6,7 +6,7 @@ from typing import Dict, Optional
 
 from smg.pyorbslam2 import MonocularTracker
 from smg.relocalisation import ArUcoPnPRelocaliser
-from smg.relocalisation.poseglobalisers import MonocularPoseGlobaliser
+from smg.relocalisation.poseglobalisers import ArUcoBasedMonocularPoseGlobaliser
 from smg.rotory import DroneFactory
 from smg.utility import TrajectoryUtil
 
@@ -51,7 +51,7 @@ def main() -> None:
     })
 
     # Construct the pose globaliser.
-    pose_globaliser: MonocularPoseGlobaliser = MonocularPoseGlobaliser(debug=True)
+    pose_globaliser: ArUcoBasedMonocularPoseGlobaliser = ArUcoBasedMonocularPoseGlobaliser(debug=True)
 
     # Connect to the drone.
     kwargs: Dict[str, dict] = {
@@ -112,8 +112,8 @@ def main() -> None:
                     )
 
                     # Get the current state of the pose globaliser, and take action accordingly.
-                    state: MonocularPoseGlobaliser.EState = pose_globaliser.get_state()
-                    if state == MonocularPoseGlobaliser.ACTIVE:
+                    state: ArUcoBasedMonocularPoseGlobaliser.EState = pose_globaliser.get_state()
+                    if state == ArUcoBasedMonocularPoseGlobaliser.ACTIVE:
                         # If the globaliser's active, apply it to the tracker pose to obtain the global tracker pose.
                         tracker_w_t_c: np.ndarray = pose_globaliser.apply(tracker_i_t_c)
 
@@ -136,7 +136,7 @@ def main() -> None:
                         # from here on out.
                         if c == ord('f'):
                             pose_globaliser.set_fixed_height(tracker_w_t_c)
-                    elif state == MonocularPoseGlobaliser.TRAINING:
+                    elif state == ArUcoBasedMonocularPoseGlobaliser.TRAINING:
                         # If the pose globaliser's being trained and the relocaliser produced a pose for this frame,
                         # train the globaliser using the tracker pose and the relocaliser pose.
                         if relocaliser_w_t_c is not None:
@@ -145,7 +145,7 @@ def main() -> None:
                         # If the user presses 'r', terminate the globaliser's training process.
                         if c == ord('r'):
                             pose_globaliser.finish_training()
-                    elif state == MonocularPoseGlobaliser.UNTRAINED:
+                    elif state == ArUcoBasedMonocularPoseGlobaliser.UNTRAINED:
                         # If the pose globaliser's training hasn't started yet, the user presses 't' and the relocaliser
                         # produced a pose for this frame, use the two current poses to set the reference space.
                         if c == ord('t') and relocaliser_w_t_c is not None:
