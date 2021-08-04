@@ -43,7 +43,7 @@ def render_window(*, drone_image: np.ndarray, image_renderer: OpenGLImageRendere
     OpenGLUtil.set_viewport((0.0, 0.0), (0.5, 1.0), window_size)
     image_renderer.render_image(ImageUtil.flip_channels(drone_image))
 
-    # Render the drone's trajectories in 3D.
+    # Render the drone's trajectory in 3D.
     OpenGLUtil.set_viewport((0.5, 0.0), (1.0, 1.0), window_size)
 
     glDepthFunc(GL_LEQUAL)
@@ -167,11 +167,15 @@ def main() -> None:
                             if event.button == 0:
                                 landing_requested = True
                         elif event.type == pygame.QUIT:
+                            # Terminate the state machine.
                             state_machine.terminate()
 
-                    # If the user closed the application and the state machine terminated, early out.
-                    if not state_machine.alive():
-                        break
+                            # Shut down pygame.
+                            pygame.quit()
+
+                            # Forcibly terminate the whole process.
+                            # noinspection PyProtectedMember
+                            os._exit(0)
 
                     # Allow the user to control the camera.
                     camera_controller.update(pygame.key.get_pressed(), timer() * 1000)
@@ -213,15 +217,6 @@ def main() -> None:
 
                     # Update the timestamp.
                     timestamp += 1.0
-
-                # If the tracker's not ready yet, forcibly terminate the whole process (this isn't graceful, but
-                # if we don't do it then we may have to wait a very long time for it to finish initialising).
-                if not tracker.is_ready():
-                    # noinspection PyProtectedMember
-                    os._exit(0)
-
-    # Shut down pygame cleanly.
-    pygame.quit()
 
 
 if __name__ == "__main__":
