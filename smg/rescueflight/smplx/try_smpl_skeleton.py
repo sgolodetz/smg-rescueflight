@@ -17,7 +17,7 @@ from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
 from smg.skeletons import Skeleton3D, SkeletonRenderer
 from smg.smplx import SMPLBody
-from smg.utility import CameraParameters, GeometryUtil, RGBDSequenceUtil
+from smg.utility import CameraParameters, GeometryUtil, SequenceUtil
 
 
 def main() -> None:
@@ -59,7 +59,7 @@ def main() -> None:
         # Construct the remote skeleton detector.
         with RemoteSkeletonDetector() as skeleton_detector:
             # Try to load the camera parameters for the sequence. If this fails, raise an exception.
-            calib: Optional[CameraParameters] = RGBDSequenceUtil.try_load_calibration(sequence_dir)
+            calib: Optional[CameraParameters] = SequenceUtil.try_load_calibration(sequence_dir)
             if calib is None:
                 raise RuntimeError(f"Cannot load calibration from '{sequence_dir}'")
 
@@ -96,7 +96,7 @@ def main() -> None:
                         os._exit(0)
 
                 # Try to load an RGB-D frame from disk.
-                frame: Optional[Dict[str, Any]] = RGBDSequenceUtil.try_load_frame(frame_idx, sequence_dir)
+                frame: Optional[Dict[str, Any]] = SequenceUtil.try_load_rgbd_frame(frame_idx, sequence_dir)
 
                 # If the frame was successfully loaded and we're processing it now:
                 if frame is not None and process_next:

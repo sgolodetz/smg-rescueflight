@@ -13,7 +13,7 @@ from smg.comms.mapping import MappingClient
 from smg.joysticks import FutabaT6K
 from smg.pyorbslam2 import MonocularTracker
 from smg.rotory import DroneFactory
-from smg.utility import ImageUtil, RGBDSequenceUtil
+from smg.utility import ImageUtil, SequenceUtil
 
 
 def main():
@@ -134,7 +134,7 @@ def main():
                     output_dir: Optional[str] = args.get("output_dir")
                     save_frames: bool = args.get("save_frames")
                     if output_dir is not None and save_frames:
-                        RGBDSequenceUtil.save_frame(
+                        SequenceUtil.save_rgbd_frame(
                             frame_idx, output_dir, image, dummy_depth_image, pose,
                             colour_intrinsics=intrinsics, depth_intrinsics=intrinsics
                         )

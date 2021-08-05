@@ -7,7 +7,7 @@ from typing import Optional
 
 from smg.comms.base import RGBDFrameMessageUtil
 from smg.comms.mapping import MappingClient
-from smg.utility import CameraParameters, ImageUtil, PooledQueue, PoseUtil, RGBDSequenceUtil
+from smg.utility import CameraParameters, ImageUtil, PooledQueue, PoseUtil, SequenceUtil
 from smg.vicon import OfflineViconInterface, SubjectFromSourceCache
 
 
@@ -45,8 +45,7 @@ def main() -> None:
             pool_empty_strategy=PooledQueue.PES_REPLACE_RANDOM
         ) as client:
             # Try to load the camera parameters for the sequence. If this fails, raise an exception.
-            # FIXME: Move try_load_calibration somewhere more central.
-            calib: Optional[CameraParameters] = RGBDSequenceUtil.try_load_calibration(sequence_dir)
+            calib: Optional[CameraParameters] = SequenceUtil.try_load_calibration(sequence_dir)
             if calib is None:
                 raise RuntimeError(f"Cannot load calibration from '{sequence_dir}'")
 
