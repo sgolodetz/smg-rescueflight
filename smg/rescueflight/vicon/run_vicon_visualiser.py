@@ -70,7 +70,7 @@ def main() -> None:
 
         # Construct the visualiser.
         with ViconVisualiser(
-            debug=False, mapping_server=mapping_server, pause=args["pause"] or args["run_server"],
+            debug=False, mapping_server=mapping_server, pause=args["pause"],
             persistence_folder=persistence_folder, persistence_mode=persistence_mode,
             rendering_intrinsics=rendering_intrinsics, scene_timestamp=args["scene_timestamp"],
             scenes_folder=args["scenes_folder"], use_vicon_poses=args["use_vicon_poses"]

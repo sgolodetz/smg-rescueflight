@@ -21,7 +21,7 @@ from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
 from smg.skeletons import Skeleton3D, SkeletonRenderer
 from smg.smplx import SMPLBody
-from smg.utility import FiducialUtil, GeometryUtil
+from smg.utility import FiducialUtil, GeometryUtil, PoseUtil, RGBDSequenceUtil
 from smg.vicon import LiveViconInterface, OfflineViconInterface, SubjectFromSourceCache
 from smg.vicon import ViconFrameSaver, ViconInterface, ViconSkeletonDetector, ViconUtil
 
@@ -193,13 +193,17 @@ class ViconVisualiser:
 
             # If we're running a mapping server, try to get a frame from the client.
             colour_image: Optional[np.ndarray] = None
+            intrinsics: Optional[Tuple[float, float, float, float]] = None
+            pose: Optional[np.ndarray] = None
+
             if self.__mapping_server is not None and self.__mapping_server.has_frames_now(self.__client_id):
                 # Get the camera parameters from the server.
-                # TODO
+                intrinsics = self.__mapping_server.get_intrinsics(self.__client_id)[0]
 
                 # Get the newest frame from the mapping server.
                 self.__mapping_server.peek_newest_frame(self.__client_id, self.__receiver)
                 colour_image = self.__receiver.get_rgb_image()
+                pose = self.__receiver.get_pose()
 
                 # If we're debugging, show the received colour image:
                 if self.__debug:
@@ -219,11 +223,19 @@ class ViconVisualiser:
                     self.__vicon_frame_saver.save_frame()
 
                     # If the camera parameters haven't already been saved to disk, save them now.
-                    # TODO
+                    # FIXME: Move make_calibration_filename and save_calibration somewhere more central.
+                    calibration_filename: str = RGBDSequenceUtil.make_calibration_filename(self.__persistence_folder)
+                    if not os.path.exists(calibration_filename):
+                        image_size: Tuple[int, int] = (colour_image.shape[1], colour_image.shape[0])
+                        RGBDSequenceUtil.save_calibration(
+                            self.__persistence_folder, image_size, image_size, intrinsics, intrinsics
+                        )
 
-                    # Save the colour image to disk.
-                    filename: str = os.path.join(self.__persistence_folder, f"{frame_number}.png")
-                    cv2.imwrite(filename, colour_image)
+                    # Save the frame from the mapping server to disk.
+                    colour_filename: str = os.path.join(self.__persistence_folder, f"{frame_number}.color.png")
+                    pose_filename: str = os.path.join(self.__persistence_folder, f"{frame_number}.pose.txt")
+                    cv2.imwrite(colour_filename, colour_image)
+                    PoseUtil.save_pose(pose_filename, pose)
 
             # Check how long has elapsed since the start of the previous frame. If it's not long
             # enough, pause until the expected amount of time has elapsed.
