@@ -198,7 +198,7 @@ class ViconVisualiser:
 
             if self.__mapping_server is not None and self.__mapping_server.has_frames_now(self.__client_id):
                 # Get the camera parameters from the server.
-                intrinsics = self.__mapping_server.get_intrinsics(self.__client_id)
+                intrinsics = self.__mapping_server.get_intrinsics(self.__client_id)[0]
 
                 # Get the newest frame from the mapping server.
                 self.__mapping_server.peek_newest_frame(self.__client_id, self.__receiver)
