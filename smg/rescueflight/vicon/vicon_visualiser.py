@@ -223,6 +223,7 @@ class ViconVisualiser:
                     self.__vicon_frame_saver.save_frame()
 
                     # If the camera parameters haven't already been saved to disk, save them now.
+                    # FIXME: Move make_calibration_filename and save_calibration somewhere more central.
                     calibration_filename: str = RGBDSequenceUtil.make_calibration_filename(self.__persistence_folder)
                     if not os.path.exists(calibration_filename):
                         image_size: Tuple[int, int] = (colour_image.shape[1], colour_image.shape[0])
