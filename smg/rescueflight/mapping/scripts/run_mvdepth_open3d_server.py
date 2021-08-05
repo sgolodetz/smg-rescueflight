@@ -12,7 +12,7 @@ from smg.mapping.mvdepth import MVDepthOpen3DMappingSystem
 from smg.mvdepthnet import MonocularDepthEstimator
 from smg.open3d import ReconstructionUtil, VisualisationUtil
 from smg.relocalisation import ArUcoPnPRelocaliser
-from smg.utility import PooledQueue
+from smg.utility import PooledQueue, PoseUtil
 
 
 def main() -> None:
@@ -106,12 +106,6 @@ def main() -> None:
         # Visualise the reconstructed map.
         grid: o3d.geometry.LineSet = VisualisationUtil.make_voxel_grid([-3, -2, -3], [3, 0, 3], [1, 1, 1])
         mesh: o3d.geometry.TriangleMesh = ReconstructionUtil.make_mesh(tsdf, print_progress=True)
-
-        if use_aruco_relocaliser:
-            aruco_from_world: Optional[np.ndarray] = mapping_system.get_aruco_from_world()
-            if aruco_from_world is not None:
-                mesh.transform(aruco_from_world)
-
         to_visualise: List[o3d.geometry.Geometry] = [grid, mesh]
 
         for obj in objects:
@@ -129,10 +123,17 @@ def main() -> None:
 
         # If an output directory has been specified and we're saving the reconstruction, save it now.
         if output_dir is not None and args["save_reconstruction"]:
+            # Make sure the output directory exists.
             os.makedirs(output_dir, exist_ok=True)
 
+            # Save the mesh itself.
             # noinspection PyTypeChecker
             o3d.io.write_triangle_mesh(os.path.join(output_dir, "mesh.ply"), mesh, print_progress=True)
+
+            # Also save the transformation from world space to ArUco marker space if available.
+            aruco_from_world: Optional[np.ndarray] = mapping_system.get_aruco_from_world()
+            if aruco_from_world is not None:
+                PoseUtil.save_pose(os.path.join(output_dir, "aruco_from_world.txt"), aruco_from_world)
 
         # If requested, make and visualise a clean version of the mesh.
         if args["show_clean_mesh"]:
