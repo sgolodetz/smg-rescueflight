@@ -11,7 +11,8 @@ from smg.comms.mapping import MappingServer
 from smg.mapping.mvdepth import MVDepthOpen3DMappingSystem
 from smg.mvdepthnet import MonocularDepthEstimator
 from smg.open3d import ReconstructionUtil, VisualisationUtil
-from smg.utility import PooledQueue
+from smg.relocalisation import ArUcoPnPRelocaliser
+from smg.utility import PooledQueue, PoseUtil
 
 
 def main() -> None:
@@ -53,12 +54,28 @@ def main() -> None:
         help="whether to visualise the MVDepth keyframes"
     )
     parser.add_argument(
+        "--use_aruco_relocaliser", action="store_true",
+        help="whether to use an ArUco+PnP relocaliser to align the map with a marker"
+    )
+    parser.add_argument(
         "--use_received_depth", action="store_true",
         help="whether to use depth images received from the client instead of estimating depth"
     )
     args: dict = vars(parser.parse_args())
 
-    output_dir: Optional[str] = args["output_dir"]
+    output_dir: Optional[str] = args.get("output_dir")
+    use_aruco_relocaliser: bool = args.get("use_aruco_relocaliser")
+
+    # If requested, set up an ArUco+PnP relocaliser that can be used to align the map with a marker.
+    aruco_relocaliser: Optional[ArUcoPnPRelocaliser] = None
+    if use_aruco_relocaliser:
+        offset: float = 0.0705  # 7.05cm (half the width of the printed marker)
+        aruco_relocaliser = ArUcoPnPRelocaliser({
+            "0_0": np.array([-offset, -offset, 0]),
+            "0_1": np.array([offset, -offset, 0]),
+            "0_2": np.array([offset, offset, 0]),
+            "0_3": np.array([-offset, offset, 0])
+        })
 
     # Construct the depth estimator.
     depth_estimator: MonocularDepthEstimator = MonocularDepthEstimator(
@@ -72,7 +89,8 @@ def main() -> None:
     ) as server:
         # Construct the mapping system.
         mapping_system: MVDepthOpen3DMappingSystem = MVDepthOpen3DMappingSystem(
-            server, depth_estimator, debug=args["debug"], detect_objects=args["detect_objects"], output_dir=output_dir,
+            server, depth_estimator, aruco_relocaliser=aruco_relocaliser,
+            debug=args["debug"], detect_objects=args["detect_objects"], output_dir=output_dir,
             save_frames=args["save_frames"], use_received_depth=args["use_received_depth"]
         )
 
@@ -105,10 +123,17 @@ def main() -> None:
 
         # If an output directory has been specified and we're saving the reconstruction, save it now.
         if output_dir is not None and args["save_reconstruction"]:
+            # Make sure the output directory exists.
             os.makedirs(output_dir, exist_ok=True)
 
+            # Save the mesh itself.
             # noinspection PyTypeChecker
             o3d.io.write_triangle_mesh(os.path.join(output_dir, "mesh.ply"), mesh, print_progress=True)
+
+            # Also save the transformation from world space to ArUco marker space if available.
+            aruco_from_world: Optional[np.ndarray] = mapping_system.get_aruco_from_world()
+            if aruco_from_world is not None:
+                PoseUtil.save_pose(os.path.join(output_dir, "aruco_from_world.txt"), aruco_from_world)
 
         # If requested, make and visualise a clean version of the mesh.
         if args["show_clean_mesh"]:
