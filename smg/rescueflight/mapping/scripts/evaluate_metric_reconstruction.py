@@ -104,7 +104,7 @@ def main() -> None:
         input_mesh.paint_uniform_color((1.0, 0.0, 0.0))
     if args["input_render_style"] != "hidden":
         geometries.append(input_mesh)
-    VisualisationUtil.visualise_geometries(geometries)
+    VisualisationUtil.visualise_geometries(geometries, mesh_show_wireframe=True)
 
 
 if __name__ == "__main__":
