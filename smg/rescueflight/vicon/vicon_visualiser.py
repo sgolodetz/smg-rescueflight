@@ -21,7 +21,7 @@ from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
 from smg.skeletons import Skeleton3D, SkeletonRenderer
 from smg.smplx import SMPLBody
-from smg.utility import FiducialUtil, GeometryUtil, PoseUtil, RGBDSequenceUtil
+from smg.utility import FiducialUtil, GeometryUtil, PoseUtil, SequenceUtil
 from smg.vicon import LiveViconInterface, OfflineViconInterface, SubjectFromSourceCache
 from smg.vicon import ViconFrameSaver, ViconInterface, ViconSkeletonDetector, ViconUtil
 
@@ -223,11 +223,10 @@ class ViconVisualiser:
                     self.__vicon_frame_saver.save_frame()
 
                     # If the camera parameters haven't already been saved to disk, save them now.
-                    # FIXME: Move make_calibration_filename and save_calibration somewhere more central.
-                    calibration_filename: str = RGBDSequenceUtil.make_calibration_filename(self.__persistence_folder)
+                    calibration_filename: str = SequenceUtil.make_calibration_filename(self.__persistence_folder)
                     if not os.path.exists(calibration_filename):
                         image_size: Tuple[int, int] = (colour_image.shape[1], colour_image.shape[0])
-                        RGBDSequenceUtil.save_calibration(
+                        SequenceUtil.save_rgbd_calibration(
                             self.__persistence_folder, image_size, image_size, intrinsics, intrinsics
                         )
 

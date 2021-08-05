@@ -6,7 +6,7 @@ from typing import Any, Dict, Optional
 
 from smg.comms.base import RGBDFrameMessageUtil
 from smg.comms.mapping import MappingClient
-from smg.utility import CameraParameters, ImageUtil, PooledQueue, RGBDSequenceUtil
+from smg.utility import CameraParameters, ImageUtil, PooledQueue, SequenceUtil
 
 
 def main() -> None:
@@ -26,7 +26,7 @@ def main() -> None:
             pool_empty_strategy=PooledQueue.PES_WAIT
         ) as client:
             # Try to load the camera parameters for the sequence. If this fails, raise an exception.
-            calib: Optional[CameraParameters] = RGBDSequenceUtil.try_load_calibration(sequence_dir)
+            calib: Optional[CameraParameters] = SequenceUtil.try_load_calibration(sequence_dir)
             if calib is None:
                 raise RuntimeError(f"Cannot load calibration from '{sequence_dir}'")
 
@@ -43,7 +43,7 @@ def main() -> None:
             # Until the user wants to quit:
             while True:
                 # Try to load an RGB-D frame from disk.
-                frame: Optional[Dict[str, Any]] = RGBDSequenceUtil.try_load_frame(frame_idx, sequence_dir)
+                frame: Optional[Dict[str, Any]] = SequenceUtil.try_load_rgbd_frame(frame_idx, sequence_dir)
 
                 # If the frame was successfully loaded:
                 if frame is not None:
