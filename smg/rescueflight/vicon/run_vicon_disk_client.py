@@ -42,7 +42,7 @@ def main() -> None:
         # Connect to the mapping server.
         with MappingClient(
             frame_compressor=RGBDFrameMessageUtil.compress_frame_message,
-            pool_empty_strategy=PooledQueue.PES_REPLACE_RANDOM
+            pool_empty_strategy=PooledQueue.PES_WAIT
         ) as client:
             # Try to load the camera parameters for the sequence. If this fails, raise an exception.
             calib: Optional[CameraParameters] = SequenceUtil.try_load_calibration(sequence_dir)
