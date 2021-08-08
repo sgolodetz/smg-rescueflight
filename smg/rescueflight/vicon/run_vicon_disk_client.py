@@ -103,7 +103,7 @@ def main() -> None:
 
                             # Send the frame across to the server.
                             client.send_frame_message(lambda msg: RGBDFrameMessageUtil.fill_frame_message(
-                                frame_idx, colour_image, ImageUtil.to_short_depth(dummy_depth_image), pose, msg
+                                frame_number, colour_image, ImageUtil.to_short_depth(dummy_depth_image), pose, msg
                             ))
                         else:
                             print(f"Warning: Missing pose for frame {frame_idx}")
