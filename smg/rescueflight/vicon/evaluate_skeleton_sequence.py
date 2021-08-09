@@ -14,7 +14,7 @@ from smg.opengl import OpenGLMatrixContext, OpenGLUtil
 from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter
-from smg.skeletons import Skeleton3D, SkeletonRenderer, SkeletonUtil
+from smg.skeletons import Skeleton3D, SkeletonEvaluator, SkeletonRenderer, SkeletonUtil
 from smg.utility import GeometryUtil, PoseUtil
 from smg.vicon import OfflineViconInterface, ViconSkeletonDetector, ViconUtil
 
@@ -60,6 +60,10 @@ def main() -> None:
         canonical_linear_speed=0.1
     )
 
+    # Construct the skeleton evaluator and initialise the list of matched skeletons.
+    skeleton_evaluator: SkeletonEvaluator = SkeletonEvaluator.make_default()
+    matched_skeletons: List[List[Tuple[Skeleton3D, Optional[Skeleton3D]]]] = []
+
     # Connect to the Vicon interface.
     with OfflineViconInterface(folder=sequence_dir) as vicon:
         # Construct the ground-truth skeleton detector.
@@ -92,8 +96,11 @@ def main() -> None:
                     # noinspection PyProtectedMember
                     os._exit(0)
 
+            got_frame: bool = False
+
             if process_next:
                 vicon.get_frame()
+                got_frame = True
                 process_next = not pause
 
             # TODO
@@ -134,6 +141,24 @@ def main() -> None:
                 aruco_from_vicon: np.ndarray = GeometryUtil.estimate_rigid_transform(p, q)
             else:
                 aruco_from_vicon: np.ndarray = np.eye(4)
+
+            if got_frame and len(gt_skeletons) == 1:
+                gt_skeleton: Skeleton3D = list(gt_skeletons.values())[0]
+                gt_skeleton = gt_skeleton.transform(aruco_from_vicon)
+                if detected_skeletons is not None and len(detected_skeletons) == 1:
+                    detected_skeleton: Skeleton3D = detected_skeletons[0]
+                    detected_skeleton = detected_skeleton.transform(aruco_from_world)
+                    matched_skeletons.append([(gt_skeleton, detected_skeleton)])
+                else:
+                    matched_skeletons.append([(gt_skeleton, None)])
+
+            print(len(matched_skeletons))
+
+            correct_keypoint_table: np.ndarray = skeleton_evaluator.make_correct_keypoint_table(
+                matched_skeletons, threshold=0.15
+            )
+            pcks: Dict[str, float] = skeleton_evaluator.calculate_3d_pcks(correct_keypoint_table)
+            print(pcks)
 
             # Allow the user to control the camera.
             camera_controller.update(pygame.key.get_pressed(), timer() * 1000)
