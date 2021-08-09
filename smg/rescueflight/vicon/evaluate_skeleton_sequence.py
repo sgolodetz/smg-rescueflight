@@ -15,6 +15,7 @@ from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter
 from smg.skeletons import Skeleton3D, SkeletonRenderer, SkeletonUtil
+from smg.utility import GeometryUtil, PoseUtil
 from smg.vicon import OfflineViconInterface, ViconSkeletonDetector, ViconUtil
 
 
@@ -35,6 +36,13 @@ def main() -> None:
 
     detector_type: str = args["detector_type"]
     sequence_dir: str = args["sequence_dir"]
+
+    # TODO
+    aruco_filename: str = os.path.join(sequence_dir, "reconstruction", "aruco_from_world.txt")
+    if os.path.exists(aruco_filename):
+        aruco_from_world: np.ndarray = PoseUtil.load_pose(aruco_filename)
+    else:
+        aruco_from_world: np.ndarray = np.eye(4)
 
     # Initialise PyGame and create the window.
     pygame.init()
@@ -99,9 +107,33 @@ def main() -> None:
                 os.path.join(sequence_dir, detector_type, f"{frame_number}.skeletons.txt")
             )
 
-            if detected_skeletons is not None and len(detected_skeletons) > 0:
-                print(gt_skeletons)
-                print(detected_skeletons)
+            # TODO
+            # Look up the Vicon coordinate system positions of the all of the Vicon markers that can currently be seen
+            # by the Vicon system, hopefully including ones for the ArUco marker corners.
+            marker_positions: Dict[str, np.ndarray] = vicon.get_marker_positions("Registrar")
+
+            # TODO
+            if all(key in marker_positions for key in ["0_0", "0_1", "0_2", "0_3"]):
+                offset: float = 0.0705  # 7.05cm (half the width of the printed marker)
+
+                p: np.ndarray = np.column_stack([
+                    marker_positions["0_0"],
+                    marker_positions["0_1"],
+                    marker_positions["0_2"],
+                    marker_positions["0_3"]
+                ])
+
+                q: np.ndarray = np.array([
+                    [-offset, -offset, 0],
+                    [offset, -offset, 0],
+                    [offset, offset, 0],
+                    [-offset, offset, 0]
+                ]).transpose()
+
+                # Estimate the rigid transformation between the two sets of points.
+                aruco_from_vicon: np.ndarray = GeometryUtil.estimate_rigid_transform(p, q)
+            else:
+                aruco_from_vicon: np.ndarray = np.eye(4)
 
             # Allow the user to control the camera.
             camera_controller.update(pygame.key.get_pressed(), timer() * 1000)
@@ -122,14 +154,27 @@ def main() -> None:
                     glColor3f(0.0, 0.0, 0.0)
                     OpenGLUtil.render_voxel_grid([-2, -2, -2], [2, 0, 2], [1, 1, 1], dotted=True)
 
+                    with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(aruco_from_vicon)):
+                        # Render the ArUco marker in the location estimated for it by the Vicon system.
+                        if all(key in marker_positions for key in ["0_0", "0_1", "0_2", "0_3"]):
+                            glBegin(GL_QUADS)
+                            glColor3f(0, 1, 0)
+                            glVertex3f(*marker_positions["0_0"])
+                            glVertex3f(*marker_positions["0_1"])
+                            glVertex3f(*marker_positions["0_2"])
+                            glVertex3f(*marker_positions["0_3"])
+                            glEnd()
+
                     # Render the 3D skeletons.
                     with SkeletonRenderer.default_lighting_context():
-                        for _, skeleton in gt_skeletons.items():
-                            SkeletonRenderer.render_skeleton(skeleton)
+                        with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(aruco_from_vicon)):
+                            for _, skeleton in gt_skeletons.items():
+                                SkeletonRenderer.render_skeleton(skeleton)
 
                         if detected_skeletons is not None:
-                            for skeleton in detected_skeletons:
-                                SkeletonRenderer.render_skeleton(skeleton)
+                            with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(aruco_from_world)):
+                                for skeleton in detected_skeletons:
+                                    SkeletonRenderer.render_skeleton(skeleton)
 
             # Swap the front and back buffers.
             pygame.display.flip()
