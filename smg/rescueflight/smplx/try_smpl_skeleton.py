@@ -88,7 +88,7 @@ def main() -> None:
                             pause = True
                             process_next = True
                     elif event.type == pygame.QUIT:
-                        # If the user wants us to quit, shut down pygame, and destroy any OpenCV windows.
+                        # If the user wants us to quit, shut down pygame.
                         pygame.quit()
 
                         # Then forcibly terminate the whole process.
