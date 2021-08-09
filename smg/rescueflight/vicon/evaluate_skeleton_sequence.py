@@ -44,6 +44,16 @@ def main() -> None:
     else:
         aruco_from_world: np.ndarray = np.eye(4)
 
+    # TODO
+    # Load in the scene mesh and transform it into the ArUco coordinate system.
+    import open3d as o3d
+    from smg.opengl import OpenGLTriMesh
+    from smg.meshing import MeshUtil
+    mesh_filename: str = os.path.join(sequence_dir, "reconstruction", "mesh.ply")
+    scene_mesh_o3d: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(mesh_filename)
+    scene_mesh_o3d.transform(aruco_from_world)
+    scene_mesh: OpenGLTriMesh = MeshUtil.convert_trimesh_to_opengl(scene_mesh_o3d)
+
     # Initialise PyGame and create the window.
     pygame.init()
     window_size: Tuple[int, int] = (640, 480)
@@ -179,6 +189,10 @@ def main() -> None:
                     glColor3f(0.0, 0.0, 0.0)
                     OpenGLUtil.render_voxel_grid([-2, -2, -2], [2, 0, 2], [1, 1, 1], dotted=True)
 
+                    # TODO
+                    scene_mesh.render()
+
+                    # TODO
                     with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(aruco_from_vicon)):
                         # Render the ArUco marker in the location estimated for it by the Vicon system.
                         if all(key in marker_positions for key in ["0_0", "0_1", "0_2", "0_3"]):
