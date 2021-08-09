@@ -81,7 +81,8 @@ def main() -> None:
             vicon, is_person=ViconUtil.is_person, use_vicon_poses=True
         )
 
-        # Initialise the playback variables.
+        # Initialise a few variables.
+        evaluate: bool = False
         pause: bool = True
         process_next: bool = True
 
@@ -119,6 +120,11 @@ def main() -> None:
             print("===")
             print(f"Frame {frame_number}")
 
+            if os.path.exists(os.path.join(sequence_dir, "evalcontrol", f"{frame_number}-on.txt")):
+                evaluate = True
+            if os.path.exists(os.path.join(sequence_dir, "evalcontrol", f"{frame_number}-off.txt")):
+                evaluate = False
+
             gt_skeletons: Dict[str, Skeleton3D] = gt_skeleton_detector.detect_skeletons()
             detected_skeletons: Optional[List[Skeleton3D]] = SkeletonUtil.try_load_skeletons(
                 os.path.join(sequence_dir, detector_type, f"{frame_number}.skeletons.txt")
@@ -152,23 +158,24 @@ def main() -> None:
             else:
                 aruco_from_vicon: np.ndarray = np.eye(4)
 
-            if got_frame and len(gt_skeletons) == 1:
-                gt_skeleton: Skeleton3D = list(gt_skeletons.values())[0]
-                gt_skeleton = gt_skeleton.transform(aruco_from_vicon)
-                if detected_skeletons is not None and len(detected_skeletons) == 1:
-                    detected_skeleton: Skeleton3D = detected_skeletons[0]
-                    detected_skeleton = detected_skeleton.transform(aruco_from_world)
-                    matched_skeletons.append([(gt_skeleton, detected_skeleton)])
-                else:
-                    matched_skeletons.append([(gt_skeleton, None)])
-
             print(len(matched_skeletons))
+            if got_frame:
+                if len(gt_skeletons) == 1 and evaluate:
+                    gt_skeleton: Skeleton3D = list(gt_skeletons.values())[0]
+                    gt_skeleton = gt_skeleton.transform(aruco_from_vicon)
+                    if detected_skeletons is not None and len(detected_skeletons) == 1:
+                        detected_skeleton: Skeleton3D = detected_skeletons[0]
+                        detected_skeleton = detected_skeleton.transform(aruco_from_world)
+                        matched_skeletons.append([(gt_skeleton, detected_skeleton)])
+                    else:
+                        matched_skeletons.append([(gt_skeleton, None)])
 
-            correct_keypoint_table: np.ndarray = skeleton_evaluator.make_correct_keypoint_table(
-                matched_skeletons, threshold=0.15
-            )
-            pcks: Dict[str, float] = skeleton_evaluator.calculate_3d_pcks(correct_keypoint_table)
-            print(pcks)
+                if len(matched_skeletons) > 0:
+                    correct_keypoint_table: np.ndarray = skeleton_evaluator.make_correct_keypoint_table(
+                        matched_skeletons, threshold=0.5
+                    )
+                    pcks: Dict[str, float] = skeleton_evaluator.calculate_3d_pcks(correct_keypoint_table)
+                    print(pcks)
 
             # Allow the user to control the camera.
             camera_controller.update(pygame.key.get_pressed(), timer() * 1000)
