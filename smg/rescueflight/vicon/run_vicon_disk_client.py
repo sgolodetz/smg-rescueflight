@@ -57,7 +57,6 @@ def main() -> None:
 
             # Prepare the variables needed to process the sequence.
             colour_image: Optional[np.ndarray] = None
-            frame_idx: int = 0
             initial_from_world: Optional[np.ndarray] = None
             pause: bool = True
 
@@ -106,12 +105,9 @@ def main() -> None:
                                 frame_number, colour_image, ImageUtil.to_short_depth(dummy_depth_image), pose, msg
                             ))
                         else:
-                            print(f"Warning: Missing pose for frame {frame_idx}")
+                            print(f"Warning: Missing pose for frame {frame_number}")
                     else:
-                        print(f"Warning: Missing colour image for frame {frame_idx}")
-
-                    # Increment the frame index.
-                    frame_idx += 1
+                        print(f"Warning: Missing colour image for frame {frame_number}")
 
                 # Show the most recent colour image (if any) so that the user can see what's going on.
                 if colour_image is not None:
