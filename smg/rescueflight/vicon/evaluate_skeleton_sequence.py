@@ -171,9 +171,14 @@ def main() -> None:
                         matched_skeletons.append([(gt_skeleton, None)])
 
                 if len(matched_skeletons) > 0:
-                    correct_keypoint_table: np.ndarray = skeleton_evaluator.make_correct_keypoint_table(
-                        matched_skeletons, threshold=0.5
+                    per_joint_error_table: np.ndarray = skeleton_evaluator.make_per_joint_error_table(matched_skeletons)
+                    print(per_joint_error_table)
+                    mpjpes: Dict[str, float] = skeleton_evaluator.calculate_mpjpes(per_joint_error_table)
+                    print(mpjpes)
+                    correct_keypoint_table: np.ndarray = SkeletonEvaluator.make_correct_keypoint_table(
+                        per_joint_error_table, threshold=0.5
                     )
+                    print(correct_keypoint_table)
                     pcks: Dict[str, float] = skeleton_evaluator.calculate_3d_pcks(correct_keypoint_table)
                     print(pcks)
 

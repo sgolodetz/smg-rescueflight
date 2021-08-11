@@ -31,7 +31,11 @@ def main() -> None:
                 [(s, None) for s in skeletons]
             ]
             evaluator: SkeletonEvaluator = SkeletonEvaluator.make_default()
-            correct_keypoint_table: np.ndarray = evaluator.make_correct_keypoint_table(matched_skeletons)
+            per_joint_error_table: np.ndarray = evaluator.make_per_joint_error_table(matched_skeletons)
+            print(per_joint_error_table)
+            mpjpes: Dict[str, float] = evaluator.calculate_mpjpes(per_joint_error_table)
+            print(mpjpes)
+            correct_keypoint_table: np.ndarray = SkeletonEvaluator.make_correct_keypoint_table(per_joint_error_table)
             print(correct_keypoint_table)
             pcks: Dict[str, float] = evaluator.calculate_3d_pcks(correct_keypoint_table)
             print(pcks)
