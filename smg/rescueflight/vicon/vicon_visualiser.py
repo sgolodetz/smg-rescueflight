@@ -205,6 +205,10 @@ class ViconVisualiser:
                 colour_image = self.__receiver.get_rgb_image()
                 pose = self.__receiver.get_pose()
 
+                image_timestamp: float = self.__receiver.get_frame_timestamp()
+                vicon_timestamp: float = time.time_ns() / 1000
+                print(f"Vicon Timestamp: {vicon_timestamp}; Image Timestamp: {image_timestamp}")
+
                 # If we're debugging, show the received colour image:
                 if self.__debug:
                     cv2.imshow("Received Image", colour_image)
