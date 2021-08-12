@@ -1,4 +1,5 @@
 import numpy as np
+import open3d as o3d
 import os
 
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
@@ -10,13 +11,47 @@ from OpenGL.GL import *
 from timeit import default_timer as timer
 from typing import Dict, List, Optional, Tuple
 
-from smg.opengl import OpenGLMatrixContext, OpenGLUtil
+from smg.meshing import MeshUtil
+from smg.opengl import OpenGLMatrixContext, OpenGLTriMesh, OpenGLUtil
 from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter
 from smg.skeletons import Skeleton3D, SkeletonEvaluator, SkeletonRenderer, SkeletonUtil
 from smg.utility import GeometryUtil, PoseUtil
 from smg.vicon import OfflineViconInterface, ViconSkeletonDetector, ViconUtil
+
+
+def try_calculate_aruco_from_vicon(marker_positions: Dict[str, np.ndarray]) -> Optional[np.ndarray]:
+    """
+    Try to calculate the transformation from Vicon space to ArUco space.
+
+    :param marker_positions:    The Vicon coordinate system positions of the all of the Vicon markers that can
+                                currently be seen by the Vicon system.
+    :return:                    The transformation from Vicon space to ArUco space, if possible, or None otherwise.
+    """
+    # If all of the ArUco marker corners can be seen, estimate the Vicon space to ArUco space transformation.
+    if all(key in marker_positions for key in ["0_0", "0_1", "0_2", "0_3"]):
+        offset: float = 0.0705  # 7.05cm (half the width of the printed marker)
+
+        p: np.ndarray = np.column_stack([
+            marker_positions["0_0"],
+            marker_positions["0_1"],
+            marker_positions["0_2"],
+            marker_positions["0_3"]
+        ])
+
+        q: np.ndarray = np.array([
+            [-offset, -offset, 0],
+            [offset, -offset, 0],
+            [offset, offset, 0],
+            [-offset, offset, 0]
+        ]).transpose()
+
+        return GeometryUtil.estimate_rigid_transform(p, q)
+
+    # Otherwise, return None.
+    else:
+        return None
 
 
 def main() -> None:
@@ -37,18 +72,14 @@ def main() -> None:
     detector_type: str = args["detector_type"]
     sequence_dir: str = args["sequence_dir"]
 
-    # TODO
+    # Try to load in the transformation from world space to ArUco space.
     aruco_filename: str = os.path.join(sequence_dir, "reconstruction", "aruco_from_world.txt")
     if os.path.exists(aruco_filename):
         aruco_from_world: np.ndarray = PoseUtil.load_pose(aruco_filename)
     else:
-        aruco_from_world: np.ndarray = np.eye(4)
+        raise RuntimeError(f"'{aruco_filename}' does not exist")
 
-    # TODO
-    # Load in the scene mesh and transform it into the ArUco coordinate system.
-    import open3d as o3d
-    from smg.opengl import OpenGLTriMesh
-    from smg.meshing import MeshUtil
+    # Load in the reconstructed scene mesh and transform it into ArUco space.
     mesh_filename: str = os.path.join(sequence_dir, "reconstruction", "mesh.ply")
     scene_mesh_o3d: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(mesh_filename)
     scene_mesh_o3d.transform(aruco_from_world)
@@ -82,6 +113,7 @@ def main() -> None:
         )
 
         # Initialise a few variables.
+        aruco_from_vicon: Optional[np.ndarray] = None
         evaluate: bool = False
         pause: bool = True
         process_next: bool = True
@@ -107,62 +139,61 @@ def main() -> None:
                     # noinspection PyProtectedMember
                     os._exit(0)
 
-            got_frame: bool = False
-
+            # If we're ready to do so, process the next frame. Also record whether we processed a frame or not.
+            processed_frame: bool = False
             if process_next:
                 vicon.get_frame()
-                got_frame = True
+                processed_frame = True
                 process_next = not pause
 
-            # TODO
+            # Get the frame number of the current Vicon frame, and print it out.
             frame_number: int = vicon.get_frame_number()
 
             print("===")
             print(f"Frame {frame_number}")
 
+            # Turn evaluation on or off based on the existence or absence of files in the evalcontrol sub-directory.
+            # This is used to avoid penalising missed detections when the person cannot be seen from the camera.
+            # FIXME: This works ok for single-person scenes, but for multi-person scenes we'll need to figure out
+            #        which people can be seen in a particular image and which can't.
             if os.path.exists(os.path.join(sequence_dir, "evalcontrol", f"{frame_number}-on.txt")):
                 evaluate = True
             if os.path.exists(os.path.join(sequence_dir, "evalcontrol", f"{frame_number}-off.txt")):
                 evaluate = False
 
-            gt_skeletons: Dict[str, Skeleton3D] = gt_skeleton_detector.detect_skeletons()
-            detected_skeletons: Optional[List[Skeleton3D]] = SkeletonUtil.try_load_skeletons(
-                os.path.join(sequence_dir, detector_type, f"{frame_number}.skeletons.txt")
-            )
-
-            # TODO
             # Look up the Vicon coordinate system positions of the all of the Vicon markers that can currently be seen
             # by the Vicon system, hopefully including ones for the ArUco marker corners.
             marker_positions: Dict[str, np.ndarray] = vicon.get_marker_positions("Registrar")
 
-            # TODO
-            if all(key in marker_positions for key in ["0_0", "0_1", "0_2", "0_3"]):
-                offset: float = 0.0705  # 7.05cm (half the width of the printed marker)
+            # If the transformation from Vicon space to ArUco space hasn't yet been calculated:
+            if aruco_from_vicon is None:
+                # Try to calculate it now.
+                aruco_from_vicon = try_calculate_aruco_from_vicon(marker_positions)
 
-                p: np.ndarray = np.column_stack([
-                    marker_positions["0_0"],
-                    marker_positions["0_1"],
-                    marker_positions["0_2"],
-                    marker_positions["0_3"]
-                ])
+                # If this fails, raise an exception.
+                if aruco_from_vicon is None:
+                    raise RuntimeError("Couldn't calculate Vicon space to ArUco space transform - check the markers")
 
-                q: np.ndarray = np.array([
-                    [-offset, -offset, 0],
-                    [offset, -offset, 0],
-                    [offset, offset, 0],
-                    [-offset, offset, 0]
-                ]).transpose()
+            # Get the ground-truth and (previously) detected skeletons.
+            gt_skeletons: Dict[str, Skeleton3D] = gt_skeleton_detector.detect_skeletons()
 
-                # Estimate the rigid transformation between the two sets of points.
-                aruco_from_vicon: np.ndarray = GeometryUtil.estimate_rigid_transform(p, q)
-            else:
-                aruco_from_vicon: np.ndarray = np.eye(4)
+            detected_skeletons: Optional[List[Skeleton3D]] = SkeletonUtil.try_load_skeletons(
+                os.path.join(sequence_dir, detector_type, f"{frame_number}.skeletons.txt")
+            )
 
+            # Print out the number of skeleton matches we've established, for debugging purposes.
             print(len(matched_skeletons))
-            if got_frame:
+
+            # If we've just processed a new Vicon frame:
+            if processed_frame:
+                # If the frame only contains a single ground-truth skeleton, and evaluation is enabled:
                 if len(gt_skeletons) == 1 and evaluate:
+                    # Get the ground-truth skeleton, and transform it into ArUco space.
                     gt_skeleton: Skeleton3D = list(gt_skeletons.values())[0]
                     gt_skeleton = gt_skeleton.transform(aruco_from_vicon)
+
+                    # If a single skeleton was detected in this frame, transform it into ArUco space and match it
+                    # with the ground-truth one. Otherwise, record that the ground-truth skeleton has no match.
                     if detected_skeletons is not None and len(detected_skeletons) == 1:
                         detected_skeleton: Skeleton3D = detected_skeletons[0]
                         detected_skeleton = detected_skeleton.transform(aruco_from_world)
@@ -170,7 +201,9 @@ def main() -> None:
                     else:
                         matched_skeletons.append([(gt_skeleton, None)])
 
+                # If we've previously established at least one skeleton match:
                 if len(matched_skeletons) > 0:
+                    # Calculate the evaluation metrics for all the matches we've seen so far, and print them out.
                     per_joint_error_table: np.ndarray = skeleton_evaluator.make_per_joint_error_table(matched_skeletons)
                     print(per_joint_error_table)
                     mpjpes: Dict[str, float] = skeleton_evaluator.calculate_mpjpes(per_joint_error_table)
@@ -201,12 +234,11 @@ def main() -> None:
                     glColor3f(0.0, 0.0, 0.0)
                     OpenGLUtil.render_voxel_grid([-2, -2, -2], [2, 0, 2], [1, 1, 1], dotted=True)
 
-                    # TODO
+                    # Render the reconstructed scene.
                     scene_mesh.render()
 
-                    # TODO
+                    # Render the ArUco marker (this will be at the origin in ArUco space).
                     with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(aruco_from_vicon)):
-                        # Render the ArUco marker in the location estimated for it by the Vicon system.
                         if all(key in marker_positions for key in ["0_0", "0_1", "0_2", "0_3"]):
                             glBegin(GL_QUADS)
                             glColor3f(0, 1, 0)
@@ -216,7 +248,7 @@ def main() -> None:
                             glVertex3f(*marker_positions["0_3"])
                             glEnd()
 
-                    # Render the 3D skeletons.
+                    # Render the 3D skeletons in their ArUco space locations.
                     with SkeletonRenderer.default_lighting_context():
                         with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(aruco_from_vicon)):
                             for _, skeleton in gt_skeletons.items():
