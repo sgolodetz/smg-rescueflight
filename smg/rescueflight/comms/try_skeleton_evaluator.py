@@ -37,7 +37,7 @@ def main() -> None:
             print(mpjpes)
             correct_keypoint_table: np.ndarray = SkeletonEvaluator.make_correct_keypoint_table(per_joint_error_table)
             print(correct_keypoint_table)
-            pcks: Dict[str, float] = evaluator.calculate_3d_pcks(correct_keypoint_table)
+            pcks: Dict[str, float] = evaluator.calculate_pcks(correct_keypoint_table)
             print(pcks)
 
 

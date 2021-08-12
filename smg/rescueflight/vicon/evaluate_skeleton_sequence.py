@@ -179,7 +179,7 @@ def main() -> None:
                         per_joint_error_table, threshold=0.5
                     )
                     print(correct_keypoint_table)
-                    pcks: Dict[str, float] = skeleton_evaluator.calculate_3d_pcks(correct_keypoint_table)
+                    pcks: Dict[str, float] = skeleton_evaluator.calculate_pcks(correct_keypoint_table)
                     print(pcks)
 
             # Allow the user to control the camera.
