@@ -16,27 +16,41 @@ def main() -> None:
     )
     args: dict = vars(parser.parse_args())
 
+    # Make the skeleton evaluator.
+    evaluator: SkeletonEvaluator = SkeletonEvaluator.make_default()
+
+    # Load the input image.
+    image: np.ndarray = cv2.imread(args["input_file"])
+
+    # Specify a dummy pose.
+    world_from_camera: np.ndarray = np.eye(4)
+
     # Construct the remote skeleton detector.
     with RemoteSkeletonDetector() as skeleton_detector:
-        image: np.ndarray = cv2.imread(args["input_file"])
-        world_from_camera: np.ndarray = np.eye(4)
-
         # Detect the people in the input image.
         skeletons, _ = skeleton_detector.detect_skeletons(image, world_from_camera)
 
-        # TODO
+        # If any skeletons were detected:
         if skeletons is not None:
+            # Make a dummy list of matched skeletons so we can try out the skeleton evaluator.
             matched_skeletons: List[List[Tuple[Skeleton3D, Optional[Skeleton3D]]]] = [
                 [(s, s) for s in skeletons],
                 [(s, None) for s in skeletons]
             ]
-            evaluator: SkeletonEvaluator = SkeletonEvaluator.make_default()
+
+            # Make the per-joint position error table, and print it out.
             per_joint_error_table: np.ndarray = evaluator.make_per_joint_error_table(matched_skeletons)
             print(per_joint_error_table)
+
+            # Calculate the mean per-joint position errors, and print them out.
             mpjpes: Dict[str, float] = evaluator.calculate_mpjpes(per_joint_error_table)
             print(mpjpes)
+
+            # Make the correct keypoint table, and print it out.
             correct_keypoint_table: np.ndarray = SkeletonEvaluator.make_correct_keypoint_table(per_joint_error_table)
             print(correct_keypoint_table)
+
+            # Calculate the percentages of correct keypoints, and print them out.
             pcks: Dict[str, float] = evaluator.calculate_pcks(correct_keypoint_table)
             print(pcks)
 
