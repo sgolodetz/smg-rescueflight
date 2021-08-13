@@ -1,3 +1,4 @@
+import bisect
 import cv2
 import numpy as np
 import open3d as o3d
@@ -78,8 +79,19 @@ class ViconVisualiser:
         }
         self.__use_vicon_poses: bool = use_vicon_poses
         self.__vicon: Optional[ViconInterface] = None
+        self.__vicon_frame_numbers: List[int] = []
         self.__vicon_frame_saver: Optional[ViconFrameSaver] = None
+        self.__vicon_frame_timestamps: List[float] = []
         self.__window_size: Tuple[int, int] = window_size
+
+        # Construct the lock.
+        self.__lock: threading.Lock = threading.Lock()
+
+        # If we're running a mapping server, start the image processing thread.
+        self.__image_processing_thread: Optional[threading.Thread] = None
+        if self.__mapping_server is not None:
+            self.__image_processing_thread = threading.Thread(target=self.__process_images)
+            self.__image_processing_thread.start()
 
     # SPECIAL METHODS
 
@@ -179,6 +191,10 @@ class ViconVisualiser:
         if not self.__should_terminate.is_set():
             self.__should_terminate.set()
 
+            # Wait for the threads to terminate.
+            if self.__image_processing_thread is not None:
+                self.__image_processing_thread.join()
+
             # If the Vicon interface is running, terminate it.
             if self.__vicon is not None:
                 self.__vicon.terminate()
@@ -190,55 +206,61 @@ class ViconVisualiser:
         # Try to get a frame from the Vicon system. If that succeeds:
         if self.__vicon.get_frame():
             frame_number: int = self.__vicon.get_frame_number()
+            frame_timestamp: float = time.time_ns() / 1000
+            with self.__lock:
+                self.__vicon_frame_numbers.append(frame_number)
+                self.__vicon_frame_timestamps.append(frame_timestamp)
+                print(list(zip(self.__vicon_frame_numbers, self.__vicon_frame_timestamps)))
 
-            # If we're running a mapping server, try to get a frame from the client.
-            colour_image: Optional[np.ndarray] = None
-            intrinsics: Optional[Tuple[float, float, float, float]] = None
-            pose: Optional[np.ndarray] = None
+            # # If we're running a mapping server, try to get a frame from the client.
+            # colour_image: Optional[np.ndarray] = None
+            # intrinsics: Optional[Tuple[float, float, float, float]] = None
+            # pose: Optional[np.ndarray] = None
+            #
+            # if self.__mapping_server is not None and self.__mapping_server.has_frames_now(self.__client_id):
+            #     # Get the camera parameters from the server.
+            #     intrinsics = self.__mapping_server.get_intrinsics(self.__client_id)[0]
+            #
+            #     # Get the newest frame from the mapping server.
+            #     self.__mapping_server.peek_newest_frame(self.__client_id, self.__receiver)
+            #     colour_image = self.__receiver.get_rgb_image()
+            #     pose = self.__receiver.get_pose()
+            #
+            #     image_timestamp: float = self.__receiver.get_frame_timestamp()
+            #     vicon_timestamp: float = time.time_ns() / 1000
+            #     print(f"Vicon Timestamp: {vicon_timestamp}; Image Timestamp: {image_timestamp}")
+            #
+            #     # If we're debugging, show the received colour image:
+            #     if self.__debug:
+            #         cv2.imshow("Received Image", colour_image)
+            #         cv2.waitKey(1)
 
-            if self.__mapping_server is not None and self.__mapping_server.has_frames_now(self.__client_id):
-                # Get the camera parameters from the server.
-                intrinsics = self.__mapping_server.get_intrinsics(self.__client_id)[0]
-
-                # Get the newest frame from the mapping server.
-                self.__mapping_server.peek_newest_frame(self.__client_id, self.__receiver)
-                colour_image = self.__receiver.get_rgb_image()
-                pose = self.__receiver.get_pose()
-
-                image_timestamp: float = self.__receiver.get_frame_timestamp()
-                vicon_timestamp: float = time.time_ns() / 1000
-                print(f"Vicon Timestamp: {vicon_timestamp}; Image Timestamp: {image_timestamp}")
-
-                # If we're debugging, show the received colour image:
-                if self.__debug:
-                    cv2.imshow("Received Image", colour_image)
-                    cv2.waitKey(1)
-
-            # If we're in output mode:
+            # If we're in output mode, save the Vicon frame to disk.
             if self.__persistence_mode == "output":
-                # If we aren't running a mapping server:
-                if self.__mapping_server is None:
-                    # Save the Vicon frame to disk.
-                    self.__vicon_frame_saver.save_frame()
-
-                # Otherwise, if we are running a server and an image has been obtained from the client:
-                elif colour_image is not None:
-                    # Save the Vicon frame to disk.
-                    self.__vicon_frame_saver.save_frame()
-
-                    # If the camera parameters haven't already been saved to disk, save them now.
-                    calibration_filename: str = SequenceUtil.make_calibration_filename(self.__persistence_folder)
-                    if not os.path.exists(calibration_filename):
-                        image_size: Tuple[int, int] = (colour_image.shape[1], colour_image.shape[0])
-                        SequenceUtil.save_rgbd_calibration(
-                            self.__persistence_folder, image_size, image_size, intrinsics, intrinsics
-                        )
-
-                    # Save the frame from the mapping server to disk.
-                    colour_filename: str = os.path.join(self.__persistence_folder, f"{frame_number}.color.png")
-                    pose_filename: str = os.path.join(self.__persistence_folder, f"{frame_number}.pose.txt")
-                    cv2.imwrite(colour_filename, colour_image)
-                    PoseUtil.save_pose(pose_filename, pose)
+                self.__vicon_frame_saver.save_frame()
+                # # If we aren't running a mapping server:
+                # if self.__mapping_server is None:
+                #     # Save the Vicon frame to disk.
+                #     self.__vicon_frame_saver.save_frame()
+                #
+                # # Otherwise, if we are running a server and an image has been obtained from the client:
+                # elif colour_image is not None:
+                #     # Save the Vicon frame to disk.
+                #     self.__vicon_frame_saver.save_frame()
+                #
+                #     # If the camera parameters haven't already been saved to disk, save them now.
+                #     calibration_filename: str = SequenceUtil.make_calibration_filename(self.__persistence_folder)
+                #     if not os.path.exists(calibration_filename):
+                #         image_size: Tuple[int, int] = (colour_image.shape[1], colour_image.shape[0])
+                #         SequenceUtil.save_rgbd_calibration(
+                #             self.__persistence_folder, image_size, image_size, intrinsics, intrinsics
+                #         )
+                #
+                #     # Save the frame from the mapping server to disk.
+                #     colour_filename: str = os.path.join(self.__persistence_folder, f"{frame_number}.color.png")
+                #     pose_filename: str = os.path.join(self.__persistence_folder, f"{frame_number}.pose.txt")
+                #     cv2.imwrite(colour_filename, colour_image)
+                #     PoseUtil.save_pose(pose_filename, pose)
 
             # Check how long has elapsed since the start of the previous frame. If it's not long
             # enough, pause until the expected amount of time has elapsed.
@@ -254,32 +276,62 @@ class ViconVisualiser:
             self.__previous_frame_number = frame_number
             self.__previous_frame_start = frame_start
 
-    @staticmethod
-    def __render_designatable_subject(subject_name: str, subject_pos: np.ndarray,
-                                      designations: Dict[str, List[Tuple[str, float]]]) -> None:
-        """
-        Render a designatable subject.
+    def __process_images(self) -> None:
+        while not self.__should_terminate.is_set():
+            # Try to get a frame from the client.
+            colour_image: Optional[np.ndarray] = None
+            intrinsics: Optional[Tuple[float, float, float, float]] = None
+            pose: Optional[np.ndarray] = None
 
-        .. note::
-            The subject will be rendered as a coloured sphere, where the colour depends on the extent to which
-            the subject is currently being designated by any detected skeleton in the frame. The way in which
-            designation is specified can be found in ViconUtil.compute_subject_designations.
+            if self.__mapping_server.has_frames_now(self.__client_id):
+                # Get the camera parameters from the server.
+                intrinsics = self.__mapping_server.get_intrinsics(self.__client_id)[0]
 
-        :param subject_name:    The name of the subject.
-        :param subject_pos:     The position of the subject (i.e. the origin of its coordinate system).
-        :param designations:    The subject designations for the frame.
-        """
-        colour: Tuple[float, float, float] = (0.0, 0.0, 0.0)
-        designations_for_subject: Optional[List[Tuple[str, float]]] = designations.get(subject_name)
-        if designations_for_subject is not None:
-            # Note: The designations for each subject are sorted in non-decreasing order of distance.
-            _, min_dist = designations_for_subject[0]
-            t: float = np.clip(min_dist / 0.5, 0.0, 1.0)
-            colour = (t, 1 - t, 0)
+                # Get the newest frame from the mapping server.
+                self.__mapping_server.peek_newest_frame(self.__client_id, self.__receiver)
+                colour_image = self.__receiver.get_rgb_image()
+                pose = self.__receiver.get_pose()
+                frame_timestamp: Optional[float] = self.__receiver.get_frame_timestamp()
 
-        with ViconUtil.default_lighting_context():
-            glColor3f(*colour)
-            OpenGLUtil.render_sphere(subject_pos, 0.1, slices=10, stacks=10)
+                vicon_frame_number: Optional[int] = None
+                if frame_timestamp is not None:
+                    with self.__lock:
+                        i: int = bisect.bisect_left(self.__vicon_frame_timestamps, frame_timestamp)
+                        candidates: List[int] = []
+                        deltas: List[float] = []
+                        for j in [i-1, i]:
+                            if 0 <= j < len(self.__vicon_frame_timestamps):
+                                candidates.append(self.__vicon_frame_numbers[j])
+                                deltas.append(abs(self.__vicon_frame_timestamps[j] - frame_timestamp))
+                                print(self.__vicon_frame_numbers[j], self.__vicon_frame_timestamps[j])
+                        k: int = np.argmin(deltas)
+                        vicon_frame_number = candidates[k]
+                        print(f"Frame Timestamp: {frame_timestamp} <-> Vicon Frame Number: {vicon_frame_number}")
+
+                # If we're debugging, show the received colour image:
+                if True:  # self.__debug:
+                    cv2.imshow("Received Image", colour_image)
+                    cv2.waitKey(1)
+
+                # If we're in output mode:
+                # if self.__persistence_mode == "output":
+                #     # If the camera parameters haven't already been saved to disk, save them now.
+                #     calibration_filename: str = SequenceUtil.make_calibration_filename(
+                #         self.__persistence_folder)
+                #     if not os.path.exists(calibration_filename):
+                #         image_size: Tuple[int, int] = (colour_image.shape[1], colour_image.shape[0])
+                #         SequenceUtil.save_rgbd_calibration(
+                #             self.__persistence_folder, image_size, image_size, intrinsics, intrinsics
+                #         )
+                #
+                #     # Save the frame from the mapping server to disk.
+                #     colour_filename: str = os.path.join(self.__persistence_folder, f"{frame_number}.color.png")
+                #     pose_filename: str = os.path.join(self.__persistence_folder, f"{frame_number}.pose.txt")
+                #     cv2.imwrite(colour_filename, colour_image)
+                #     PoseUtil.save_pose(pose_filename, pose)
+            else:
+                # Wait for 10 milliseconds to avoid a spin loop.
+                time.sleep(0.01)
 
     def __render_frame(self) -> None:
         """Render the current frame."""
@@ -469,3 +521,30 @@ class ViconVisualiser:
 
         # Convert the scene mesh to OpenGL format and return it.
         return MeshUtil.convert_trimesh_to_opengl(scene_mesh_o3d)
+
+    @staticmethod
+    def __render_designatable_subject(subject_name: str, subject_pos: np.ndarray,
+                                      designations: Dict[str, List[Tuple[str, float]]]) -> None:
+        """
+        Render a designatable subject.
+
+        .. note::
+            The subject will be rendered as a coloured sphere, where the colour depends on the extent to which
+            the subject is currently being designated by any detected skeleton in the frame. The way in which
+            designation is specified can be found in ViconUtil.compute_subject_designations.
+
+        :param subject_name:    The name of the subject.
+        :param subject_pos:     The position of the subject (i.e. the origin of its coordinate system).
+        :param designations:    The subject designations for the frame.
+        """
+        colour: Tuple[float, float, float] = (0.0, 0.0, 0.0)
+        designations_for_subject: Optional[List[Tuple[str, float]]] = designations.get(subject_name)
+        if designations_for_subject is not None:
+            # Note: The designations for each subject are sorted in non-decreasing order of distance.
+            _, min_dist = designations_for_subject[0]
+            t: float = np.clip(min_dist / 0.5, 0.0, 1.0)
+            colour = (t, 1 - t, 0)
+
+        with ViconUtil.default_lighting_context():
+            glColor3f(*colour)
+            OpenGLUtil.render_sphere(subject_pos, 0.1, slices=10, stacks=10)
