@@ -182,7 +182,7 @@ def main() -> None:
             )
 
             # Print out the number of skeleton matches we've established, for debugging purposes.
-            print(len(matched_skeletons))
+            print(f"Matched Skeleton Count: {len(matched_skeletons)}")
 
             # If we've just processed a new Vicon frame:
             if processed_frame:
