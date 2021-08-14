@@ -41,6 +41,10 @@ def main() -> None:
         help="whether to save the sequence of frames used to reconstruct the Octomap"
     )
     parser.add_argument(
+        "--save_skeletons", action="store_true",
+        help="whether to save the skeletons detected in each frame"
+    )
+    parser.add_argument(
         "--save_reconstruction", action="store_true",
         help="whether to save the reconstructed Octomap"
     )
@@ -70,8 +74,8 @@ def main() -> None:
         with MVDepthOctomapMappingSystem(
             server, depth_estimator, camera_mode=args["camera_mode"], detect_objects=args["detect_objects"],
             detect_skeletons=args["detect_skeletons"], output_dir=output_dir, save_frames=args["save_frames"],
-            save_reconstruction=args["save_reconstruction"], use_arm_selection=args["use_arm_selection"],
-            use_received_depth=args["use_received_depth"]
+            save_reconstruction=args["save_reconstruction"], save_skeletons=args["save_skeletons"],
+            use_arm_selection=args["use_arm_selection"], use_received_depth=args["use_received_depth"]
         ) as mapping_system:
             # Start the server.
             server.start()
