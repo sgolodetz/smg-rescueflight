@@ -503,7 +503,7 @@ class ViconVisualiser:
         """
         colour: Tuple[float, float, float] = (0.0, 0.0, 0.0)
         designations_for_subject: Optional[List[Tuple[str, float]]] = designations.get(subject_name)
-        if designations_for_subject is not None:
+        if designations_for_subject is not None and len(designations_for_subject) > 0:
             # Note: The designations for each subject are sorted in non-decreasing order of distance.
             _, min_dist = designations_for_subject[0]
             t: float = np.clip(min_dist / 0.5, 0.0, 1.0)
