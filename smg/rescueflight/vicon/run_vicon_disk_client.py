@@ -59,6 +59,7 @@ def main() -> None:
             colour_image: Optional[np.ndarray] = None
             initial_from_world: Optional[np.ndarray] = None
             pause: bool = True
+            shown_colour_image: bool = False
 
             # Until the user wants to quit:
             while True:
@@ -112,7 +113,11 @@ def main() -> None:
                 # Show the most recent colour image (if any) so that the user can see what's going on.
                 if colour_image is not None:
                     cv2.imshow("Vicon Disk Client", colour_image)
+                    shown_colour_image = True
 
+                # If a colour image has ever been shown:
+                if shown_colour_image:
+                    # Wait for a keypress, processing OpenCV events in the background as needed.
                     if pause:
                         c = cv2.waitKey()
                     else:
