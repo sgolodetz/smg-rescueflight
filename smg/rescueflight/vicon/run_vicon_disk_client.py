@@ -57,7 +57,7 @@ def main() -> None:
 
             # Prepare the variables needed to process the sequence.
             colour_image: Optional[np.ndarray] = None
-            initial_from_world: Optional[np.ndarray] = None
+            initial_from_vicon: Optional[np.ndarray] = None
             pause: bool = True
             shown_colour_image: bool = False
 
@@ -81,15 +81,15 @@ def main() -> None:
                             pose_filename: str = os.path.join(sequence_dir, f"{frame_number}.pose.txt")
                             pose = PoseUtil.load_pose(pose_filename)
                         else:
-                            world_from_source: Optional[np.ndarray] = vicon.get_image_source_pose(
+                            vicon_from_source: Optional[np.ndarray] = vicon.get_image_source_pose(
                                 source_subject, subject_from_source_cache
                             )
 
-                            if world_from_source is not None:
-                                if initial_from_world is None:
-                                    initial_from_world = np.linalg.inv(world_from_source)
+                            if vicon_from_source is not None:
+                                if initial_from_vicon is None:
+                                    initial_from_vicon = np.linalg.inv(vicon_from_source)
 
-                                pose = initial_from_world @ world_from_source
+                                pose = initial_from_vicon @ vicon_from_source
 
                         # If the camera pose is available:
                         if pose is not None:
