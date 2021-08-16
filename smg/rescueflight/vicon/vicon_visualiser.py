@@ -353,18 +353,18 @@ class ViconVisualiser:
                         self.__render_person(subject, skeletons)
                     else:
                         # Otherwise, hypothesise that it's a single-segment subject and try to get its pose.
-                        subject_from_world: Optional[np.ndarray] = self.__vicon.get_segment_global_pose(
+                        subject_from_vicon: Optional[np.ndarray] = self.__vicon.get_segment_global_pose(
                             subject, subject
                         )
 
                         # If that succeeds, render the subject based on its type:
-                        if subject_from_world is not None:
-                            subject_cam: SimpleCamera = CameraPoseConverter.pose_to_camera(subject_from_world)
+                        if subject_from_vicon is not None:
+                            subject_cam: SimpleCamera = CameraPoseConverter.pose_to_camera(subject_from_vicon)
                             subject_from_source: Optional[np.ndarray] = self.__subject_from_source_cache.get(subject)
 
                             if subject_from_source is not None:
-                                source_from_world: np.ndarray = np.linalg.inv(subject_from_source) @ subject_from_world
-                                self.__render_image_source(subject, source_from_world)
+                                source_from_vicon: np.ndarray = np.linalg.inv(subject_from_source) @ subject_from_vicon
+                                self.__render_image_source(subject, source_from_vicon)
                             elif ViconUtil.is_designatable(subject):
                                 self.__render_designatable_subject(subject, subject_cam.p(), subject_designations)
                             else:
@@ -377,15 +377,15 @@ class ViconVisualiser:
         # Swap the front and back buffers.
         pygame.display.flip()
 
-    def __render_image_source(self, subject: str, source_from_world: np.ndarray) -> None:
+    def __render_image_source(self, subject: str, source_from_vicon: np.ndarray) -> None:
         """
         Render an image source (e.g. a drone).
 
         :param subject:             The Vicon subject corresponding to the image source.
-        :param source_from_world:   A transformation from world space to the space of the image source.
+        :param source_from_vicon:   A transformation from Vicon space to the space of the image source.
         """
         # Render the coordinate axes of the image source.
-        source_cam: SimpleCamera = CameraPoseConverter.pose_to_camera(source_from_world)
+        source_cam: SimpleCamera = CameraPoseConverter.pose_to_camera(source_from_vicon)
         glLineWidth(5)
         CameraRenderer.render_camera(source_cam, axis_scale=0.5)
         glLineWidth(1)
@@ -393,9 +393,9 @@ class ViconVisualiser:
         # If a mesh for the image source is available, render it.
         subject_mesh: Optional[OpenGLTriMesh] = self.__try_get_subject_mesh(subject)
         if subject_mesh is not None:
-            world_from_source: np.ndarray = np.linalg.inv(source_from_world)
+            vicon_from_source: np.ndarray = np.linalg.inv(source_from_vicon)
             with ViconUtil.default_lighting_context():
-                with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(world_from_source)):
+                with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(vicon_from_source)):
                     subject_mesh.render()
 
     def __render_person(self, subject: str, skeletons: Dict[str, Skeleton3D]) -> None:

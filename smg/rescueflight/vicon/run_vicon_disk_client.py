@@ -57,8 +57,9 @@ def main() -> None:
 
             # Prepare the variables needed to process the sequence.
             colour_image: Optional[np.ndarray] = None
-            initial_from_world: Optional[np.ndarray] = None
+            initial_from_vicon: Optional[np.ndarray] = None
             pause: bool = True
+            shown_colour_image: bool = False
 
             # Until the user wants to quit:
             while True:
@@ -80,20 +81,15 @@ def main() -> None:
                             pose_filename: str = os.path.join(sequence_dir, f"{frame_number}.pose.txt")
                             pose = PoseUtil.load_pose(pose_filename)
                         else:
-                            subject_from_source: Optional[np.ndarray] = subject_from_source_cache.get(
-                                source_subject
-                            )
-                            subject_from_world: Optional[np.ndarray] = vicon.get_segment_global_pose(
-                                source_subject, source_subject
+                            vicon_from_source: Optional[np.ndarray] = vicon.get_image_source_pose(
+                                source_subject, subject_from_source_cache
                             )
 
-                            if subject_from_source is not None and subject_from_world is not None:
-                                world_from_subject: np.ndarray = np.linalg.inv(subject_from_world)
-                                world_from_source: np.ndarray = world_from_subject @ subject_from_source
-                                if initial_from_world is None:
-                                    initial_from_world = np.linalg.inv(world_from_source)
+                            if vicon_from_source is not None:
+                                if initial_from_vicon is None:
+                                    initial_from_vicon = np.linalg.inv(vicon_from_source)
 
-                                pose = initial_from_world @ world_from_source
+                                pose = initial_from_vicon @ vicon_from_source
 
                         # If the camera pose is available:
                         if pose is not None:
@@ -112,7 +108,11 @@ def main() -> None:
                 # Show the most recent colour image (if any) so that the user can see what's going on.
                 if colour_image is not None:
                     cv2.imshow("Vicon Disk Client", colour_image)
+                    shown_colour_image = True
 
+                # If a colour image has ever been shown:
+                if shown_colour_image:
+                    # Wait for a keypress, processing OpenCV events in the background as needed.
                     if pause:
                         c = cv2.waitKey()
                     else:
