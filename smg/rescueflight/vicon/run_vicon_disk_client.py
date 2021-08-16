@@ -81,16 +81,11 @@ def main() -> None:
                             pose_filename: str = os.path.join(sequence_dir, f"{frame_number}.pose.txt")
                             pose = PoseUtil.load_pose(pose_filename)
                         else:
-                            subject_from_source: Optional[np.ndarray] = subject_from_source_cache.get(
-                                source_subject
-                            )
-                            subject_from_world: Optional[np.ndarray] = vicon.get_segment_global_pose(
-                                source_subject, source_subject
+                            world_from_source: Optional[np.ndarray] = vicon.get_image_source_pose(
+                                source_subject, subject_from_source_cache
                             )
 
-                            if subject_from_source is not None and subject_from_world is not None:
-                                world_from_subject: np.ndarray = np.linalg.inv(subject_from_world)
-                                world_from_source: np.ndarray = world_from_subject @ subject_from_source
+                            if world_from_source is not None:
                                 if initial_from_world is None:
                                     initial_from_world = np.linalg.inv(world_from_source)
 
