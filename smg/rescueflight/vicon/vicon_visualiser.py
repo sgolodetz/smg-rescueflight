@@ -190,10 +190,12 @@ class ViconVisualiser:
 
     def terminate(self) -> None:
         """Destroy the visualiser."""
+        # If the termination flag hasn't previously been set:
         if not self.__should_terminate.is_set():
+            # Set it now.
             self.__should_terminate.set()
 
-            # Wait for the threads to terminate.
+            # Wait for the image processing thread to terminate.
             if self.__image_processing_thread is not None:
                 self.__image_processing_thread.join()
 
@@ -233,8 +235,8 @@ class ViconVisualiser:
             self.__previous_frame_start = frame_start
 
     def __process_images(self) -> None:
-        """TODO"""
-        # TODO: Comment here.
+        """Process images received from the mapping client."""
+        # While the visualiser should not terminate:
         while not self.__should_terminate.is_set():
             # If we're not paused and a frame is available from the client:
             if not self.__pause.is_set() and self.__mapping_server.has_frames_now(self.__client_id):
@@ -246,7 +248,7 @@ class ViconVisualiser:
                 # Get the oldest frame from the client that hasn't yet been processed.
                 self.__mapping_server.get_frame(self.__client_id, self.__receiver)
                 colour_image: np.ndarray = self.__receiver.get_rgb_image()
-                frame_timestamp: Optional[float] = self.__receiver.get_frame_timestamp()
+                image_timestamp: Optional[float] = self.__receiver.get_frame_timestamp()
                 pose: np.ndarray = self.__receiver.get_pose()
 
                 # If we're debugging, show the received colour image:
@@ -254,7 +256,7 @@ class ViconVisualiser:
                     cv2.imshow("Received Image", colour_image)
                     cv2.waitKey(1)
 
-                # TODO: Comment here.
+                # If we're in output mode:
                 if self.__persistence_mode == "output":
                     # If the camera parameters haven't already been saved to disk, save them now.
                     calibration_filename: str = SequenceUtil.make_calibration_filename(self.__persistence_folder)
@@ -264,24 +266,29 @@ class ViconVisualiser:
                             self.__persistence_folder, image_size, image_size, intrinsics, intrinsics
                         )
 
-                    # TODO: Comment here.
-                    if frame_timestamp is not None:
-                        # TODO: Comment here.
+                    # If the image from the mapping client has a valid timestamp:
+                    if image_timestamp is not None:
+                        # Find the Vicon frame(s) with the closest timestamps to that of the image (the 'candidates'),
+                        # and calculate the differences (the 'deltas') between their timestamps and that of the image.
                         with self.__lock:
-                            i: int = bisect.bisect_left(self.__vicon_frame_timestamps, frame_timestamp)
+                            i: int = bisect.bisect_left(self.__vicon_frame_timestamps, image_timestamp)
                             candidates: List[int] = []
                             deltas: List[float] = []
                             for j in [i-1, i]:
                                 if 0 <= j < len(self.__vicon_frame_timestamps):
                                     candidates.append(self.__vicon_frame_numbers[j])
-                                    deltas.append(abs(self.__vicon_frame_timestamps[j] - frame_timestamp))
+                                    deltas.append(abs(self.__vicon_frame_timestamps[j] - image_timestamp))
 
-                        # TODO: Comment here.
-                        k: int = np.argmin(deltas)
-                        frame_number: int = candidates[k]
+                        # Find the best candidate, i.e. the one whose timestamp is closest to that of the image.
+                        best_candidate_idx: int = np.argmin(deltas)
 
-                        # TODO: Comment here.
+                        # If the difference between the timestamp of the best candidate and that of the image is
+                        # no greater than the specified threshold:
+                        # TODO
                         if True:  # deltas[k] <= some threshold
+                            # Get the frame number of the best candidate.
+                            frame_number: int = candidates[best_candidate_idx]
+
                             # Save the frame to disk.
                             colour_filename: str = os.path.join(
                                 self.__persistence_folder, f"{frame_number}.color.png"
