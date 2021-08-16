@@ -250,33 +250,6 @@ class ViconVisualiser:
             self.__previous_frame_number = frame_number
             self.__previous_frame_start = frame_start
 
-    @staticmethod
-    def __render_designatable_subject(subject_name: str, subject_pos: np.ndarray,
-                                      designations: Dict[str, List[Tuple[str, float]]]) -> None:
-        """
-        Render a designatable subject.
-
-        .. note::
-            The subject will be rendered as a coloured sphere, where the colour depends on the extent to which
-            the subject is currently being designated by any detected skeleton in the frame. The way in which
-            designation is specified can be found in ViconUtil.compute_subject_designations.
-
-        :param subject_name:    The name of the subject.
-        :param subject_pos:     The position of the subject (i.e. the origin of its coordinate system).
-        :param designations:    The subject designations for the frame.
-        """
-        colour: Tuple[float, float, float] = (0.0, 0.0, 0.0)
-        designations_for_subject: Optional[List[Tuple[str, float]]] = designations.get(subject_name)
-        if designations_for_subject is not None:
-            # Note: The designations for each subject are sorted in non-decreasing order of distance.
-            _, min_dist = designations_for_subject[0]
-            t: float = np.clip(min_dist / 0.5, 0.0, 1.0)
-            colour = (t, 1 - t, 0)
-
-        with ViconUtil.default_lighting_context():
-            glColor3f(*colour)
-            OpenGLUtil.render_sphere(subject_pos, 0.1, slices=10, stacks=10)
-
     def __render_frame(self) -> None:
         """Render the current frame."""
         # Clear the colour and depth buffers.
@@ -465,3 +438,30 @@ class ViconVisualiser:
 
         # Convert the scene mesh to OpenGL format and return it.
         return MeshUtil.convert_trimesh_to_opengl(scene_mesh_o3d)
+
+    @staticmethod
+    def __render_designatable_subject(subject_name: str, subject_pos: np.ndarray,
+                                      designations: Dict[str, List[Tuple[str, float]]]) -> None:
+        """
+        Render a designatable subject.
+
+        .. note::
+            The subject will be rendered as a coloured sphere, where the colour depends on the extent to which
+            the subject is currently being designated by any detected skeleton in the frame. The way in which
+            designation is specified can be found in ViconUtil.compute_subject_designations.
+
+        :param subject_name:    The name of the subject.
+        :param subject_pos:     The position of the subject (i.e. the origin of its coordinate system).
+        :param designations:    The subject designations for the frame.
+        """
+        colour: Tuple[float, float, float] = (0.0, 0.0, 0.0)
+        designations_for_subject: Optional[List[Tuple[str, float]]] = designations.get(subject_name)
+        if designations_for_subject is not None:
+            # Note: The designations for each subject are sorted in non-decreasing order of distance.
+            _, min_dist = designations_for_subject[0]
+            t: float = np.clip(min_dist / 0.5, 0.0, 1.0)
+            colour = (t, 1 - t, 0)
+
+        with ViconUtil.default_lighting_context():
+            glColor3f(*colour)
+            OpenGLUtil.render_sphere(subject_pos, 0.1, slices=10, stacks=10)
