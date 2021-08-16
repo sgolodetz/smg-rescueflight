@@ -83,11 +83,11 @@ def main() -> None:
     ]).transpose()
 
     # Estimate the rigid transformation between the two sets of points.
-    transform: np.ndarray = GeometryUtil.estimate_rigid_transform(p, q)
+    aruco_from_gt: np.ndarray = GeometryUtil.estimate_rigid_transform(p, q)
 
     # Read in the ground-truth mesh, and transform it into ArUco space using the estimated transformation.
     gt_mesh: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(gt_filename)
-    gt_mesh = gt_mesh.transform(transform)
+    gt_mesh = gt_mesh.transform(aruco_from_gt)
 
     # If requested, save the transformed ground-truth mesh to disk for later use.
     if output_filename is not None:
