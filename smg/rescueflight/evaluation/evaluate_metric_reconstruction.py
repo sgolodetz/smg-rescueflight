@@ -17,6 +17,10 @@ def main() -> None:
         help="the name of the file containing the world space to ArUco space transformation"
     )
     parser.add_argument(
+        "--evaluation_space", type=str, choices=("aruco", "vicon"),
+        help="the space in which to perform the evaluation"
+    )
+    parser.add_argument(
         "--fiducials_filename", "-f", type=str, default="TangoCapture-20210805-105559-fiducials.txt",
         help="the name of the fiducials file"
     )
