@@ -17,12 +17,13 @@ from smg.comms.base import RGBDFrameReceiver
 from smg.comms.mapping import MappingServer
 from smg.meshing import MeshUtil
 from smg.opengl import CameraRenderer, OpenGLMatrixContext, OpenGLTriMesh, OpenGLUtil
+from smg.rescueflight.vicon.transform_util import TransformUtil
 from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
 from smg.skeletons import Skeleton3D, SkeletonRenderer
 from smg.smplx import SMPLBody
-from smg.utility import FiducialUtil, GeometryUtil, PoseUtil, SequenceUtil
+from smg.utility import FiducialUtil, PoseUtil, SequenceUtil
 from smg.vicon import LiveViconInterface, OfflineViconInterface, SubjectFromSourceCache
 from smg.vicon import ViconFrameSaver, ViconInterface, ViconSkeletonDetector, ViconUtil
 
@@ -463,32 +464,16 @@ class ViconVisualiser:
         # Load in the positions of the four ArUco marker corners as estimated during the reconstruction process.
         fiducials: Dict[str, np.ndarray] = FiducialUtil.load_fiducials(fiducials_filename)
 
-        # Stack these positions into a 3x4 matrix.
-        p: np.ndarray = np.column_stack([
-            fiducials["0_0"],
-            fiducials["0_1"],
-            fiducials["0_2"],
-            fiducials["0_3"]
-        ])
-
         # Look up the Vicon coordinate system positions of the all of the Vicon markers that can currently be seen
         # by the Vicon system, hopefully including ones for the ArUco marker corners.
         marker_positions: Dict[str, np.ndarray] = vicon.get_marker_positions("Registrar")
 
-        # Again, stack the relevant positions into a 3x4 matrix.
-        q: np.ndarray = np.column_stack([
-            marker_positions["0_0"],
-            marker_positions["0_1"],
-            marker_positions["0_2"],
-            marker_positions["0_3"]
-        ])
-
-        # Estimate the rigid transformation between the two sets of points.
-        transform: np.ndarray = GeometryUtil.estimate_rigid_transform(p, q)
+        # Estimate the rigid transformation from world space to Vicon space.
+        vicon_from_world: np.ndarray = TransformUtil.try_calculate_vicon_from_world(fiducials, marker_positions)
 
         # Load in the scene mesh and transform it into the Vicon coordinate system.
         scene_mesh_o3d: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(mesh_filename)
-        scene_mesh_o3d.transform(transform)
+        scene_mesh_o3d.transform(vicon_from_world)
 
         # Convert the scene mesh to OpenGL format and return it.
         return MeshUtil.convert_trimesh_to_opengl(scene_mesh_o3d)

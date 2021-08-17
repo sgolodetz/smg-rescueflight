@@ -13,45 +13,13 @@ from typing import Dict, List, Optional, Tuple
 
 from smg.meshing import MeshUtil
 from smg.opengl import OpenGLMatrixContext, OpenGLTriMesh, OpenGLUtil
+from smg.rescueflight.vicon.transform_util import TransformUtil
 from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter
 from smg.skeletons import Skeleton3D, SkeletonEvaluator, SkeletonRenderer, SkeletonUtil
-from smg.utility import GeometryUtil, PoseUtil
+from smg.utility import PoseUtil
 from smg.vicon import OfflineViconInterface, ViconSkeletonDetector, ViconUtil
-
-
-def try_calculate_aruco_from_vicon(marker_positions: Dict[str, np.ndarray]) -> Optional[np.ndarray]:
-    """
-    Try to calculate the transformation from Vicon space to ArUco space.
-
-    :param marker_positions:    The Vicon coordinate system positions of the all of the Vicon markers that can
-                                currently be seen by the Vicon system.
-    :return:                    The transformation from Vicon space to ArUco space, if possible, or None otherwise.
-    """
-    # If all of the ArUco marker corners can be seen, estimate the Vicon space to ArUco space transformation.
-    if all(key in marker_positions for key in ["0_0", "0_1", "0_2", "0_3"]):
-        offset: float = 0.0705  # 7.05cm (half the width of the printed marker)
-
-        p: np.ndarray = np.column_stack([
-            marker_positions["0_0"],
-            marker_positions["0_1"],
-            marker_positions["0_2"],
-            marker_positions["0_3"]
-        ])
-
-        q: np.ndarray = np.array([
-            [-offset, -offset, 0],
-            [offset, -offset, 0],
-            [offset, offset, 0],
-            [-offset, offset, 0]
-        ]).transpose()
-
-        return GeometryUtil.estimate_rigid_transform(p, q)
-
-    # Otherwise, return None.
-    else:
-        return None
 
 
 def main() -> None:
@@ -168,7 +136,7 @@ def main() -> None:
             # If the transformation from Vicon space to ArUco space hasn't yet been calculated:
             if aruco_from_vicon is None:
                 # Try to calculate it now.
-                aruco_from_vicon = try_calculate_aruco_from_vicon(marker_positions)
+                aruco_from_vicon = TransformUtil.try_calculate_aruco_from_vicon(marker_positions)
 
                 # If this fails, raise an exception.
                 if aruco_from_vicon is None:
