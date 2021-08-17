@@ -7,19 +7,18 @@ from typing import Dict, List, Optional
 
 from smg.open3d import VisualisationUtil
 from smg.rescueflight.vicon.transform_util import TransformUtil
-from smg.utility import FiducialUtil, GeometryUtil, PoseUtil
+from smg.rigging.cameras import SimpleCamera
+from smg.rigging.helpers import CameraPoseConverter
+from smg.utility import FiducialUtil, PoseUtil
+from smg.vicon import OfflineViconInterface
 
 
 def main() -> None:
     # Parse any command-line arguments.
     parser = ArgumentParser()
     parser.add_argument(
-        "--aruco_filename", "-a", type=str, default="smglib-20210805-105559-aruco_from_world.txt",
+        "--aruco_from_world_filename", "-a", type=str, default="smglib-20210805-105559-aruco_from_world.txt",
         help="the name of the file containing the world space to ArUco space transformation"
-    )
-    parser.add_argument(
-        "--evaluation_space", type=str, choices=("aruco", "vicon"),
-        help="the space in which to perform the evaluation"
     )
     parser.add_argument(
         "--fiducials_filename", "-f", type=str, default="TangoCapture-20210805-105559-fiducials.txt",
@@ -49,32 +48,58 @@ def main() -> None:
         "--paint_uniform", "-p", action="store_true",
         help="whether to paint the meshes uniform colours to make it easier to compare them"
     )
+    parser.add_argument(
+        "--sequence_dir", "-s", type=str,
+        help="a directory containing a sequence that we want to evaluate"
+    )
     args: dict = vars(parser.parse_args())
 
-    folder: str = "C:/spaint/build/bin/apps/spaintgui/meshes"
-    aruco_filename: str = os.path.join(folder, args["aruco_filename"])
-    fiducials_filename: str = os.path.join(folder, args["fiducials_filename"])
-    gt_filename: str = os.path.join(folder, args["gt_filename"])
-    input_filename: str = os.path.join(folder, args["input_filename"])
-    output_filename: Optional[str] = os.path.join(folder, args["output_filename"]) \
-        if args["output_filename"] is not None else None
+    sequence_dir: Optional[str] = args.get("sequence_dir")
+    target_from_gt: Optional[np.ndarray] = None
 
-    # Read in the mesh we want to evaluate, which should be metric and in world space.
+    # TODO: Comment here.
+    if sequence_dir is not None:
+        gt_filename: str = os.path.join(sequence_dir, "gt", "mesh.ply")
+        input_filename: str = os.path.join(sequence_dir, "reconstruction", "mesh.ply")
+        output_filename: Optional[str] = None  # TODO: Think harder about this.
+        target_from_world_filename: str = os.path.join(sequence_dir, "reconstruction", "vicon_from_world.txt")
+
+        with OfflineViconInterface(folder=sequence_dir) as vicon:
+            if vicon.get_frame():
+                gt_marker_positions: Dict[str, np.ndarray] = FiducialUtil.load_fiducials(
+                    os.path.join(sequence_dir, "gt", "fiducials.txt")
+                )
+                target_from_gt = TransformUtil.try_calculate_vicon_from_gt(
+                    gt_marker_positions, vicon.get_marker_positions("Registrar")
+                )
+
+    # TODO: Comment here.
+    else:
+        folder: str = "C:/spaint/build/bin/apps/spaintgui/meshes"
+
+        gt_filename: str = os.path.join(folder, args["gt_filename"])
+        input_filename: str = os.path.join(folder, args["input_filename"])
+        output_filename: Optional[str] = os.path.join(folder, args["output_filename"]) \
+            if args["output_filename"] is not None else None
+        target_from_world_filename: str = os.path.join(folder, args["aruco_from_world_filename"])
+
+        gt_marker_positions: Dict[str, np.ndarray] = FiducialUtil.load_fiducials(
+            os.path.join(folder, args["fiducials_filename"])
+        )
+        target_from_gt = TransformUtil.try_calculate_aruco_from_world(gt_marker_positions)
+
+    # TODO: Comment here.
+    if target_from_gt is None:
+        raise RuntimeError("Couldn't estimate transformation from ground-truth space to target space")
+
+    # Read in the (metric) mesh we want to evaluate, and transform it into the target space.
     input_mesh: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(input_filename)
+    target_from_world: np.ndarray = PoseUtil.load_pose(target_from_world_filename)
+    input_mesh.transform(target_from_world)
 
-    # Read in the world space to ArUco space transformation, and transform the mesh into ArUco space.
-    aruco_from_world: np.ndarray = PoseUtil.load_pose(aruco_filename)
-    input_mesh.transform(aruco_from_world)
-
-    # Load in the positions of the four marker corners as estimated during the ground-truth reconstruction.
-    gt_marker_positions: Dict[str, np.ndarray] = FiducialUtil.load_fiducials(fiducials_filename)
-
-    # Estimate the rigid transformation from ground-truth space to ArUco space.
-    aruco_from_gt: np.ndarray = TransformUtil.try_calculate_aruco_from_world(gt_marker_positions)
-
-    # Read in the ground-truth mesh, and transform it into ArUco space using the estimated transformation.
+    # Read in the ground-truth mesh, and likewise transform it into the target space.
     gt_mesh: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(gt_filename)
-    gt_mesh = gt_mesh.transform(aruco_from_gt)
+    gt_mesh = gt_mesh.transform(target_from_gt)
 
     # If requested, save the transformed ground-truth mesh to disk for later use.
     if output_filename is not None:
@@ -82,7 +107,10 @@ def main() -> None:
         o3d.io.write_triangle_mesh(output_filename, gt_mesh)
 
     # Visualise the meshes to allow them to be compared.
-    geometries: List[o3d.geometry.Geometry] = []
+    geometries: List[o3d.geometry.Geometry] = [
+        VisualisationUtil.make_axes(np.eye(4), size=0.25)
+    ]
+
     if args["gt_render_style"] == "uniform":
         gt_mesh.paint_uniform_color((0.0, 1.0, 0.0))
     if args["gt_render_style"] != "hidden":
@@ -91,7 +119,11 @@ def main() -> None:
         input_mesh.paint_uniform_color((1.0, 0.0, 0.0))
     if args["input_render_style"] != "hidden":
         geometries.append(input_mesh)
-    VisualisationUtil.visualise_geometries(geometries, mesh_show_wireframe=True)
+
+    initial_cam: SimpleCamera = SimpleCamera([0, 0, 0], [0, 1, 0], [0, 0, 1])
+    VisualisationUtil.visualise_geometries(
+        geometries, initial_pose=CameraPoseConverter.camera_to_pose(initial_cam), mesh_show_wireframe=True
+    )
 
 
 if __name__ == "__main__":

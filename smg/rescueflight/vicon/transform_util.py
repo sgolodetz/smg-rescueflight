@@ -55,8 +55,8 @@ class TransformUtil:
             markers. The correspondences between the two can be used to estimated the transform.
 
         :param gt_marker_positions:     The positions of the ArUco marker corners in ground-truth space.
-        :param vicon_marker_positions:  The Vicon coordinate system positions of the all of the Vicon markers that can
-                                        currently be seen by the Vicon system.
+        :param vicon_marker_positions:  The Vicon space positions of the all of the Vicon markers for the ArUco
+                                        marker subject that can currently be seen by the Vicon.
         :return:                        The transformation from ground-truth space to Vicon space, if possible,
                                         or None otherwise.
         """
