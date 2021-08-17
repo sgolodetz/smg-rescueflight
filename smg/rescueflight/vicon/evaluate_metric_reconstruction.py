@@ -6,6 +6,7 @@ from argparse import ArgumentParser
 from typing import Dict, List, Optional
 
 from smg.open3d import VisualisationUtil
+from smg.rescueflight.vicon.transform_util import TransformUtil
 from smg.utility import FiducialUtil, GeometryUtil, PoseUtil
 
 
@@ -66,28 +67,10 @@ def main() -> None:
     input_mesh.transform(aruco_from_world)
 
     # Load in the positions of the four marker corners as estimated during the ground-truth reconstruction.
-    fiducials: Dict[str, np.ndarray] = FiducialUtil.load_fiducials(fiducials_filename)
+    gt_marker_positions: Dict[str, np.ndarray] = FiducialUtil.load_fiducials(fiducials_filename)
 
-    # Stack these positions into a 3x4 matrix.
-    p: np.ndarray = np.column_stack([
-        fiducials["0_0"],
-        fiducials["0_1"],
-        fiducials["0_2"],
-        fiducials["0_3"]
-    ])
-
-    # Make another 3x4 matrix containing the ArUco-space positions of the four marker corners.
-    offset: float = 0.0705  # 7.05cm (half the width of the printed marker)
-
-    q: np.ndarray = np.array([
-        [-offset, -offset, 0],
-        [offset, -offset, 0],
-        [offset, offset, 0],
-        [-offset, offset, 0]
-    ]).transpose()
-
-    # Estimate the rigid transformation between the two sets of points.
-    aruco_from_gt: np.ndarray = GeometryUtil.estimate_rigid_transform(p, q)
+    # Estimate the rigid transformation from ground-truth space to ArUco space.
+    aruco_from_gt: np.ndarray = TransformUtil.try_calculate_aruco_from_world(gt_marker_positions)
 
     # Read in the ground-truth mesh, and transform it into ArUco space using the estimated transformation.
     gt_mesh: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(gt_filename)

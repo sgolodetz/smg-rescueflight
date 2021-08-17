@@ -450,7 +450,7 @@ class ViconVisualiser:
     @staticmethod
     def __load_scene_mesh(scenes_folder: str, scene_timestamp: str, vicon: ViconInterface) -> OpenGLTriMesh:
         """
-        Load in a scene mesh, transforming it into the Vicon coordinate system in the process.
+        Load in a ground-truth scene mesh, transforming it into the Vicon coordinate system in the process.
 
         :param scenes_folder:   The folder from which to load the scene mesh.
         :param scene_timestamp: A timestamp indicating which scene mesh to load.
@@ -461,19 +461,21 @@ class ViconVisualiser:
         mesh_filename: str = os.path.join(scenes_folder, f"TangoCapture-{scene_timestamp}-cleaned.ply")
         fiducials_filename: str = os.path.join(scenes_folder, f"TangoCapture-{scene_timestamp}-fiducials.txt")
 
-        # Load in the positions of the four ArUco marker corners as estimated during the reconstruction process.
-        fiducials: Dict[str, np.ndarray] = FiducialUtil.load_fiducials(fiducials_filename)
+        # Load in the positions of the four ArUco marker corners as estimated during the ground-truth reconstruction.
+        gt_marker_positions: Dict[str, np.ndarray] = FiducialUtil.load_fiducials(fiducials_filename)
 
         # Look up the Vicon coordinate system positions of the all of the Vicon markers that can currently be seen
         # by the Vicon system, hopefully including ones for the ArUco marker corners.
-        marker_positions: Dict[str, np.ndarray] = vicon.get_marker_positions("Registrar")
+        vicon_marker_positions: Dict[str, np.ndarray] = vicon.get_marker_positions("Registrar")
 
-        # Estimate the rigid transformation from world space to Vicon space.
-        vicon_from_world: np.ndarray = TransformUtil.try_calculate_vicon_from_world(fiducials, marker_positions)
+        # Estimate the rigid transformation from ground-truth space to Vicon space.
+        vicon_from_gt: np.ndarray = TransformUtil.try_calculate_vicon_from_gt(
+            gt_marker_positions, vicon_marker_positions
+        )
 
-        # Load in the scene mesh and transform it into the Vicon coordinate system.
+        # Load in the ground-truth scene mesh and transform it into the Vicon coordinate system.
         scene_mesh_o3d: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(mesh_filename)
-        scene_mesh_o3d.transform(vicon_from_world)
+        scene_mesh_o3d.transform(vicon_from_gt)
 
         # Convert the scene mesh to OpenGL format and return it.
         return MeshUtil.convert_trimesh_to_opengl(scene_mesh_o3d)

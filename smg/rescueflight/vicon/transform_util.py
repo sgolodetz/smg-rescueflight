@@ -11,15 +11,15 @@ class TransformUtil:
     # PUBLIC STATIC METHODS
 
     @staticmethod
-    def try_calculate_aruco_from_vicon(marker_positions: Dict[str, np.ndarray]) -> Optional[np.ndarray]:
+    def try_calculate_aruco_from_world(marker_positions: Dict[str, np.ndarray]) -> Optional[np.ndarray]:
         """
-        Try to calculate the transformation from Vicon space to ArUco space.
+        Try to calculate the transformation from some world space to the space associated with an ArUco marker
+        by making use of the known world-space positions of the ArUco marker's corners.
 
-        :param marker_positions:    The Vicon coordinate system positions of the all of the Vicon markers that can
-                                    currently be seen by the Vicon system.
-        :return:                    The transformation from Vicon space to ArUco space, if possible, or None otherwise.
+        :param marker_positions:    The world-space positions of the ArUco marker's corners.
+        :return:                    The transformation from world space to ArUco space, if possible, or None otherwise.
         """
-        # If all of the ArUco marker corners can be seen, estimate the Vicon space to ArUco space transformation.
+        # If the positions of all of the ArUco marker's corners are known, estimate the transformation.
         if all(key in marker_positions for key in ["0_0", "0_1", "0_2", "0_3"]):
             p: np.ndarray = np.column_stack([
                 marker_positions["0_0"],
@@ -43,36 +43,37 @@ class TransformUtil:
             return None
 
     @staticmethod
-    def try_calculate_vicon_from_world(fiducials: Dict[str, np.ndarray], marker_positions: Dict[str, np.ndarray]) \
-            -> Optional[np.ndarray]:
+    def try_calculate_vicon_from_gt(gt_marker_positions: Dict[str, np.ndarray],
+                                    vicon_marker_positions: Dict[str, np.ndarray]) -> Optional[np.ndarray]:
         """
-        Try to calculate the transformation from world space to Vicon space.
+        Try to calculate the transformation from ground-truth space to Vicon space.
 
         .. note::
             This approach is based on using an ArUco marker with Vicon markers attached to its corners.
-            The world-space positions of the ArUco marker corners are estimated using SemanticPaint,
-            and the Vicon-space positions of the ArUco marker corners are obtained directly from the
-            Vicon markers. The correspondences between the two can be used to estimated the transform.
+            The ground-truth space positions of the ArUco marker corners are estimated using SemanticPaint,
+            and the Vicon-space positions of the ArUco marker corners are obtained directly from the Vicon
+            markers. The correspondences between the two can be used to estimated the transform.
 
-        :param fiducials:           The positions of the ArUco marker corners in world space.
-        :param marker_positions:    The Vicon coordinate system positions of the all of the Vicon markers that can
-                                    currently be seen by the Vicon system.
-        :return:                    The transformation from world space to Vicon space, if possible, or None otherwise.
+        :param gt_marker_positions:     The positions of the ArUco marker corners in ground-truth space.
+        :param vicon_marker_positions:  The Vicon coordinate system positions of the all of the Vicon markers that can
+                                        currently be seen by the Vicon system.
+        :return:                        The transformation from ground-truth space to Vicon space, if possible,
+                                        or None otherwise.
         """
         # If all of the ArUco marker corners can be seen, estimate the world space to Vicon space transformation.
-        if all(key in marker_positions for key in ["0_0", "0_1", "0_2", "0_3"]):
+        if all(key in vicon_marker_positions for key in ["0_0", "0_1", "0_2", "0_3"]):
             p: np.ndarray = np.column_stack([
-                fiducials["0_0"],
-                fiducials["0_1"],
-                fiducials["0_2"],
-                fiducials["0_3"]
+                gt_marker_positions["0_0"],
+                gt_marker_positions["0_1"],
+                gt_marker_positions["0_2"],
+                gt_marker_positions["0_3"]
             ])
 
             q: np.ndarray = np.column_stack([
-                marker_positions["0_0"],
-                marker_positions["0_1"],
-                marker_positions["0_2"],
-                marker_positions["0_3"]
+                vicon_marker_positions["0_0"],
+                vicon_marker_positions["0_1"],
+                vicon_marker_positions["0_2"],
+                vicon_marker_positions["0_3"]
             ])
 
             return GeometryUtil.estimate_rigid_transform(p, q)
