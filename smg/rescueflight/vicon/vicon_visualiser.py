@@ -285,7 +285,7 @@ class ViconVisualiser:
 
                         # If the difference between the timestamp of the best candidate and that of the image is
                         # no greater than the specified threshold:
-                        # TODO
+                        # TODO: Set an appropriate threshold here.
                         if True:  # deltas[k] <= some threshold
                             # Get the frame number of the best candidate.
                             frame_number: int = candidates[best_candidate_idx]
