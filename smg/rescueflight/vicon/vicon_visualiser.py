@@ -1,3 +1,4 @@
+import bisect
 import cv2
 import numpy as np
 import open3d as o3d
@@ -57,7 +58,9 @@ class ViconVisualiser:
         self.__female_body: Optional[SMPLBody] = None
         self.__male_body: Optional[SMPLBody] = None
         self.__mapping_server: Optional[MappingServer] = mapping_server
-        self.__pause: bool = pause
+        self.__pause: threading.Event = threading.Event()
+        if pause:
+            self.__pause.set()
         self.__persistence_folder: Optional[str] = persistence_folder
         self.__persistence_mode: str = persistence_mode
         self.__previous_frame_number: Optional[int] = None
@@ -78,8 +81,19 @@ class ViconVisualiser:
         }
         self.__use_vicon_poses: bool = use_vicon_poses
         self.__vicon: Optional[ViconInterface] = None
+        self.__vicon_frame_numbers: List[int] = []
         self.__vicon_frame_saver: Optional[ViconFrameSaver] = None
+        self.__vicon_frame_timestamps: List[float] = []
         self.__window_size: Tuple[int, int] = window_size
+
+        # Construct the lock.
+        self.__lock: threading.Lock = threading.Lock()
+
+        # If we're running a mapping server, start the image processing thread.
+        self.__image_processing_thread: Optional[threading.Thread] = None
+        if self.__mapping_server is not None:
+            self.__image_processing_thread = threading.Thread(target=self.__process_images)
+            self.__image_processing_thread.start()
 
     # SPECIAL METHODS
 
@@ -144,12 +158,12 @@ class ViconVisualiser:
                 if event.type == pygame.KEYDOWN:
                     # If the user presses the 'b' key, process frames without pausing.
                     if event.key == pygame.K_b:
-                        self.__pause = False
+                        self.__pause.clear()
                         self.__process_next = True
 
                     # Otherwise, if the user presses the 'n' key, process the next frame and then pause.
                     elif event.key == pygame.K_n:
-                        self.__pause = True
+                        self.__pause.set()
                         self.__process_next = True
                 elif event.type == pygame.QUIT:
                     # If the user wants us to quit, shut down pygame, close any remaining OpenCV windows, and exit.
@@ -163,7 +177,7 @@ class ViconVisualiser:
                 self.__advance_to_next_frame()
 
                 # Decide whether to continue processing subsequent frames or wait.
-                self.__process_next = not self.__pause
+                self.__process_next = not self.__pause.is_set()
 
             # Print out the frame number.
             print(f"=== Frame {self.__vicon.get_frame_number()} ===")
@@ -176,8 +190,14 @@ class ViconVisualiser:
 
     def terminate(self) -> None:
         """Destroy the visualiser."""
+        # If the termination flag hasn't previously been set:
         if not self.__should_terminate.is_set():
+            # Set it now.
             self.__should_terminate.set()
+
+            # Wait for the image processing thread to terminate.
+            if self.__image_processing_thread is not None:
+                self.__image_processing_thread.join()
 
             # If the Vicon interface is running, terminate it.
             if self.__vicon is not None:
@@ -189,52 +209,16 @@ class ViconVisualiser:
         """Try to advance to the next frame."""
         # Try to get a frame from the Vicon system. If that succeeds:
         if self.__vicon.get_frame():
+            # Get the frame number and calculate a timestamp for the frame, and record both for later.
             frame_number: int = self.__vicon.get_frame_number()
+            frame_timestamp: float = time.time_ns() / 1000
+            with self.__lock:
+                self.__vicon_frame_numbers.append(frame_number)
+                self.__vicon_frame_timestamps.append(frame_timestamp)
 
-            # If we're running a mapping server, try to get a frame from the client.
-            colour_image: Optional[np.ndarray] = None
-            intrinsics: Optional[Tuple[float, float, float, float]] = None
-            pose: Optional[np.ndarray] = None
-
-            if self.__mapping_server is not None and self.__mapping_server.has_frames_now(self.__client_id):
-                # Get the camera parameters from the server.
-                intrinsics = self.__mapping_server.get_intrinsics(self.__client_id)[0]
-
-                # Get the newest frame from the mapping server.
-                self.__mapping_server.peek_newest_frame(self.__client_id, self.__receiver)
-                colour_image = self.__receiver.get_rgb_image()
-                pose = self.__receiver.get_pose()
-
-                # If we're debugging, show the received colour image:
-                if self.__debug:
-                    cv2.imshow("Received Image", colour_image)
-                    cv2.waitKey(1)
-
-            # If we're in output mode:
+            # If we're in output mode, save the frame to disk.
             if self.__persistence_mode == "output":
-                # If we aren't running a mapping server:
-                if self.__mapping_server is None:
-                    # Save the Vicon frame to disk.
-                    self.__vicon_frame_saver.save_frame()
-
-                # Otherwise, if we are running a server and an image has been obtained from the client:
-                elif colour_image is not None:
-                    # Save the Vicon frame to disk.
-                    self.__vicon_frame_saver.save_frame()
-
-                    # If the camera parameters haven't already been saved to disk, save them now.
-                    calibration_filename: str = SequenceUtil.make_calibration_filename(self.__persistence_folder)
-                    if not os.path.exists(calibration_filename):
-                        image_size: Tuple[int, int] = (colour_image.shape[1], colour_image.shape[0])
-                        SequenceUtil.save_rgbd_calibration(
-                            self.__persistence_folder, image_size, image_size, intrinsics, intrinsics
-                        )
-
-                    # Save the frame from the mapping server to disk.
-                    colour_filename: str = os.path.join(self.__persistence_folder, f"{frame_number}.color.png")
-                    pose_filename: str = os.path.join(self.__persistence_folder, f"{frame_number}.pose.txt")
-                    cv2.imwrite(colour_filename, colour_image)
-                    PoseUtil.save_pose(pose_filename, pose)
+                self.__vicon_frame_saver.save_frame()
 
             # Check how long has elapsed since the start of the previous frame. If it's not long
             # enough, pause until the expected amount of time has elapsed.
@@ -249,6 +233,76 @@ class ViconVisualiser:
 
             self.__previous_frame_number = frame_number
             self.__previous_frame_start = frame_start
+
+    def __process_images(self) -> None:
+        """Process images received from the mapping client."""
+        # While the visualiser should not terminate:
+        while not self.__should_terminate.is_set():
+            # If we're not paused and a frame is available from the client:
+            if not self.__pause.is_set() and self.__mapping_server.has_frames_now(self.__client_id):
+                # Get the camera parameters from the server.
+                intrinsics: Optional[Tuple[float, float, float, float]] = self.__mapping_server.get_intrinsics(
+                    self.__client_id
+                )[0]
+
+                # Get the oldest frame from the client that hasn't yet been processed.
+                self.__mapping_server.get_frame(self.__client_id, self.__receiver)
+                colour_image: np.ndarray = self.__receiver.get_rgb_image()
+                image_timestamp: Optional[float] = self.__receiver.get_frame_timestamp()
+                pose: np.ndarray = self.__receiver.get_pose()
+
+                # If we're debugging, show the received colour image:
+                if self.__debug:
+                    cv2.imshow("Received Image", colour_image)
+                    cv2.waitKey(1)
+
+                # If we're in output mode:
+                if self.__persistence_mode == "output":
+                    # If the camera parameters haven't already been saved to disk, save them now.
+                    calibration_filename: str = SequenceUtil.make_calibration_filename(self.__persistence_folder)
+                    if not os.path.exists(calibration_filename):
+                        image_size: Tuple[int, int] = (colour_image.shape[1], colour_image.shape[0])
+                        SequenceUtil.save_rgbd_calibration(
+                            self.__persistence_folder, image_size, image_size, intrinsics, intrinsics
+                        )
+
+                    # If the image from the mapping client has a valid timestamp:
+                    if image_timestamp is not None:
+                        # Find the Vicon frame(s) with the closest timestamps to that of the image (the 'candidates'),
+                        # and calculate the differences (the 'deltas') between their timestamps and that of the image.
+                        with self.__lock:
+                            i: int = bisect.bisect_left(self.__vicon_frame_timestamps, image_timestamp)
+                            candidates: List[int] = []
+                            deltas: List[float] = []
+                            for j in [i-1, i]:
+                                if 0 <= j < len(self.__vicon_frame_timestamps):
+                                    candidates.append(self.__vicon_frame_numbers[j])
+                                    deltas.append(abs(self.__vicon_frame_timestamps[j] - image_timestamp))
+
+                        # Find the best candidate, i.e. the one whose timestamp is closest to that of the image.
+                        best_candidate_idx: int = np.argmin(deltas)
+
+                        # If the difference between the timestamp of the best candidate and that of the image is
+                        # no greater than the specified threshold:
+                        # TODO: Set an appropriate threshold here.
+                        if True:  # deltas[k] <= some threshold
+                            # Get the frame number of the best candidate.
+                            frame_number: int = candidates[best_candidate_idx]
+
+                            # Save the frame to disk.
+                            colour_filename: str = os.path.join(
+                                self.__persistence_folder, f"{frame_number}.color.png"
+                            )
+                            pose_filename: str = os.path.join(
+                                self.__persistence_folder, f"{frame_number}.pose.txt"
+                            )
+                            cv2.imwrite(colour_filename, colour_image)
+                            PoseUtil.save_pose(pose_filename, pose)
+
+            # Otherwise:
+            else:
+                # Wait for 10 milliseconds to avoid a spin loop.
+                time.sleep(0.01)
 
     def __render_frame(self) -> None:
         """Render the current frame."""

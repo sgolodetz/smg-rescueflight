@@ -66,7 +66,7 @@ def main():
     if args["with_tracker"]:
         tracker = MonocularTracker(
             settings_file=f"settings-{drone_type}.yaml", use_viewer=True,
-            voc_file="C:/orbslam2/Vocabulary/ORBvoc.txt", wait_till_ready=False
+            voc_file="C:/orbslam2/Vocabulary/ORBvoc.bin", wait_till_ready=False
         )
 
     with DroneFactory.make_drone(drone_type, **kwargs[drone_type]) as drone:
@@ -98,7 +98,7 @@ def main():
                     drone.move_up(0)
 
                 # Get the most recent frame from the drone.
-                image: np.ndarray = drone.get_image()
+                image, image_timestamp = drone.get_timed_image()
                 pose: Optional[np.ndarray] = None
 
                 # If we're using the tracker:
@@ -127,7 +127,8 @@ def main():
                     # Send the frame across to the mapping server.
                     dummy_depth_image: np.ndarray = np.zeros(image.shape[:2], dtype=np.float32)
                     client.send_frame_message(lambda msg: RGBDFrameMessageUtil.fill_frame_message(
-                        frame_idx, image, ImageUtil.to_short_depth(dummy_depth_image), pose, msg
+                        frame_idx, image, ImageUtil.to_short_depth(dummy_depth_image), pose, msg,
+                        frame_timestamp=image_timestamp
                     ))
 
                     # If an output directory was specified and we're saving frames, save the frame to disk.

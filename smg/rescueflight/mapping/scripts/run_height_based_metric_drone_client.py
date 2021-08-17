@@ -180,8 +180,8 @@ def main() -> None:
                     # Allow the user to control the camera.
                     camera_controller.update(pygame.key.get_pressed(), timer() * 1000)
 
-                    # Get an image from the drone.
-                    image: np.ndarray = drone.get_image()
+                    # Get a timed image from the drone.
+                    image, image_timestamp = drone.get_timed_image()
 
                     # Try to estimate a transformation from initial camera space to current camera space
                     # using the tracker.
@@ -189,8 +189,8 @@ def main() -> None:
 
                     # Run an iteration of the state machine.
                     state_machine.iterate(
-                        image, drone.get_intrinsics(), tracker_c_t_i, drone.get_height(),
-                        takeoff_requested, landing_requested
+                        image, image_timestamp, drone.get_intrinsics(), tracker_c_t_i,
+                        drone.get_height(), takeoff_requested, landing_requested
                     )
 
                     # Update the drone's trajectory.

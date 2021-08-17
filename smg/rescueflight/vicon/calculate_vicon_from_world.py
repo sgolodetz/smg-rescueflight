@@ -69,7 +69,9 @@ def main() -> None:
 
         # Also save it to disk if requested.
         if save:
-            vicon_from_world_filename: str = os.path.join(sequence_dir, "vicon_from_world.txt")
+            reconstruction_dir: str = os.path.join(sequence_dir, "reconstruction")
+            os.makedirs(reconstruction_dir, exist_ok=True)
+            vicon_from_world_filename: str = os.path.join(reconstruction_dir, "vicon_from_world.txt")
             PoseUtil.save_pose(vicon_from_world_filename, vicon_from_world)
 
 
