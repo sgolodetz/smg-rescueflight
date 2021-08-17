@@ -33,20 +33,24 @@ def main() -> None:
         help="the rendering style to use for the ground-truth mesh"
     )
     parser.add_argument(
-        "--input_filename", "-i", type=str, default="smglib-20210805-105559.ply",
-        help="the name of the file containing the mesh to be evaluated"
-    )
-    parser.add_argument(
-        "--input_render_style", type=str, choices=("hidden", "normal", "uniform"), default="uniform",
-        help="the rendering style to use for the input mesh"
-    )
-    parser.add_argument(
-        "--output_filename", "-o", type=str,
+        "--output_gt_filename", type=str,
         help="the name of the file to which to save the transformed ground-truth mesh (if any)"
+    )
+    parser.add_argument(
+        "--output_reconstruction_filename", type=str,
+        help="the name of the file to which to save the transformed reconstructed mesh (if any)"
     )
     parser.add_argument(
         "--paint_uniform", "-p", action="store_true",
         help="whether to paint the meshes uniform colours to make it easier to compare them"
+    )
+    parser.add_argument(
+        "--reconstruction_filename", "-r", type=str, default="smglib-20210805-105559.ply",
+        help="the name of the file containing the reconstructed mesh to be evaluated"
+    )
+    parser.add_argument(
+        "--reconstruction_render_style", type=str, choices=("hidden", "normal", "uniform"), default="uniform",
+        help="the rendering style to use for the reconstructed mesh"
     )
     parser.add_argument(
         "--sequence_dir", "-s", type=str,
@@ -60,8 +64,11 @@ def main() -> None:
     # TODO: Comment here.
     if sequence_dir is not None:
         gt_filename: str = os.path.join(sequence_dir, "gt", "mesh.ply")
-        input_filename: str = os.path.join(sequence_dir, "reconstruction", "mesh.ply")
-        output_filename: Optional[str] = None  # TODO: Think harder about this.
+        output_gt_filename: Optional[str] = os.path.join(sequence_dir, "gt", "transformed_mesh.ply")
+        output_reconstruction_filename: Optional[str] = os.path.join(
+            sequence_dir, "reconstruction", "transformed_mesh.ply"
+        )
+        reconstruction_filename: str = os.path.join(sequence_dir, "reconstruction", "mesh.ply")
         target_from_world_filename: str = os.path.join(sequence_dir, "reconstruction", "vicon_from_world.txt")
 
         with OfflineViconInterface(folder=sequence_dir) as vicon:
@@ -78,9 +85,11 @@ def main() -> None:
         folder: str = "C:/spaint/build/bin/apps/spaintgui/meshes"
 
         gt_filename: str = os.path.join(folder, args["gt_filename"])
-        input_filename: str = os.path.join(folder, args["input_filename"])
-        output_filename: Optional[str] = os.path.join(folder, args["output_filename"]) \
-            if args["output_filename"] is not None else None
+        output_gt_filename: Optional[str] = os.path.join(folder, args["output_gt_filename"]) \
+            if args["output_gt_filename"] is not None else None
+        output_reconstruction_filename: Optional[str] = os.path.join(folder, args["output_reconstruction_filename"]) \
+            if args["output_reconstruction_filename"] is not None else None
+        reconstruction_filename: str = os.path.join(folder, args["reconstruction_filename"])
         target_from_world_filename: str = os.path.join(folder, args["aruco_from_world_filename"])
 
         gt_marker_positions: Dict[str, np.ndarray] = FiducialUtil.load_fiducials(
@@ -93,18 +102,22 @@ def main() -> None:
         raise RuntimeError("Couldn't estimate transformation from ground-truth space to target space")
 
     # Read in the (metric) mesh we want to evaluate, and transform it into the target space.
-    input_mesh: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(input_filename)
+    reconstruction_mesh: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(reconstruction_filename)
     target_from_world: np.ndarray = PoseUtil.load_pose(target_from_world_filename)
-    input_mesh.transform(target_from_world)
+    reconstruction_mesh.transform(target_from_world)
 
     # Read in the ground-truth mesh, and likewise transform it into the target space.
     gt_mesh: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(gt_filename)
     gt_mesh = gt_mesh.transform(target_from_gt)
 
-    # If requested, save the transformed ground-truth mesh to disk for later use.
-    if output_filename is not None:
+    # If requested, save the transformed meshes to disk for later use.
+    if output_gt_filename is not None:
         # noinspection PyTypeChecker
-        o3d.io.write_triangle_mesh(output_filename, gt_mesh)
+        o3d.io.write_triangle_mesh(output_gt_filename, gt_mesh)
+
+    if output_reconstruction_filename is not None:
+        # noinspection PyTypeChecker
+        o3d.io.write_triangle_mesh(output_reconstruction_filename, reconstruction_mesh)
 
     # Visualise the meshes to allow them to be compared.
     geometries: List[o3d.geometry.Geometry] = [
@@ -115,10 +128,10 @@ def main() -> None:
         gt_mesh.paint_uniform_color((0.0, 1.0, 0.0))
     if args["gt_render_style"] != "hidden":
         geometries.append(gt_mesh)
-    if args["input_render_style"] == "uniform":
-        input_mesh.paint_uniform_color((1.0, 0.0, 0.0))
-    if args["input_render_style"] != "hidden":
-        geometries.append(input_mesh)
+    if args["reconstruction_render_style"] == "uniform":
+        reconstruction_mesh.paint_uniform_color((1.0, 0.0, 0.0))
+    if args["reconstruction_render_style"] != "hidden":
+        geometries.append(reconstruction_mesh)
 
     initial_cam: SimpleCamera = SimpleCamera([0, 0, 0], [0, 1, 0], [0, 0, 1])
     VisualisationUtil.visualise_geometries(
