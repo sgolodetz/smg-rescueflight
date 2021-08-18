@@ -463,8 +463,8 @@ class ViconVisualiser:
         # Load in the positions of the four ArUco marker corners as estimated during the ground-truth reconstruction.
         gt_marker_positions: Dict[str, np.ndarray] = FiducialUtil.load_fiducials(fiducials_filename)
 
-        # Look up the Vicon coordinate system positions of the all of the Vicon markers that can currently be seen
-        # by the Vicon system, hopefully including ones for the ArUco marker corners.
+        # Look up the positions of all of the Vicon markers for the ArUco marker's Vicon subject that can currently
+        # be seen by the Vicon system, hopefully including all of the ones for the ArUco marker's corners.
         vicon_marker_positions: Dict[str, np.ndarray] = vicon.get_marker_positions("Registrar")
 
         # Estimate the rigid transformation from ground-truth space to Vicon space.
