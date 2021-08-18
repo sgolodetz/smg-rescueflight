@@ -12,6 +12,7 @@ from smg.utility import FiducialUtil, MarkerUtil, PoseUtil
 from smg.vicon import OfflineViconInterface
 
 
+# noinspection PyUnusedLocal
 def main() -> None:
     # Parse any command-line arguments.
     parser = ArgumentParser()
@@ -54,18 +55,24 @@ def main() -> None:
     args: dict = vars(parser.parse_args())
 
     sequence_dir: Optional[str] = args.get("sequence_dir")
+
+    # Initialise some variables.
+    gt_filename: Optional[str] = None
+    initial_cam: Optional[SimpleCamera] = None
+    output_gt_filename: Optional[str] = None
+    output_reconstruction_filename: Optional[str] = None
+    reconstruction_filename: Optional[str] = None
     target_from_gt: Optional[np.ndarray] = None
+    target_from_world_filename: Optional[str] = None
 
     # If a sequence directory has been specified:
     if sequence_dir is not None:
         # Specify the relevant filenames based on the sequence directory, overriding those on the command line.
-        gt_filename: str = os.path.join(sequence_dir, "gt", "mesh.ply")
-        output_gt_filename: Optional[str] = os.path.join(sequence_dir, "gt", "transformed_mesh.ply")
-        output_reconstruction_filename: Optional[str] = os.path.join(
-            sequence_dir, "reconstruction", "transformed_mesh.ply"
-        )
-        reconstruction_filename: str = os.path.join(sequence_dir, "reconstruction", "mesh.ply")
-        target_from_world_filename: str = os.path.join(sequence_dir, "reconstruction", "vicon_from_world.txt")
+        gt_filename = os.path.join(sequence_dir, "gt", "mesh.ply")
+        output_gt_filename = os.path.join(sequence_dir, "gt", "transformed_mesh.ply")
+        output_reconstruction_filename = os.path.join(sequence_dir, "reconstruction", "transformed_mesh.ply")
+        reconstruction_filename = os.path.join(sequence_dir, "reconstruction", "mesh.ply")
+        target_from_world_filename = os.path.join(sequence_dir, "reconstruction", "vicon_from_world.txt")
 
         # Determine the transformation needed to transform the ground-truth mesh into Vicon space.
         with OfflineViconInterface(folder=sequence_dir) as vicon:
@@ -78,20 +85,20 @@ def main() -> None:
                 )
 
         # Set the initial camera to point along the y axis (since that's the horizontal axis in Vicon space).
-        initial_cam: SimpleCamera = SimpleCamera([0, 0, 0], [0, 1, 0], [0, 0, 1])
+        initial_cam = SimpleCamera([0, 0, 0], [0, 1, 0], [0, 0, 1])
 
     # Otherwise:
     else:
         # Treat the filenames specified on the command line as being relative to SemanticPaint's meshes folder.
         folder: str = "C:/spaint/build/bin/apps/spaintgui/meshes"
 
-        gt_filename: str = os.path.join(folder, args["gt_filename"])
-        output_gt_filename: Optional[str] = os.path.join(folder, args["output_gt_filename"]) \
+        gt_filename = os.path.join(folder, args["gt_filename"])
+        output_gt_filename = os.path.join(folder, args["output_gt_filename"]) \
             if args["output_gt_filename"] is not None else None
-        output_reconstruction_filename: Optional[str] = os.path.join(folder, args["output_reconstruction_filename"]) \
+        output_reconstruction_filename = os.path.join(folder, args["output_reconstruction_filename"]) \
             if args["output_reconstruction_filename"] is not None else None
-        reconstruction_filename: str = os.path.join(folder, args["reconstruction_filename"])
-        target_from_world_filename: str = os.path.join(folder, args["aruco_from_world_filename"])
+        reconstruction_filename = os.path.join(folder, args["reconstruction_filename"])
+        target_from_world_filename = os.path.join(folder, args["aruco_from_world_filename"])
 
         # Determine the transformation needed to transform the ground-truth mesh into ArUco space.
         gt_marker_positions: Dict[str, np.ndarray] = FiducialUtil.load_fiducials(
@@ -100,7 +107,7 @@ def main() -> None:
         target_from_gt = MarkerUtil.estimate_space_to_marker_transform(gt_marker_positions)
 
         # Set the initial camera to point along the z axis (since that's the horizontal axis in ArUco space).
-        initial_cam: SimpleCamera = SimpleCamera([0, 0, 0], [0, 0, 1], [0, -1, 0])
+        initial_cam = SimpleCamera([0, 0, 0], [0, 0, 1], [0, -1, 0])
 
     # If we didn't manage to determine how to transform the ground-truth mesh, raise an exception.
     # This can happen if some of the necessary marker positions weren't available.
