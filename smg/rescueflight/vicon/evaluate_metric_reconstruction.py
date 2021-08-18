@@ -109,19 +109,19 @@ def main() -> None:
         # Set the initial camera to point along the z axis (since that's the horizontal axis in ArUco space).
         initial_cam = SimpleCamera([0, 0, 0], [0, 0, 1], [0, -1, 0])
 
-    # If we didn't manage to determine how to transform the ground-truth mesh, raise an exception.
-    # This can happen if some of the necessary marker positions weren't available.
-    if target_from_gt is None:
+    # If we determined how to transform the ground-truth mesh, read it in and transform it into the target space.
+    if target_from_gt is not None:
+        gt_mesh: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(gt_filename)
+        gt_mesh = gt_mesh.transform(target_from_gt)
+
+    # Otherwise, raise an exception. This can happen if some of the necessary marker positions weren't available.
+    else:
         raise RuntimeError("Couldn't estimate transformation from ground-truth space to target space")
 
-    # Read in the (metric) mesh we want to evaluate, and transform it into the target space.
+    # Read in the (metric) mesh we want to evaluate, and likewise transform it into the target space.
     reconstruction_mesh: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(reconstruction_filename)
     target_from_world: np.ndarray = PoseUtil.load_pose(target_from_world_filename)
     reconstruction_mesh.transform(target_from_world)
-
-    # Read in the ground-truth mesh, and likewise transform it into the target space.
-    gt_mesh: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(gt_filename)
-    gt_mesh = gt_mesh.transform(target_from_gt)
 
     # If requested, save the transformed meshes to disk for later use.
     if output_gt_filename is not None:
