@@ -17,13 +17,12 @@ from smg.comms.base import RGBDFrameReceiver
 from smg.comms.mapping import MappingServer
 from smg.meshing import MeshUtil
 from smg.opengl import CameraRenderer, OpenGLMatrixContext, OpenGLTriMesh, OpenGLUtil
-from smg.rescueflight.vicon.transform_util import TransformUtil
 from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
 from smg.skeletons import Skeleton3D, SkeletonRenderer
 from smg.smplx import SMPLBody
-from smg.utility import FiducialUtil, PoseUtil, SequenceUtil
+from smg.utility import FiducialUtil, MarkerUtil, PoseUtil, SequenceUtil
 from smg.vicon import LiveViconInterface, OfflineViconInterface, SubjectFromSourceCache
 from smg.vicon import ViconFrameSaver, ViconInterface, ViconSkeletonDetector, ViconUtil
 
@@ -469,7 +468,7 @@ class ViconVisualiser:
         vicon_marker_positions: Dict[str, np.ndarray] = vicon.get_marker_positions("Registrar")
 
         # Estimate the rigid transformation from ground-truth space to Vicon space.
-        vicon_from_gt: np.ndarray = TransformUtil.try_calculate_vicon_from_gt(
+        vicon_from_gt: np.ndarray = MarkerUtil.estimate_space_to_space_transform(
             gt_marker_positions, vicon_marker_positions
         )
 

@@ -6,10 +6,9 @@ from argparse import ArgumentParser
 from typing import Dict, List, Optional
 
 from smg.open3d import VisualisationUtil
-from smg.rescueflight.vicon.transform_util import TransformUtil
 from smg.rigging.cameras import SimpleCamera
 from smg.rigging.helpers import CameraPoseConverter
-from smg.utility import FiducialUtil, PoseUtil
+from smg.utility import FiducialUtil, MarkerUtil, PoseUtil
 from smg.vicon import OfflineViconInterface
 
 
@@ -76,7 +75,7 @@ def main() -> None:
                 gt_marker_positions: Dict[str, np.ndarray] = FiducialUtil.load_fiducials(
                     os.path.join(sequence_dir, "gt", "fiducials.txt")
                 )
-                target_from_gt = TransformUtil.try_calculate_vicon_from_gt(
+                target_from_gt = MarkerUtil.estimate_space_to_space_transform(
                     gt_marker_positions, vicon.get_marker_positions("Registrar")
                 )
 
@@ -95,7 +94,7 @@ def main() -> None:
         gt_marker_positions: Dict[str, np.ndarray] = FiducialUtil.load_fiducials(
             os.path.join(folder, args["fiducials_filename"])
         )
-        target_from_gt = TransformUtil.try_calculate_aruco_from_world(gt_marker_positions)
+        target_from_gt = MarkerUtil.estimate_space_to_marker_transform(gt_marker_positions)
 
     # TODO: Comment here.
     if target_from_gt is None:

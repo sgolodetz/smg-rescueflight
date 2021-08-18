@@ -13,12 +13,11 @@ from typing import Dict, List, Optional, Tuple
 
 from smg.meshing import MeshUtil
 from smg.opengl import OpenGLMatrixContext, OpenGLTriMesh, OpenGLUtil
-from smg.rescueflight.vicon.transform_util import TransformUtil
 from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter
 from smg.skeletons import Skeleton3D, SkeletonEvaluator, SkeletonRenderer, SkeletonUtil
-from smg.utility import PoseUtil
+from smg.utility import MarkerUtil, PoseUtil
 from smg.vicon import OfflineViconInterface, ViconSkeletonDetector, ViconUtil
 
 
@@ -136,7 +135,7 @@ def main() -> None:
             # If the transformation from Vicon space to ArUco space hasn't yet been calculated:
             if aruco_from_vicon is None:
                 # Try to calculate it now.
-                aruco_from_vicon = TransformUtil.try_calculate_aruco_from_world(vicon_marker_positions)
+                aruco_from_vicon = MarkerUtil.estimate_space_to_marker_transform(vicon_marker_positions)
 
                 # If this fails, raise an exception.
                 if aruco_from_vicon is None:
