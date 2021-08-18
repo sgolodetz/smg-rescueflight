@@ -32,14 +32,6 @@ def main() -> None:
         help="whether to accept connections from mapping clients"
     )
     parser.add_argument(
-        "--scenes_folder", type=str, default="C:/spaint/build/bin/apps/spaintgui/meshes",
-        help="the folder from which to load the scene mesh"
-    )
-    parser.add_argument(
-        "--scene_timestamp", type=str,
-        help="a timestamp indicating which scene mesh to load"
-    )
-    parser.add_argument(
         "--use_vicon_poses", action="store_true",
         help="whether to use the joint poses produced by the Vicon system"
     )
@@ -72,8 +64,7 @@ def main() -> None:
         with ViconVisualiser(
             debug=False, mapping_server=mapping_server, pause=args["pause"],
             persistence_folder=persistence_folder, persistence_mode=persistence_mode,
-            rendering_intrinsics=rendering_intrinsics, scene_timestamp=args["scene_timestamp"],
-            scenes_folder=args["scenes_folder"], use_vicon_poses=args["use_vicon_poses"]
+            rendering_intrinsics=rendering_intrinsics, use_vicon_poses=args["use_vicon_poses"]
         ) as visualiser:
             # Run the visualiser.
             visualiser.run()

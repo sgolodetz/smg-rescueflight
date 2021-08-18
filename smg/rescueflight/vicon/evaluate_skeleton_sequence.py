@@ -17,41 +17,8 @@ from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter
 from smg.skeletons import Skeleton3D, SkeletonEvaluator, SkeletonRenderer, SkeletonUtil
-from smg.utility import GeometryUtil, PoseUtil
+from smg.utility import MarkerUtil, PoseUtil
 from smg.vicon import OfflineViconInterface, ViconSkeletonDetector, ViconUtil
-
-
-def try_calculate_aruco_from_vicon(marker_positions: Dict[str, np.ndarray]) -> Optional[np.ndarray]:
-    """
-    Try to calculate the transformation from Vicon space to ArUco space.
-
-    :param marker_positions:    The Vicon coordinate system positions of the all of the Vicon markers that can
-                                currently be seen by the Vicon system.
-    :return:                    The transformation from Vicon space to ArUco space, if possible, or None otherwise.
-    """
-    # If all of the ArUco marker corners can be seen, estimate the Vicon space to ArUco space transformation.
-    if all(key in marker_positions for key in ["0_0", "0_1", "0_2", "0_3"]):
-        offset: float = 0.0705  # 7.05cm (half the width of the printed marker)
-
-        p: np.ndarray = np.column_stack([
-            marker_positions["0_0"],
-            marker_positions["0_1"],
-            marker_positions["0_2"],
-            marker_positions["0_3"]
-        ])
-
-        q: np.ndarray = np.array([
-            [-offset, -offset, 0],
-            [offset, -offset, 0],
-            [offset, offset, 0],
-            [-offset, offset, 0]
-        ]).transpose()
-
-        return GeometryUtil.estimate_rigid_transform(p, q)
-
-    # Otherwise, return None.
-    else:
-        return None
 
 
 def main() -> None:
@@ -163,12 +130,12 @@ def main() -> None:
 
             # Look up the Vicon coordinate system positions of the all of the Vicon markers that can currently be seen
             # by the Vicon system, hopefully including ones for the ArUco marker corners.
-            marker_positions: Dict[str, np.ndarray] = vicon.get_marker_positions("Registrar")
+            vicon_marker_positions: Dict[str, np.ndarray] = vicon.get_marker_positions("Registrar")
 
             # If the transformation from Vicon space to ArUco space hasn't yet been calculated:
             if aruco_from_vicon is None:
                 # Try to calculate it now.
-                aruco_from_vicon = try_calculate_aruco_from_vicon(marker_positions)
+                aruco_from_vicon = MarkerUtil.estimate_space_to_marker_transform(vicon_marker_positions)
 
                 # If this fails, raise an exception.
                 if aruco_from_vicon is None:
@@ -239,13 +206,13 @@ def main() -> None:
 
                     # Render the ArUco marker (this will be at the origin in ArUco space).
                     with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(aruco_from_vicon)):
-                        if all(key in marker_positions for key in ["0_0", "0_1", "0_2", "0_3"]):
+                        if all(key in vicon_marker_positions for key in ["0_0", "0_1", "0_2", "0_3"]):
                             glBegin(GL_QUADS)
                             glColor3f(0, 1, 0)
-                            glVertex3f(*marker_positions["0_0"])
-                            glVertex3f(*marker_positions["0_1"])
-                            glVertex3f(*marker_positions["0_2"])
-                            glVertex3f(*marker_positions["0_3"])
+                            glVertex3f(*vicon_marker_positions["0_0"])
+                            glVertex3f(*vicon_marker_positions["0_1"])
+                            glVertex3f(*vicon_marker_positions["0_2"])
+                            glVertex3f(*vicon_marker_positions["0_3"])
                             glEnd()
 
                     # Render the 3D skeletons in their ArUco space locations.
