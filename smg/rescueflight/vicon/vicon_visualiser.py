@@ -34,8 +34,8 @@ class ViconVisualiser:
 
     def __init__(self, *, debug: bool = False, mapping_server: Optional[MappingServer],
                  pause: bool = False, persistence_folder: Optional[str], persistence_mode: str,
-                 rendering_intrinsics: Tuple[float, float, float, float], scene_timestamp: Optional[str],
-                 scenes_folder: str, use_vicon_poses: bool, window_size: Tuple[int, int] = (640, 480)):
+                 rendering_intrinsics: Tuple[float, float, float, float], use_vicon_poses: bool,
+                 window_size: Tuple[int, int] = (640, 480)):
         """
         Construct a Vicon visualiser.
 
@@ -45,8 +45,6 @@ class ViconVisualiser:
         :param persistence_folder:      The folder (if any) that should be used for Vicon persistence.
         :param persistence_mode:        The Vicon persistence mode.
         :param rendering_intrinsics:    The camera intrinsics to use when rendering the scene.
-        :param scene_timestamp:         A timestamp indicating which scene mesh to load (if any).
-        :param scenes_folder:           The folder from which to load the scene mesh (if any).
         :param use_vicon_poses:         Whether to use the joint poses produced by the Vicon system.
         :param window_size:             The application window size, as a (width, height) tuple.
         """
@@ -69,8 +67,6 @@ class ViconVisualiser:
         self.__receiver: RGBDFrameReceiver = RGBDFrameReceiver()
         self.__rendering_intrinsics: Tuple[float, float, float, float] = rendering_intrinsics
         self.__scene_mesh: Optional[OpenGLTriMesh] = None
-        self.__scene_timestamp: Optional[str] = scene_timestamp
-        self.__scenes_folder: str = scenes_folder
         self.__should_terminate: threading.Event = threading.Event()
         self.__skeleton_detector: Optional[ViconSkeletonDetector] = None
         self.__smpl_bodies: Dict[str, SMPLBody] = {}
@@ -145,11 +141,9 @@ class ViconVisualiser:
         self.__smpl_bodies["Aluna"] = self.__female_body
         self.__smpl_bodies["Madhu"] = self.__male_body
 
-        # Load in the scene mesh (if any), transforming it as needed in the process.
-        if self.__scene_timestamp is not None and self.__vicon.get_frame():
-            self.__scene_mesh = ViconVisualiser.__load_scene_mesh(
-                self.__scenes_folder, self.__scene_timestamp, self.__vicon
-            )
+        # If we're in input mode, load in the ground-truth scene mesh (if available).
+        if self.__persistence_mode == "input" and self.__vicon.get_frame():
+            self.__scene_mesh = self.__try_load_scene_mesh(self.__vicon)
 
         # Until the visualiser should terminate:
         while not self.__should_terminate.is_set():
@@ -444,21 +438,21 @@ class ViconVisualiser:
 
         return subject_mesh
 
-    # PRIVATE STATIC METHODS
-
-    @staticmethod
-    def __load_scene_mesh(scenes_folder: str, scene_timestamp: str, vicon: ViconInterface) -> OpenGLTriMesh:
+    def __try_load_scene_mesh(self, vicon: ViconInterface) -> Optional[OpenGLTriMesh]:
         """
-        Load in a ground-truth scene mesh, transforming it into the Vicon coordinate system in the process.
+        Try to load in the ground-truth scene mesh, transforming it into the Vicon coordinate system in the process.
 
-        :param scenes_folder:   The folder from which to load the scene mesh.
-        :param scene_timestamp: A timestamp indicating which scene mesh to load.
-        :param vicon:           The Vicon interface.
-        :return:                The scene mesh.
+        :param vicon:   The Vicon interface.
+        :return:        The ground-truth scene mesh.
         """
         # Specify the file paths.
-        mesh_filename: str = os.path.join(scenes_folder, f"TangoCapture-{scene_timestamp}-cleaned.ply")
-        fiducials_filename: str = os.path.join(scenes_folder, f"TangoCapture-{scene_timestamp}-fiducials.txt")
+        gt_folder: str = os.path.join(self.__persistence_folder, "gt")
+        mesh_filename: str = os.path.join(gt_folder, "mesh.ply")
+        fiducials_filename: str = os.path.join(gt_folder, "fiducials.txt")
+
+        # If one or both of the required files are missing, early out.
+        if not os.path.exists(mesh_filename) or not os.path.exists(fiducials_filename):
+            return None
 
         # Load in the positions of the four ArUco marker corners as estimated during the ground-truth reconstruction.
         gt_marker_positions: Dict[str, np.ndarray] = FiducialUtil.load_fiducials(fiducials_filename)
@@ -478,6 +472,8 @@ class ViconVisualiser:
 
         # Convert the scene mesh to OpenGL format and return it.
         return MeshUtil.convert_trimesh_to_opengl(scene_mesh_o3d)
+
+    # PRIVATE STATIC METHODS
 
     @staticmethod
     def __render_designatable_subject(subject_name: str, subject_pos: np.ndarray,
