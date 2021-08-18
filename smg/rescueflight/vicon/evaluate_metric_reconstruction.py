@@ -40,10 +40,6 @@ def main() -> None:
         help="the name of the file to which to save the transformed reconstructed mesh (if any)"
     )
     parser.add_argument(
-        "--paint_uniform", "-p", action="store_true",
-        help="whether to paint the meshes uniform colours to make it easier to compare them"
-    )
-    parser.add_argument(
         "--reconstruction_filename", "-r", type=str, default="smglib-20210805-105559.ply",
         help="the name of the file containing the reconstructed mesh to be evaluated"
     )
@@ -53,15 +49,16 @@ def main() -> None:
     )
     parser.add_argument(
         "--sequence_dir", "-s", type=str,
-        help="a directory containing a sequence that we want to evaluate"
+        help="a directory containing a sequence whose reconstruction we want to evaluate"
     )
     args: dict = vars(parser.parse_args())
 
     sequence_dir: Optional[str] = args.get("sequence_dir")
     target_from_gt: Optional[np.ndarray] = None
 
-    # TODO: Comment here.
+    # If a sequence directory has been specified:
     if sequence_dir is not None:
+        # Specify the relevant filenames based on the sequence directory, overriding those on the command line.
         gt_filename: str = os.path.join(sequence_dir, "gt", "mesh.ply")
         output_gt_filename: Optional[str] = os.path.join(sequence_dir, "gt", "transformed_mesh.ply")
         output_reconstruction_filename: Optional[str] = os.path.join(
@@ -70,6 +67,7 @@ def main() -> None:
         reconstruction_filename: str = os.path.join(sequence_dir, "reconstruction", "mesh.ply")
         target_from_world_filename: str = os.path.join(sequence_dir, "reconstruction", "vicon_from_world.txt")
 
+        # Determine the transformation needed to transform the ground-truth mesh into Vicon space.
         with OfflineViconInterface(folder=sequence_dir) as vicon:
             if vicon.get_frame():
                 gt_marker_positions: Dict[str, np.ndarray] = FiducialUtil.load_fiducials(
@@ -79,10 +77,12 @@ def main() -> None:
                     gt_marker_positions, vicon.get_marker_positions("Registrar")
                 )
 
+        # Set the initial camera to point along the y axis (since that's the horizontal axis in Vicon space).
         initial_cam: SimpleCamera = SimpleCamera([0, 0, 0], [0, 1, 0], [0, 0, 1])
 
-    # TODO: Comment here.
+    # Otherwise:
     else:
+        # Treat the filenames specified on the command line as being relative to SemanticPaint's meshes folder.
         folder: str = "C:/spaint/build/bin/apps/spaintgui/meshes"
 
         gt_filename: str = os.path.join(folder, args["gt_filename"])
@@ -93,14 +93,17 @@ def main() -> None:
         reconstruction_filename: str = os.path.join(folder, args["reconstruction_filename"])
         target_from_world_filename: str = os.path.join(folder, args["aruco_from_world_filename"])
 
+        # Determine the transformation needed to transform the ground-truth mesh into ArUco space.
         gt_marker_positions: Dict[str, np.ndarray] = FiducialUtil.load_fiducials(
             os.path.join(folder, args["fiducials_filename"])
         )
         target_from_gt = MarkerUtil.estimate_space_to_marker_transform(gt_marker_positions)
 
+        # Set the initial camera to point along the z axis (since that's the horizontal axis in ArUco space).
         initial_cam: SimpleCamera = SimpleCamera([0, 0, 0], [0, 0, 1], [0, -1, 0])
 
-    # TODO: Comment here.
+    # If we didn't manage to determine how to transform the ground-truth mesh, raise an exception.
+    # This can happen if some of the necessary marker positions weren't available.
     if target_from_gt is None:
         raise RuntimeError("Couldn't estimate transformation from ground-truth space to target space")
 
