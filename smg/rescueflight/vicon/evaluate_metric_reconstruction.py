@@ -79,6 +79,8 @@ def main() -> None:
                     gt_marker_positions, vicon.get_marker_positions("Registrar")
                 )
 
+        initial_cam: SimpleCamera = SimpleCamera([0, 0, 0], [0, 1, 0], [0, 0, 1])
+
     # TODO: Comment here.
     else:
         folder: str = "C:/spaint/build/bin/apps/spaintgui/meshes"
@@ -95,6 +97,8 @@ def main() -> None:
             os.path.join(folder, args["fiducials_filename"])
         )
         target_from_gt = MarkerUtil.estimate_space_to_marker_transform(gt_marker_positions)
+
+        initial_cam: SimpleCamera = SimpleCamera([0, 0, 0], [0, 0, 1], [0, -1, 0])
 
     # TODO: Comment here.
     if target_from_gt is None:
@@ -132,7 +136,6 @@ def main() -> None:
     if args["reconstruction_render_style"] != "hidden":
         geometries.append(reconstruction_mesh)
 
-    initial_cam: SimpleCamera = SimpleCamera([0, 0, 0], [0, 1, 0], [0, 0, 1])
     VisualisationUtil.visualise_geometries(
         geometries, initial_pose=CameraPoseConverter.camera_to_pose(initial_cam), mesh_show_wireframe=True
     )
