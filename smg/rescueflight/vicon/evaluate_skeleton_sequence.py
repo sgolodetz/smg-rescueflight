@@ -39,17 +39,17 @@ def main() -> None:
     detector_type: str = args["detector_type"]
     sequence_dir: str = args["sequence_dir"]
 
-    # Try to load in the transformation from world space to ArUco space.
-    aruco_filename: str = os.path.join(sequence_dir, "reconstruction", "aruco_from_world.txt")
-    if os.path.exists(aruco_filename):
-        aruco_from_world: np.ndarray = PoseUtil.load_pose(aruco_filename)
+    # Try to load in the transformation from world space to Vicon space.
+    vicon_from_world_filename: str = os.path.join(sequence_dir, "reconstruction", "vicon_from_world.txt")
+    if os.path.exists(vicon_from_world_filename):
+        vicon_from_world: np.ndarray = PoseUtil.load_pose(vicon_from_world_filename)
     else:
-        raise RuntimeError(f"'{aruco_filename}' does not exist")
+        raise RuntimeError(f"'{vicon_from_world_filename}' does not exist")
 
-    # Load in the reconstructed scene mesh and transform it into ArUco space.
+    # Load in the reconstructed scene mesh and transform it into Vicon space.
     mesh_filename: str = os.path.join(sequence_dir, "reconstruction", "mesh.ply")
     scene_mesh_o3d: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(mesh_filename)
-    scene_mesh_o3d.transform(aruco_from_world)
+    scene_mesh_o3d.transform(vicon_from_world)
     scene_mesh: OpenGLTriMesh = MeshUtil.convert_trimesh_to_opengl(scene_mesh_o3d)
 
     # Initialise PyGame and create the window.
@@ -64,7 +64,7 @@ def main() -> None:
 
     # Construct the camera controller.
     camera_controller: KeyboardCameraController = KeyboardCameraController(
-        SimpleCamera([0, 0, 0], [0, 0, 1], [0, -1, 0]), canonical_angular_speed=0.05,
+        SimpleCamera([0, 0, 0], [0, 1, 0], [0, 0, 1]), canonical_angular_speed=0.05,
         canonical_linear_speed=0.1
     )
 
@@ -80,10 +80,10 @@ def main() -> None:
         )
 
         # Initialise a few variables.
-        aruco_from_vicon: Optional[np.ndarray] = None
         evaluate: bool = False
         pause: bool = True
         process_next: bool = True
+        vicon_from_gt: Optional[np.ndarray] = None
 
         while True:
             # Process any PyGame events.
@@ -128,18 +128,33 @@ def main() -> None:
             if os.path.exists(os.path.join(sequence_dir, "evalcontrol", f"{frame_number}-off.txt")):
                 evaluate = False
 
-            # Look up the Vicon coordinate system positions of the all of the Vicon markers that can currently be seen
-            # by the Vicon system, hopefully including ones for the ArUco marker corners.
-            vicon_marker_positions: Dict[str, np.ndarray] = vicon.get_marker_positions("Registrar")
+            # If the transformation from ground-truth space to Vicon space hasn't yet been calculated:
+            if vicon_from_gt is None:
+                from smg.utility import FiducialUtil
 
-            # If the transformation from Vicon space to ArUco space hasn't yet been calculated:
-            if aruco_from_vicon is None:
                 # Try to calculate it now.
-                aruco_from_vicon = MarkerUtil.estimate_space_to_marker_transform(vicon_marker_positions)
+                fiducials_filename: str = os.path.join(sequence_dir, "gt", "fiducials.txt")
+                gt_marker_positions: Dict[str, np.ndarray] = FiducialUtil.load_fiducials(fiducials_filename)
+
+                # Look up the Vicon coordinate system positions of the all of the Vicon markers that can currently
+                # be seen by the Vicon system, hopefully including ones for the ArUco marker corners.
+                vicon_marker_positions: Dict[str, np.ndarray] = vicon.get_marker_positions("Registrar")
+
+                vicon_from_gt = MarkerUtil.estimate_space_to_space_transform(
+                    gt_marker_positions, vicon_marker_positions
+                )
 
                 # If this fails, raise an exception.
-                if aruco_from_vicon is None:
-                    raise RuntimeError("Couldn't calculate Vicon space to ArUco space transform - check the markers")
+                if vicon_from_gt is None:
+                    raise RuntimeError("Couldn't calculate ground-truth to Vicon space transform - check the markers")
+
+            ###
+            # # Load in the reconstructed scene mesh and transform it into Vicon space.
+            # mesh_filename: str = os.path.join(sequence_dir, "gt", "mesh.ply")
+            # scene_mesh_o3d: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(mesh_filename)
+            # scene_mesh_o3d.transform(vicon_from_gt)
+            # scene_mesh: OpenGLTriMesh = MeshUtil.convert_trimesh_to_opengl(scene_mesh_o3d)
+            ###
 
             # Get the ground-truth and (previously) detected skeletons.
             gt_skeletons: Dict[str, Skeleton3D] = gt_skeleton_detector.detect_skeletons()
@@ -155,15 +170,14 @@ def main() -> None:
             if processed_frame:
                 # If the frame only contains a single ground-truth skeleton, and evaluation is enabled:
                 if len(gt_skeletons) == 1 and evaluate:
-                    # Get the ground-truth skeleton, and transform it into ArUco space.
+                    # Get the ground-truth skeleton.
                     gt_skeleton: Skeleton3D = list(gt_skeletons.values())[0]
-                    gt_skeleton = gt_skeleton.transform(aruco_from_vicon)
 
-                    # If a single skeleton was detected in this frame, transform it into ArUco space and match it
+                    # If a single skeleton was detected in this frame, transform it into Vicon space and match it
                     # with the ground-truth one. Otherwise, record that the ground-truth skeleton has no match.
                     if detected_skeletons is not None and len(detected_skeletons) == 1:
                         detected_skeleton: Skeleton3D = detected_skeletons[0]
-                        detected_skeleton = detected_skeleton.transform(aruco_from_world)
+                        detected_skeleton = detected_skeleton.transform(vicon_from_world)
                         matched_skeletons.append([(gt_skeleton, detected_skeleton)])
                     else:
                         matched_skeletons.append([(gt_skeleton, None)])
@@ -205,24 +219,24 @@ def main() -> None:
                     scene_mesh.render()
 
                     # Render the ArUco marker (this will be at the origin in ArUco space).
-                    with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(aruco_from_vicon)):
-                        if all(key in vicon_marker_positions for key in ["0_0", "0_1", "0_2", "0_3"]):
-                            glBegin(GL_QUADS)
-                            glColor3f(0, 1, 0)
-                            glVertex3f(*vicon_marker_positions["0_0"])
-                            glVertex3f(*vicon_marker_positions["0_1"])
-                            glVertex3f(*vicon_marker_positions["0_2"])
-                            glVertex3f(*vicon_marker_positions["0_3"])
-                            glEnd()
+                    # with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(aruco_from_vicon)):
+                    if all(key in vicon_marker_positions for key in ["0_0", "0_1", "0_2", "0_3"]):
+                        glBegin(GL_QUADS)
+                        glColor3f(0, 1, 0)
+                        glVertex3f(*vicon_marker_positions["0_0"])
+                        glVertex3f(*vicon_marker_positions["0_1"])
+                        glVertex3f(*vicon_marker_positions["0_2"])
+                        glVertex3f(*vicon_marker_positions["0_3"])
+                        glEnd()
 
-                    # Render the 3D skeletons in their ArUco space locations.
+                    # Render the 3D skeletons in their Vicon-space locations.
                     with SkeletonRenderer.default_lighting_context():
-                        with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(aruco_from_vicon)):
-                            for _, skeleton in gt_skeletons.items():
-                                SkeletonRenderer.render_skeleton(skeleton)
+                        # with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(aruco_from_vicon)):
+                        for _, skeleton in gt_skeletons.items():
+                            SkeletonRenderer.render_skeleton(skeleton)
 
                         if detected_skeletons is not None:
-                            with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(aruco_from_world)):
+                            with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(vicon_from_world)):
                                 for skeleton in detected_skeletons:
                                     SkeletonRenderer.render_skeleton(skeleton)
 
