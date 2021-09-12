@@ -46,11 +46,11 @@ def main() -> None:
     else:
         raise RuntimeError(f"'{vicon_from_world_filename}' does not exist")
 
-    # Load in the reconstructed scene mesh and transform it into Vicon space.
-    mesh_filename: str = os.path.join(sequence_dir, "reconstruction", "mesh.ply")
-    scene_mesh_o3d: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(mesh_filename)
-    scene_mesh_o3d.transform(vicon_from_world)
-    scene_mesh: OpenGLTriMesh = MeshUtil.convert_trimesh_to_opengl(scene_mesh_o3d)
+    # # Load in the reconstructed scene mesh and transform it into Vicon space.
+    # mesh_filename: str = os.path.join(sequence_dir, "reconstruction", "mesh.ply")
+    # scene_mesh_o3d: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(mesh_filename)
+    # scene_mesh_o3d.transform(vicon_from_world)
+    # scene_mesh: OpenGLTriMesh = MeshUtil.convert_trimesh_to_opengl(scene_mesh_o3d)
 
     # Initialise PyGame and create the window.
     pygame.init()
@@ -83,6 +83,7 @@ def main() -> None:
         evaluate: bool = False
         pause: bool = True
         process_next: bool = True
+        scene_mesh: Optional[OpenGLTriMesh] = None
         vicon_from_gt: Optional[np.ndarray] = None
 
         while True:
@@ -149,11 +150,12 @@ def main() -> None:
                     raise RuntimeError("Couldn't calculate ground-truth to Vicon space transform - check the markers")
 
             ###
-            # # Load in the reconstructed scene mesh and transform it into Vicon space.
-            # mesh_filename: str = os.path.join(sequence_dir, "gt", "mesh.ply")
-            # scene_mesh_o3d: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(mesh_filename)
-            # scene_mesh_o3d.transform(vicon_from_gt)
-            # scene_mesh: OpenGLTriMesh = MeshUtil.convert_trimesh_to_opengl(scene_mesh_o3d)
+            # Load in the reconstructed scene mesh and transform it into Vicon space.
+            if scene_mesh is None:
+                mesh_filename: str = os.path.join(sequence_dir, "gt", "mesh.ply")
+                scene_mesh_o3d: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(mesh_filename)
+                scene_mesh_o3d.transform(vicon_from_gt)
+                scene_mesh = MeshUtil.convert_trimesh_to_opengl(scene_mesh_o3d)
             ###
 
             # Get the ground-truth and (previously) detected skeletons.
@@ -213,10 +215,11 @@ def main() -> None:
                 )):
                     # Render a voxel grid.
                     glColor3f(0.0, 0.0, 0.0)
-                    OpenGLUtil.render_voxel_grid([-2, -2, -2], [2, 0, 2], [1, 1, 1], dotted=True)
+                    OpenGLUtil.render_voxel_grid([-3, -7, 0], [3, 7, 2], [1, 1, 1], dotted=True)
 
                     # Render the reconstructed scene.
-                    scene_mesh.render()
+                    if scene_mesh is not None:
+                        scene_mesh.render()
 
                     # Render the ArUco marker (this will be at the origin in ArUco space).
                     # with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(aruco_from_vicon)):
