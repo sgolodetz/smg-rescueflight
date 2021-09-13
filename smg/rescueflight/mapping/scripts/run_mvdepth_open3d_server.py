@@ -8,14 +8,18 @@ from typing import List, Optional, Tuple
 
 from smg.comms.base import RGBDFrameMessageUtil
 from smg.comms.mapping import MappingServer
+from smg.dvmvs import MonocularDepthEstimator
 from smg.mapping.mvdepth import MVDepthOpen3DMappingSystem
-from smg.mvdepthnet import MonocularDepthEstimator
+# from smg.mvdepthnet import MonocularDepthEstimator
 from smg.open3d import ReconstructionUtil, VisualisationUtil
 from smg.relocalisation import ArUcoPnPRelocaliser
 from smg.utility import PooledQueue, PoseUtil
 
 
 def main() -> None:
+    from dvmvs.config import Config
+    Config.test_visualize = False
+
     np.set_printoptions(suppress=True)
 
     # Parse any command-line arguments.
@@ -78,9 +82,9 @@ def main() -> None:
         })
 
     # Construct the depth estimator.
-    depth_estimator: MonocularDepthEstimator = MonocularDepthEstimator(
-        "C:/Users/Stuart Golodetz/Downloads/MVDepthNet/opensource_model.pth.tar", debug=args["debug"]
-    )
+    depth_estimator: MonocularDepthEstimator = MonocularDepthEstimator()
+    #     "C:/Users/Stuart Golodetz/Downloads/MVDepthNet/opensource_model.pth.tar", debug=args["debug"]
+    # )
 
     # Construct the mapping server.
     with MappingServer(
