@@ -16,6 +16,7 @@ setup(
     include_package_data=True,
     install_requires=[
         "smg-comms",
+        "smg-dvmvs",
         "smg-imagesources",
         "smg-joysticks",
         "smg-mapping",
