@@ -40,25 +40,12 @@ def main() -> None:
             cv2.imshow("Colour Image", colour_image)
             cv2.imshow("Estimated Depth Image", estimated_depth_image / 5)
 
-            # postprocessed_depth_image: Optional[np.ndarray] = MonocularDepthEstimator.postprocess_depth_image(
-            #     output_depth_image.astype(np.float32)
-            # )
-            # if postprocessed_depth_image is None:
-            #     cv2.waitKey(1)
-            #     continue
-
-            prediction_height, prediction_width = estimated_depth_image.shape[:2]
-            edge_pixel_amount = 10
-            edge_mask = np.zeros((prediction_height, prediction_width), dtype=bool)
-            edge_mask[0:edge_pixel_amount, :] = True
-            edge_mask[prediction_height - edge_pixel_amount: prediction_height, :] = True
-            edge_mask[:, 0:edge_pixel_amount] = True
-            edge_mask[:, prediction_width - edge_pixel_amount: prediction_width] = True
-
-            # black_mask = np.mean(estimated_depth_image.astype(float), axis=-1) < 10.0
-            # combined_mask = np.logical_and(black_mask, edge_mask)
-            postprocessed_depth_image = np.where(edge_mask == 0, estimated_depth_image, 0.0)
-            postprocessed_depth_image = np.where(postprocessed_depth_image <= 5.0, postprocessed_depth_image, 0.0)
+            postprocessed_depth_image: Optional[np.ndarray] = depth_estimator.postprocess_depth_image(
+                estimated_depth_image.astype(np.float32)
+            )
+            if postprocessed_depth_image is None:
+                cv2.waitKey(1)
+                continue
 
             cv2.imshow("Postprocessed Depth Image", postprocessed_depth_image / 5)
             cv2.waitKey(1)
