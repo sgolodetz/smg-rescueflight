@@ -6,7 +6,7 @@ from typing import Optional
 from smg.comms.base import RGBDFrameMessageUtil
 from smg.comms.mapping import MappingServer
 from smg.dvmvs import DVMVSMonocularDepthEstimator
-from smg.mapping.systems import MonocularOctomapMappingSystem
+from smg.mapping.systems import OctomapMappingSystem
 from smg.mvdepthnet import MVDepthMonocularDepthEstimator
 from smg.utility import MonocularDepthEstimator, PooledQueue
 
@@ -80,7 +80,7 @@ def main() -> None:
         pool_empty_strategy=PooledQueue.EPoolEmptyStrategy.make(args["pool_empty_strategy"])
     ) as server:
         # Construct the mapping system.
-        with MonocularOctomapMappingSystem(
+        with OctomapMappingSystem(
             server, depth_estimator, camera_mode=args["camera_mode"], detect_objects=args["detect_objects"],
             detect_skeletons=args["detect_skeletons"], output_dir=output_dir, save_frames=args["save_frames"],
             save_reconstruction=args["save_reconstruction"], save_skeletons=args["save_skeletons"],

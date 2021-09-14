@@ -9,7 +9,7 @@ from typing import List, Optional, Tuple
 from smg.comms.base import RGBDFrameMessageUtil
 from smg.comms.mapping import MappingServer
 from smg.dvmvs import DVMVSMonocularDepthEstimator
-from smg.mapping.systems import MonocularOpen3DMappingSystem
+from smg.mapping.systems import Open3DMappingSystem
 from smg.mvdepthnet import MVDepthMonocularDepthEstimator
 from smg.open3d import ReconstructionUtil, VisualisationUtil
 from smg.relocalisation import ArUcoPnPRelocaliser
@@ -97,7 +97,7 @@ def main() -> None:
         pool_empty_strategy=PooledQueue.EPoolEmptyStrategy.make(args["pool_empty_strategy"])
     ) as server:
         # Construct the mapping system.
-        mapping_system: MonocularOpen3DMappingSystem = MonocularOpen3DMappingSystem(
+        mapping_system: Open3DMappingSystem = Open3DMappingSystem(
             server, depth_estimator, aruco_relocaliser=aruco_relocaliser,
             debug=args["debug"], detect_objects=args["detect_objects"], output_dir=output_dir,
             save_frames=args["save_frames"], use_received_depth=args["use_received_depth"]
