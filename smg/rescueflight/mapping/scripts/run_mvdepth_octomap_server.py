@@ -7,6 +7,7 @@ from smg.comms.base import RGBDFrameMessageUtil
 from smg.comms.mapping import MappingServer
 from smg.dvmvs import DVMVSMonocularDepthEstimator
 from smg.mapping.mvdepth import MVDepthOctomapMappingSystem
+from smg.mvdepthnet import MVDepthMonocularDepthEstimator
 from smg.utility import MonocularDepthEstimator, PooledQueue
 
 
@@ -18,6 +19,10 @@ def main() -> None:
     parser.add_argument(
         "--camera_mode", "-m", type=str, choices=("follow", "free"), default="free",
         help="the camera mode"
+    )
+    parser.add_argument(
+        "--depth_estimator_type", type=str, default="dvmvs", choices=("dvmvs", "mvdepth"),
+        help="the type of depth estimator to use"
     )
     parser.add_argument(
         "--detect_objects", "-d", action="store_true",
@@ -58,10 +63,16 @@ def main() -> None:
     )
     args: dict = vars(parser.parse_args())
 
+    depth_estimator_type: str = args.get("depth_estimator_type")
     output_dir: Optional[str] = args["output_dir"]
 
     # Construct the depth estimator.
-    depth_estimator: MonocularDepthEstimator = DVMVSMonocularDepthEstimator()
+    if depth_estimator_type == "dvmvs":
+        depth_estimator: MonocularDepthEstimator = DVMVSMonocularDepthEstimator()
+    else:
+        depth_estimator: MonocularDepthEstimator = MVDepthMonocularDepthEstimator(
+            "C:/Users/Stuart Golodetz/Downloads/MVDepthNet/opensource_model.pth.tar", debug=args["debug"]
+        )
 
     # Construct the mapping server.
     with MappingServer(
