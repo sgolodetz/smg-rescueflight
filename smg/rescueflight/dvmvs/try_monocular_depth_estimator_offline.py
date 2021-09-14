@@ -8,7 +8,7 @@ from typing import List, Optional
 
 from dvmvs.config import Config
 
-from smg.dvmvs import MonocularDepthEstimator
+from smg.dvmvs import DVMVSMonocularDepthEstimator
 from smg.open3d import ReconstructionUtil, VisualisationUtil
 from smg.utility import GeometryUtil, ImageUtil
 
@@ -16,7 +16,7 @@ from smg.utility import GeometryUtil, ImageUtil
 def main() -> None:
     Config.test_visualize = False
 
-    depth_estimator: MonocularDepthEstimator = MonocularDepthEstimator()
+    depth_estimator: DVMVSMonocularDepthEstimator = DVMVSMonocularDepthEstimator()
 
     scene_folder: Path = Path(Config.test_online_scene_path)
 

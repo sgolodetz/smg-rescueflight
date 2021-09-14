@@ -6,7 +6,7 @@ from typing import Optional, Tuple
 
 from smg.comms.base import RGBDFrameMessageUtil, RGBDFrameReceiver
 from smg.comms.mapping import MappingServer
-from smg.mvdepthnet import MonocularDepthEstimator
+from smg.mvdepthnet import MVDepthMonocularDepthEstimator
 from smg.utility import GeometryUtil, PooledQueue
 
 
@@ -28,7 +28,7 @@ def main() -> None:
         pool_empty_strategy=PooledQueue.EPoolEmptyStrategy.make(args["pool_empty_strategy"])
     ) as server:
         client_id: int = 0
-        depth_estimator: MonocularDepthEstimator = MonocularDepthEstimator(
+        depth_estimator: MVDepthMonocularDepthEstimator = MVDepthMonocularDepthEstimator(
             "C:/Users/Stuart Golodetz/Downloads/MVDepthNet/opensource_model.pth.tar"
         )
         frame_count: int = 0

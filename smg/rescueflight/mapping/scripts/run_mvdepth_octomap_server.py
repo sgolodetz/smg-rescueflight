@@ -5,9 +5,9 @@ from typing import Optional
 
 from smg.comms.base import RGBDFrameMessageUtil
 from smg.comms.mapping import MappingServer
-from smg.dvmvs import MonocularDepthEstimator
+from smg.dvmvs import DVMVSMonocularDepthEstimator
 from smg.mapping.mvdepth import MVDepthOctomapMappingSystem
-from smg.utility import PooledQueue
+from smg.utility import MonocularDepthEstimator, PooledQueue
 
 
 def main() -> None:
@@ -61,9 +61,7 @@ def main() -> None:
     output_dir: Optional[str] = args["output_dir"]
 
     # Construct the depth estimator.
-    depth_estimator: MonocularDepthEstimator = MonocularDepthEstimator()
-    #     "C:/Users/Stuart Golodetz/Downloads/MVDepthNet/opensource_model.pth.tar", debug=False
-    # )
+    depth_estimator: MonocularDepthEstimator = DVMVSMonocularDepthEstimator()
 
     # Construct the mapping server.
     with MappingServer(

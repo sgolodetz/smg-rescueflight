@@ -8,11 +8,11 @@ from typing import List, Optional, Tuple
 
 from smg.comms.base import RGBDFrameMessageUtil
 from smg.comms.mapping import MappingServer
-from smg.dvmvs import MonocularDepthEstimator
+from smg.dvmvs import DVMVSMonocularDepthEstimator
 from smg.mapping.mvdepth import MVDepthOpen3DMappingSystem
 from smg.open3d import ReconstructionUtil, VisualisationUtil
 from smg.relocalisation import ArUcoPnPRelocaliser
-from smg.utility import PooledQueue, PoseUtil
+from smg.utility import MonocularDepthEstimator, PooledQueue, PoseUtil
 
 
 def main() -> None:
@@ -78,7 +78,7 @@ def main() -> None:
         })
 
     # Construct the depth estimator.
-    depth_estimator: MonocularDepthEstimator = MonocularDepthEstimator()
+    depth_estimator: MonocularDepthEstimator = DVMVSMonocularDepthEstimator()
 
     # Construct the mapping server.
     with MappingServer(
