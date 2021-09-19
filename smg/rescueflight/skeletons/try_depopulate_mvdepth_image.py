@@ -2,13 +2,13 @@ import cv2
 import numpy as np
 
 from timeit import default_timer as timer
-from typing import List, Optional, Tuple
+from typing import Optional, Tuple
 
 from smg.comms.skeletons import RemoteSkeletonDetector
 from smg.mvdepthnet import MVDepthMonocularDepthEstimator
 from smg.openni import OpenNICamera
 from smg.pyorbslam2 import RGBDTracker
-from smg.skeletons import Skeleton3D, SkeletonUtil
+from smg.skeletons import SkeletonUtil
 from smg.utility import GeometryUtil
 
 
