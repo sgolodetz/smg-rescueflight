@@ -5,7 +5,7 @@ from argparse import ArgumentParser
 from typing import Dict, Optional
 
 from smg.imagesources import RGBFromRGBDImageSource, RGBImageSource
-from smg.mvdepthnet import MultiviewDepthEstimator
+from smg.mvdepthnet import MVDepthMultiviewDepthEstimator
 from smg.open3d import VisualisationUtil
 from smg.openni import OpenNICamera, OpenNIRGBDImageSource
 from smg.pyorbslam2 import MonocularTracker
@@ -46,7 +46,7 @@ def main() -> None:
             voc_file="C:/orbslam2/Vocabulary/ORBvoc.txt", wait_till_ready=False
         ) as tracker:
             # Construct the depth estimator.
-            depth_estimator: MultiviewDepthEstimator = MultiviewDepthEstimator(
+            depth_estimator: MVDepthMultiviewDepthEstimator = MVDepthMultiviewDepthEstimator(
                 "C:/Users/Stuart Golodetz/Downloads/MVDepthNet/opensource_model.pth.tar"
             ).set_intrinsics(GeometryUtil.intrinsics_to_matrix(image_source.get_intrinsics()))
 
