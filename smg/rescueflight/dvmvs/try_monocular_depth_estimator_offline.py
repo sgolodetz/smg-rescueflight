@@ -14,8 +14,6 @@ from smg.utility import GeometryUtil, ImageUtil
 
 
 def main() -> None:
-    Config.test_visualize = False
-
     depth_estimator: DVMVSMonocularDepthEstimator = DVMVSMonocularDepthEstimator()
 
     scene_folder: Path = Path(Config.test_online_scene_path)
@@ -39,15 +37,6 @@ def main() -> None:
         if estimated_depth_image is not None:
             cv2.imshow("Colour Image", colour_image)
             cv2.imshow("Estimated Depth Image", estimated_depth_image / 5)
-
-            postprocessed_depth_image: Optional[np.ndarray] = depth_estimator.postprocess_depth_image(
-                estimated_depth_image.astype(np.float32)
-            )
-            if postprocessed_depth_image is None:
-                cv2.waitKey(1)
-                continue
-
-            cv2.imshow("Postprocessed Depth Image", postprocessed_depth_image / 5)
             cv2.waitKey(1)
 
             # Fuse the frame into the TSDF.
@@ -57,7 +46,7 @@ def main() -> None:
             )
 
             ReconstructionUtil.integrate_frame(
-                ImageUtil.flip_channels(colour_image), postprocessed_depth_image, np.linalg.inv(poses[i]),
+                ImageUtil.flip_channels(colour_image), estimated_depth_image, np.linalg.inv(poses[i]),
                 o3d_intrinsics, tsdf
             )
 
