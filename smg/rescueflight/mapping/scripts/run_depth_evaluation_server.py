@@ -72,8 +72,8 @@ def main() -> None:
                 # If depth estimation was successful:
                 if depth_image is not None and estimated_depth_image is not None:
                     # Show the ground truth and estimated depth images, as well as an L1 error image between them.
-                    cv2.imshow("Depth Image", depth_image / 2)
-                    cv2.imshow("Estimated Depth Image", estimated_depth_image / 2)
+                    cv2.imshow("Depth Image", depth_image / 5)
+                    cv2.imshow("Estimated Depth Image", estimated_depth_image / 5)
 
                     error_image: np.ndarray = np.abs(estimated_depth_image - depth_image)
                     valid_depths_mask: np.ndarray = np.where(
