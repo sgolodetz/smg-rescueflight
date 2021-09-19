@@ -41,7 +41,7 @@ def main():
     # Make the initial TSDF.
     tsdf: o3d.pipelines.integration.ScalableTSDFVolume = o3d.pipelines.integration.ScalableTSDFVolume(
         voxel_length=0.005,
-        sdf_trunc=0.2,
+        sdf_trunc=0.02,
         color_type=o3d.pipelines.integration.TSDFVolumeColorType.RGB8
     )
 

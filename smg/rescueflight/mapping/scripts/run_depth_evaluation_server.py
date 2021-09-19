@@ -6,8 +6,9 @@ from typing import Optional, Tuple
 
 from smg.comms.base import RGBDFrameMessageUtil, RGBDFrameReceiver
 from smg.comms.mapping import MappingServer
-from smg.mvdepthnet import MonocularDepthEstimator
-from smg.utility import GeometryUtil, PooledQueue
+from smg.dvmvs import DVMVSMonocularDepthEstimator
+from smg.mvdepthnet import MVDepthMonocularDepthEstimator
+from smg.utility import GeometryUtil, MonocularDepthEstimator, PooledQueue
 
 
 def main() -> None:
@@ -15,6 +16,10 @@ def main() -> None:
 
     # Parse any command-line arguments.
     parser = ArgumentParser()
+    parser.add_argument(
+        "--depth_estimator_type", type=str, default="dvmvs", choices=("dvmvs", "mvdepth"),
+        help="the type of depth estimator to use"
+    )
     parser.add_argument(
         "--pool_empty_strategy", "-p", type=str, default="wait",
         choices=("discard", "grow", "replace_random", "wait"),
@@ -28,20 +33,26 @@ def main() -> None:
         pool_empty_strategy=PooledQueue.EPoolEmptyStrategy.make(args["pool_empty_strategy"])
     ) as server:
         client_id: int = 0
-        depth_estimator: MonocularDepthEstimator = MonocularDepthEstimator(
-            "C:/Users/Stuart Golodetz/Downloads/MVDepthNet/opensource_model.pth.tar"
-        )
         frame_count: int = 0
         receiver: RGBDFrameReceiver = RGBDFrameReceiver()
         sum_density: float = 0.0
         sum_max_error: float = 0.0
         sum_mean_error: float = 0.0
 
+        # Construct the depth estimator.
+        if args["depth_estimator_type"] == "dvmvs":
+            depth_estimator: MonocularDepthEstimator = DVMVSMonocularDepthEstimator()
+        else:
+            depth_estimator: MonocularDepthEstimator = MVDepthMonocularDepthEstimator(
+                "C:/Users/Stuart Golodetz/Downloads/MVDepthNet/opensource_model.pth.tar", debug=True
+            )
+
         # Start the server.
         server.start()
 
-        while True:
-            # If the server has a frame from the client that has not yet been processed:
+        # While the server may still have more frames from the client to yield:
+        while server.has_more_frames(client_id):
+            # If the server currently has a frame from the client that has not yet been processed:
             if server.has_frames_now(client_id):
                 # Get the camera intrinsics from the server, and pass them to the depth estimator.
                 intrinsics: Tuple[float, float, float, float] = server.get_intrinsics(client_id)[0]
@@ -61,8 +72,8 @@ def main() -> None:
                 # If depth estimation was successful:
                 if depth_image is not None and estimated_depth_image is not None:
                     # Show the ground truth and estimated depth images, as well as an L1 error image between them.
-                    cv2.imshow("Depth Image", depth_image / 2)
-                    cv2.imshow("Estimated Depth Image", estimated_depth_image / 2)
+                    cv2.imshow("Depth Image", depth_image / 5)
+                    cv2.imshow("Estimated Depth Image", estimated_depth_image / 5)
 
                     error_image: np.ndarray = np.abs(estimated_depth_image - depth_image)
                     valid_depths_mask: np.ndarray = np.where(

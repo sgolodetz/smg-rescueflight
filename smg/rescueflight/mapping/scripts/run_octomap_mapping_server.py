@@ -5,9 +5,10 @@ from typing import Optional
 
 from smg.comms.base import RGBDFrameMessageUtil
 from smg.comms.mapping import MappingServer
-from smg.mapping.mvdepth import MVDepthOctomapMappingSystem
-from smg.mvdepthnet import MonocularDepthEstimator
-from smg.utility import PooledQueue
+from smg.dvmvs import DVMVSMonocularDepthEstimator
+from smg.mapping.systems import OctomapMappingSystem
+from smg.mvdepthnet import MVDepthMonocularDepthEstimator
+from smg.utility import MonocularDepthEstimator, PooledQueue
 
 
 def main() -> None:
@@ -18,6 +19,10 @@ def main() -> None:
     parser.add_argument(
         "--camera_mode", "-m", type=str, choices=("follow", "free"), default="free",
         help="the camera mode"
+    )
+    parser.add_argument(
+        "--depth_estimator_type", type=str, default="dvmvs", choices=("dvmvs", "mvdepth"),
+        help="the type of depth estimator to use"
     )
     parser.add_argument(
         "--detect_objects", "-d", action="store_true",
@@ -58,12 +63,16 @@ def main() -> None:
     )
     args: dict = vars(parser.parse_args())
 
+    depth_estimator_type: str = args.get("depth_estimator_type")
     output_dir: Optional[str] = args["output_dir"]
 
     # Construct the depth estimator.
-    depth_estimator: MonocularDepthEstimator = MonocularDepthEstimator(
-        "C:/Users/Stuart Golodetz/Downloads/MVDepthNet/opensource_model.pth.tar", debug=False
-    )
+    if depth_estimator_type == "dvmvs":
+        depth_estimator: MonocularDepthEstimator = DVMVSMonocularDepthEstimator()
+    else:
+        depth_estimator: MonocularDepthEstimator = MVDepthMonocularDepthEstimator(
+            "C:/Users/Stuart Golodetz/Downloads/MVDepthNet/opensource_model.pth.tar"
+        )
 
     # Construct the mapping server.
     with MappingServer(
@@ -71,7 +80,7 @@ def main() -> None:
         pool_empty_strategy=PooledQueue.EPoolEmptyStrategy.make(args["pool_empty_strategy"])
     ) as server:
         # Construct the mapping system.
-        with MVDepthOctomapMappingSystem(
+        with OctomapMappingSystem(
             server, depth_estimator, camera_mode=args["camera_mode"], detect_objects=args["detect_objects"],
             detect_skeletons=args["detect_skeletons"], output_dir=output_dir, save_frames=args["save_frames"],
             save_reconstruction=args["save_reconstruction"], save_skeletons=args["save_skeletons"],

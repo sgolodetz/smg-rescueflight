@@ -8,11 +8,12 @@ from typing import List, Optional, Tuple
 
 from smg.comms.base import RGBDFrameMessageUtil
 from smg.comms.mapping import MappingServer
-from smg.mapping.mvdepth import MVDepthOpen3DMappingSystem
-from smg.mvdepthnet import MonocularDepthEstimator
+from smg.dvmvs import DVMVSMonocularDepthEstimator
+from smg.mapping.systems import Open3DMappingSystem
+from smg.mvdepthnet import MVDepthMonocularDepthEstimator
 from smg.open3d import ReconstructionUtil, VisualisationUtil
 from smg.relocalisation import ArUcoPnPRelocaliser
-from smg.utility import PooledQueue, PoseUtil
+from smg.utility import MonocularDepthEstimator, PooledQueue, PoseUtil
 
 
 def main() -> None:
@@ -23,6 +24,10 @@ def main() -> None:
     parser.add_argument(
         "--debug", action="store_true",
         help="whether to enable debugging"
+    )
+    parser.add_argument(
+        "--depth_estimator_type", type=str, default="dvmvs", choices=("dvmvs", "mvdepth"),
+        help="the type of depth estimator to use"
     )
     parser.add_argument(
         "--detect_objects", "-d", action="store_true",
@@ -51,7 +56,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--show_keyframes", action="store_true",
-        help="whether to visualise the MVDepth keyframes"
+        help="whether to visualise the keyframes"
     )
     parser.add_argument(
         "--use_aruco_relocaliser", action="store_true",
@@ -63,6 +68,7 @@ def main() -> None:
     )
     args: dict = vars(parser.parse_args())
 
+    depth_estimator_type: str = args.get("depth_estimator_type")
     output_dir: Optional[str] = args.get("output_dir")
     use_aruco_relocaliser: bool = args.get("use_aruco_relocaliser")
 
@@ -78,9 +84,12 @@ def main() -> None:
         })
 
     # Construct the depth estimator.
-    depth_estimator: MonocularDepthEstimator = MonocularDepthEstimator(
-        "C:/Users/Stuart Golodetz/Downloads/MVDepthNet/opensource_model.pth.tar", debug=args["debug"]
-    )
+    if depth_estimator_type == "dvmvs":
+        depth_estimator: MonocularDepthEstimator = DVMVSMonocularDepthEstimator()
+    else:
+        depth_estimator: MonocularDepthEstimator = MVDepthMonocularDepthEstimator(
+            "C:/Users/Stuart Golodetz/Downloads/MVDepthNet/opensource_model.pth.tar", debug=args["debug"]
+        )
 
     # Construct the mapping server.
     with MappingServer(
@@ -88,7 +97,7 @@ def main() -> None:
         pool_empty_strategy=PooledQueue.EPoolEmptyStrategy.make(args["pool_empty_strategy"])
     ) as server:
         # Construct the mapping system.
-        mapping_system: MVDepthOpen3DMappingSystem = MVDepthOpen3DMappingSystem(
+        mapping_system: Open3DMappingSystem = Open3DMappingSystem(
             server, depth_estimator, aruco_relocaliser=aruco_relocaliser,
             debug=args["debug"], detect_objects=args["detect_objects"], output_dir=output_dir,
             save_frames=args["save_frames"], use_received_depth=args["use_received_depth"]
