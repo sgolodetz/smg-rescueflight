@@ -32,6 +32,10 @@ def main() -> None:
         help="whether to accept connections from mapping clients"
     )
     parser.add_argument(
+        "--use_partial_frames", action="store_true",
+        help="TODO"
+    )
+    parser.add_argument(
         "--use_vicon_poses", action="store_true",
         help="whether to use the joint poses produced by the Vicon system"
     )
@@ -62,9 +66,9 @@ def main() -> None:
 
         # Construct the visualiser.
         with ViconVisualiser(
-            debug=False, mapping_server=mapping_server, pause=args["pause"],
-            persistence_folder=persistence_folder, persistence_mode=persistence_mode,
-            rendering_intrinsics=rendering_intrinsics, use_vicon_poses=args["use_vicon_poses"]
+            debug=False, mapping_server=mapping_server, pause=args["pause"], persistence_folder=persistence_folder,
+            persistence_mode=persistence_mode, rendering_intrinsics=rendering_intrinsics,
+            use_partial_frames=args["use_partial_frames"], use_vicon_poses=args["use_vicon_poses"]
         ) as visualiser:
             # Run the visualiser.
             visualiser.run()

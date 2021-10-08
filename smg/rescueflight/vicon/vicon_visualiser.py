@@ -34,8 +34,8 @@ class ViconVisualiser:
 
     def __init__(self, *, debug: bool = False, mapping_server: Optional[MappingServer],
                  pause: bool = False, persistence_folder: Optional[str], persistence_mode: str,
-                 rendering_intrinsics: Tuple[float, float, float, float], use_vicon_poses: bool,
-                 window_size: Tuple[int, int] = (640, 480)):
+                 rendering_intrinsics: Tuple[float, float, float, float], use_partial_frames: bool,
+                 use_vicon_poses: bool, window_size: Tuple[int, int] = (640, 480)):
         """
         Construct a Vicon visualiser.
 
@@ -45,6 +45,7 @@ class ViconVisualiser:
         :param persistence_folder:      The folder (if any) that should be used for Vicon persistence.
         :param persistence_mode:        The Vicon persistence mode.
         :param rendering_intrinsics:    The camera intrinsics to use when rendering the scene.
+        :param use_partial_frames:      TODO
         :param use_vicon_poses:         Whether to use the joint poses produced by the Vicon system.
         :param window_size:             The application window size, as a (width, height) tuple.
         """
@@ -75,6 +76,7 @@ class ViconVisualiser:
         self.__subject_mesh_loaders: Dict[str, Callable[[], OpenGLTriMesh]] = {
             "Tello": lambda: MeshUtil.convert_trimesh_to_opengl(MeshUtil.load_tello_mesh())
         }
+        self.__use_partial_frames: bool = use_partial_frames
         self.__use_vicon_poses: bool = use_vicon_poses
         self.__vicon: Optional[ViconInterface] = None
         self.__vicon_frame_numbers: List[int] = []
@@ -112,7 +114,9 @@ class ViconVisualiser:
 
         # Construct the Vicon interface.
         if self.__persistence_mode == "input":
-            self.__vicon = OfflineViconInterface(folder=self.__persistence_folder)
+            self.__vicon = OfflineViconInterface(
+                folder=self.__persistence_folder, use_partial_frames=self.__use_partial_frames
+            )
         else:
             self.__vicon = LiveViconInterface()
 
