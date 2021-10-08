@@ -24,10 +24,10 @@ def try_load_frame(frame_idx: int, sequence_dir: str, trajectory: List[Tuple[flo
 
     :param frame_idx:       The frame index.
     :param sequence_dir:    The sequence directory.
-    :param trajectory:      The camera trajectory.
+    :param trajectory:      The camera trajectory (loaded in separately in advance).
     :return:                The RGB-D frame, if possible, or None otherwise.
     """
-    # TODO
+    # If the frame index is out of range, early out.
     if frame_idx >= len(trajectory):
         return None
 
@@ -55,13 +55,14 @@ def main() -> None:
         help="the directory from which to load the sequence"
     )
     parser.add_argument(
-        "--use_tracker", action="store_true", help="whether to use a tracker instead of the ground-truth trajectory"
+        "--use_tracker", action="store_true", help="whether to use the tracker instead of the ground-truth trajectory"
     )
     args: dict = vars(parser.parse_args())
 
     sequence_dir: str = args["sequence_dir"]
     use_tracker: bool = args["use_tracker"]
 
+    # Construct the camera tracker if needed.
     tracker: Optional[RGBDTracker] = None
     if use_tracker:
         tracker = RGBDTracker(
@@ -90,6 +91,7 @@ def main() -> None:
                 os.path.join(sequence_dir, "trajectory.txt")
             )
 
+            # Initialise some variables.
             colour_image: Optional[np.ndarray] = None
             frame_idx: int = 0
             pause: bool = True
@@ -101,18 +103,18 @@ def main() -> None:
 
                 # If the frame was successfully loaded:
                 if frame is not None:
-                    # TODO
+                    # If we're using the camera tracker:
                     if use_tracker:
-                        # TODO
+                        # Try to estimate the camera pose.
                         camera_from_world: Optional[np.ndarray] = tracker.estimate_pose(
                             frame["colour_image"], frame["depth_image"]
                         )
 
-                        # TODO
+                        # If that succeeds, replace the ground-truth pose in the frame with the tracked pose.
                         if camera_from_world is not None:
                             frame["world_from_camera"] = np.linalg.inv(camera_from_world)
 
-                    # Send it across to the server.
+                    # Send the frame across to the server.
                     client.send_frame_message(lambda msg: RGBDFrameMessageUtil.fill_frame_message(
                         frame_idx,
                         frame["colour_image"],
