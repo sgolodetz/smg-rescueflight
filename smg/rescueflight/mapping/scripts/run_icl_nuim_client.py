@@ -141,7 +141,8 @@ def main() -> None:
                     elif c == ord('n'):
                         pause = True
                     elif c == ord('q'):
-                        break
+                        # noinspection PyProtectedMember
+                        os._exit(0)
     except RuntimeError as e:
         print(e)
 
