@@ -87,6 +87,7 @@ def main() -> None:
             ))
 
             # Load the camera trajectory.
+            # FIXME: This should work, but the ground-truth trajectory doesn't seem to be quite right yet.
             trajectory: List[Tuple[float, np.ndarray]] = TrajectoryUtil.load_tum_trajectory(
                 os.path.join(sequence_dir, "trajectory.txt")
             )
