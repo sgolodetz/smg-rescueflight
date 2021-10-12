@@ -112,9 +112,10 @@ def main() -> None:
     ) as server:
         # Construct the mapping system.
         mapping_system: Open3DMappingSystem = Open3DMappingSystem(
-            server, depth_estimator, aruco_relocaliser=aruco_relocaliser, batch_mode=batch_mode, debug=args["debug"],
-            detect_objects=args["detect_objects"], output_dir=output_dir, postprocess_depth=postprocess_depth,
-            save_frames=args["save_frames"], use_received_depth=args["use_received_depth"]
+            server, depth_estimator, aruco_relocaliser=aruco_relocaliser, batch_mode=batch_mode,
+            debug=args["debug"], detect_objects=args["detect_objects"], max_received_depth=args["max_depth"],
+            output_dir=output_dir, postprocess_depth=postprocess_depth, save_frames=args["save_frames"],
+            use_received_depth=args["use_received_depth"]
         )
 
         # Start the server.
