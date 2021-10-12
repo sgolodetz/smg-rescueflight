@@ -33,6 +33,10 @@ def main() -> None:
         help="whether to detect 3D skeletons"
     )
     parser.add_argument(
+        "--no_depth_postprocessing", action="store_true",
+        help="whether to suppress depth post-processing"
+    )
+    parser.add_argument(
         "--output_dir", "-o", type=str,
         help="an optional directory into which to save output files"
     )
@@ -64,7 +68,8 @@ def main() -> None:
     args: dict = vars(parser.parse_args())
 
     depth_estimator_type: str = args.get("depth_estimator_type")
-    output_dir: Optional[str] = args["output_dir"]
+    output_dir: Optional[str] = args.get("output_dir")
+    postprocess_depth: bool = not args.get("no_depth_postprocessing")
 
     # Construct the depth estimator.
     if depth_estimator_type == "dvmvs":
@@ -82,9 +87,10 @@ def main() -> None:
         # Construct the mapping system.
         with OctomapMappingSystem(
             server, depth_estimator, camera_mode=args["camera_mode"], detect_objects=args["detect_objects"],
-            detect_skeletons=args["detect_skeletons"], output_dir=output_dir, save_frames=args["save_frames"],
-            save_reconstruction=args["save_reconstruction"], save_skeletons=args["save_skeletons"],
-            use_arm_selection=args["use_arm_selection"], use_received_depth=args["use_received_depth"]
+            detect_skeletons=args["detect_skeletons"], output_dir=output_dir, postprocess_depth=postprocess_depth,
+            save_frames=args["save_frames"], save_reconstruction=args["save_reconstruction"],
+            save_skeletons=args["save_skeletons"], use_arm_selection=args["use_arm_selection"],
+            use_received_depth=args["use_received_depth"]
         ) as mapping_system:
             # Start the server.
             server.start()
