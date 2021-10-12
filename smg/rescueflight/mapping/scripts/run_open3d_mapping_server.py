@@ -38,6 +38,10 @@ def main() -> None:
         help="whether to detect 3D objects"
     )
     parser.add_argument(
+        "--max_depth", type=float, default=3.0,
+        help="the maximum depth values (in m) to keep during post-processing"
+    )
+    parser.add_argument(
         "--no_depth_postprocessing", action="store_true",
         help="whether to suppress depth post-processing"
     )
@@ -95,7 +99,7 @@ def main() -> None:
 
     # Construct the depth estimator.
     if depth_estimator_type == "dvmvs":
-        depth_estimator: MonocularDepthEstimator = DVMVSMonocularDepthEstimator()
+        depth_estimator: MonocularDepthEstimator = DVMVSMonocularDepthEstimator(max_depth=args["max_depth"])
     else:
         depth_estimator: MonocularDepthEstimator = MVDepthMonocularDepthEstimator(
             "C:/Users/Stuart Golodetz/Downloads/MVDepthNet/opensource_model.pth.tar", debug=args["debug"]

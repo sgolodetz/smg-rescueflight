@@ -23,7 +23,7 @@ then
   echo "Written reconstruction to: $sequence_dir/recon/mesh.ply"
 elif [ "$2" = "ours" ]
 then
-  python /c/smglib/smg-rescueflight/smg/rescueflight/mapping/scripts/run_open3d_mapping_server.py --batch --debug -p wait --output_dir="$sequence_dir/recon" --save_reconstruction "${@:3}" > /dev/null &  # 2>&1 &
+  python /c/smglib/smg-rescueflight/smg/rescueflight/mapping/scripts/run_open3d_mapping_server.py --batch --debug -p wait --output_dir="$sequence_dir/recon" --save_reconstruction "${@:3}" > /dev/null 2>&1 &
   echo "Waiting for server to initialise...."
   sleep 10
   echo "Reconstructing $1..."
