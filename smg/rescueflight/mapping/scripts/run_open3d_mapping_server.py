@@ -22,6 +22,10 @@ def main() -> None:
     # Parse any command-line arguments.
     parser = ArgumentParser()
     parser.add_argument(
+        "--batch", action="store_true",
+        help="whether to run in batch mode"
+    )
+    parser.add_argument(
         "--debug", action="store_true",
         help="whether to enable debugging"
     )
@@ -68,6 +72,7 @@ def main() -> None:
     )
     args: dict = vars(parser.parse_args())
 
+    batch_mode: bool = args.get("batch")
     depth_estimator_type: str = args.get("depth_estimator_type")
     output_dir: Optional[str] = args.get("output_dir")
     use_aruco_relocaliser: bool = args.get("use_aruco_relocaliser")
@@ -98,7 +103,7 @@ def main() -> None:
     ) as server:
         # Construct the mapping system.
         mapping_system: Open3DMappingSystem = Open3DMappingSystem(
-            server, depth_estimator, aruco_relocaliser=aruco_relocaliser,
+            server, depth_estimator, aruco_relocaliser=aruco_relocaliser, batch_mode=batch_mode,
             debug=args["debug"], detect_objects=args["detect_objects"], output_dir=output_dir,
             save_frames=args["save_frames"], use_received_depth=args["use_received_depth"]
         )
@@ -112,23 +117,26 @@ def main() -> None:
         # Destroy any remaining OpenCV windows.
         cv2.destroyAllWindows()
 
-        # Visualise the reconstructed map.
-        grid: o3d.geometry.LineSet = VisualisationUtil.make_voxel_grid([-3, -2, -3], [3, 0, 3], [1, 1, 1])
+        # Make a mesh from the TSDF.
         mesh: o3d.geometry.TriangleMesh = ReconstructionUtil.make_mesh(tsdf, print_progress=True)
-        to_visualise: List[o3d.geometry.Geometry] = [grid, mesh]
 
-        for obj in objects:
-            box: o3d.geometry.AxisAlignedBoundingBox = o3d.geometry.AxisAlignedBoundingBox(*obj.box_3d)
-            box.color = (1.0, 0.0, 1.0)
-            to_visualise.append(box)
+        # If we're not in batch mode, visualise the reconstructed map.
+        if not batch_mode:
+            grid: o3d.geometry.LineSet = VisualisationUtil.make_voxel_grid([-3, -2, -3], [3, 0, 3], [1, 1, 1])
+            to_visualise: List[o3d.geometry.Geometry] = [grid, mesh]
 
-        if args["show_keyframes"]:
-            keyframes: List[Tuple[np.ndarray, np.ndarray]] = depth_estimator.get_keyframes()
-            to_visualise += [
-                VisualisationUtil.make_axes(pose, size=0.01) for _, pose in keyframes
-            ]
+            for obj in objects:
+                box: o3d.geometry.AxisAlignedBoundingBox = o3d.geometry.AxisAlignedBoundingBox(*obj.box_3d)
+                box.color = (1.0, 0.0, 1.0)
+                to_visualise.append(box)
 
-        VisualisationUtil.visualise_geometries(to_visualise)
+            if args["show_keyframes"]:
+                keyframes: List[Tuple[np.ndarray, np.ndarray]] = depth_estimator.get_keyframes()
+                to_visualise += [
+                    VisualisationUtil.make_axes(pose, size=0.01) for _, pose in keyframes
+                ]
+
+            VisualisationUtil.visualise_geometries(to_visualise)
 
         # If an output directory has been specified and we're saving the reconstruction, save it now.
         if output_dir is not None and args["save_reconstruction"]:
@@ -144,8 +152,8 @@ def main() -> None:
             if aruco_from_world is not None:
                 PoseUtil.save_pose(os.path.join(output_dir, "aruco_from_world.txt"), aruco_from_world)
 
-        # If requested, make and visualise a clean version of the mesh.
-        if args["show_clean_mesh"]:
+        # If requested and we're not in batch mode, make and visualise a clean version of the mesh.
+        if args["show_clean_mesh"] and not batch_mode:
             # See: http://www.open3d.org/docs/release/tutorial/geometry/mesh.html.
             triangle_clusters, cluster_n_triangles, cluster_area = mesh.cluster_connected_triangles()
             triangle_clusters: np.ndarray = np.asarray(triangle_clusters)
