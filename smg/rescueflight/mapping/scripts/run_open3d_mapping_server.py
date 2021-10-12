@@ -38,6 +38,10 @@ def main() -> None:
         help="whether to detect 3D objects"
     )
     parser.add_argument(
+        "--no_depth_postprocessing", action="store_true",
+        help="whether to suppress depth post-processing"
+    )
+    parser.add_argument(
         "--output_dir", "-o", type=str,
         help="an optional directory into which to save the sequence"
     )
@@ -75,6 +79,7 @@ def main() -> None:
     batch_mode: bool = args.get("batch")
     depth_estimator_type: str = args.get("depth_estimator_type")
     output_dir: Optional[str] = args.get("output_dir")
+    postprocess_depth: bool = not args.get("no_depth_postprocessing")
     use_aruco_relocaliser: bool = args.get("use_aruco_relocaliser")
 
     # If requested, set up an ArUco+PnP relocaliser that can be used to align the map with a marker.
@@ -103,8 +108,8 @@ def main() -> None:
     ) as server:
         # Construct the mapping system.
         mapping_system: Open3DMappingSystem = Open3DMappingSystem(
-            server, depth_estimator, aruco_relocaliser=aruco_relocaliser, batch_mode=batch_mode,
-            debug=args["debug"], detect_objects=args["detect_objects"], output_dir=output_dir,
+            server, depth_estimator, aruco_relocaliser=aruco_relocaliser, batch_mode=batch_mode, debug=args["debug"],
+            detect_objects=args["detect_objects"], output_dir=output_dir, postprocess_depth=postprocess_depth,
             save_frames=args["save_frames"], use_received_depth=args["use_received_depth"]
         )
 
