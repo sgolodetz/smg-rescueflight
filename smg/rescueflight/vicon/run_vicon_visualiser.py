@@ -33,7 +33,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--use_partial_frames", action="store_true",
-        help="TODO"
+        help="whether to use the Vicon frames for which no corresponding image is available"
     )
     parser.add_argument(
         "--use_vicon_poses", action="store_true",

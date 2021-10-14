@@ -45,7 +45,7 @@ class ViconVisualiser:
         :param persistence_folder:      The folder (if any) that should be used for Vicon persistence.
         :param persistence_mode:        The Vicon persistence mode.
         :param rendering_intrinsics:    The camera intrinsics to use when rendering the scene.
-        :param use_partial_frames:      TODO
+        :param use_partial_frames:      Whether to use the Vicon frames for which no corresponding image is available.
         :param use_vicon_poses:         Whether to use the joint poses produced by the Vicon system.
         :param window_size:             The application window size, as a (width, height) tuple.
         """
