@@ -53,14 +53,20 @@ def main() -> None:
     # Parse any command-line arguments.
     parser = ArgumentParser()
     parser.add_argument(
+        "--batch", action="store_true",
+        help="whether to run in batch mode"
+    )
+    parser.add_argument(
         "--sequence_dir", "-s", type=str, required=True,
         help="the directory from which to load the sequence"
     )
     parser.add_argument(
-        "--use_tracker", action="store_true", help="whether to use the tracker instead of the ground-truth trajectory"
+        "--use_tracker", action="store_true",
+        help="whether to use the tracker instead of the ground-truth trajectory"
     )
     args: dict = vars(parser.parse_args())
 
+    batch_mode: bool = args["batch"]
     sequence_dir: str = args["sequence_dir"]
     use_tracker: bool = args["use_tracker"]
 
@@ -94,7 +100,7 @@ def main() -> None:
             # Initialise some variables.
             colour_image: Optional[np.ndarray] = None
             frame_idx: int = 0
-            pause: bool = True
+            pause: bool = not batch_mode
 
             # Until the user wants to quit:
             while True:
@@ -128,6 +134,11 @@ def main() -> None:
 
                     # Update the colour image so that it can be shown.
                     colour_image = frame["colour_image"]
+
+                # Otherwise, if we're in batch mode, exit.
+                elif batch_mode:
+                    # noinspection PyProtectedMember
+                    os._exit(0)
 
                 # Show the most recent colour image (if any) so that the user can see what's going on.
                 if colour_image is not None:
