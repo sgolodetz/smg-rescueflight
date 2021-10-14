@@ -80,7 +80,7 @@ def main() -> None:
         depth_estimator: MonocularDepthEstimator = DVMVSMonocularDepthEstimator(max_depth=args["max_depth"])
     else:
         depth_estimator: MonocularDepthEstimator = MVDepthMonocularDepthEstimator(
-            "C:/Users/Stuart Golodetz/Downloads/MVDepthNet/opensource_model.pth.tar"
+            "C:/Users/Stuart Golodetz/Downloads/MVDepthNet/opensource_model.pth.tar", max_depth=args["max_depth"]
         )
 
     # Construct the mapping server.
