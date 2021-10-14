@@ -183,6 +183,9 @@ def main() -> None:
                     # Get a timed image from the drone.
                     image, image_timestamp = drone.get_timed_image()
 
+                    # Get the height of the drone.
+                    height: Optional[float] = drone.get_height()
+
                     # Try to estimate a transformation from initial camera space to current camera space
                     # using the tracker.
                     tracker_c_t_i: Optional[np.ndarray] = tracker.estimate_pose(image) if tracker.is_ready() else None
@@ -190,7 +193,7 @@ def main() -> None:
                     # Run an iteration of the state machine.
                     state_machine.iterate(
                         image, image_timestamp, drone.get_intrinsics(), tracker_c_t_i,
-                        drone.get_height(), takeoff_requested, landing_requested
+                        height, takeoff_requested, landing_requested
                     )
 
                     # Update the drone's trajectory.
