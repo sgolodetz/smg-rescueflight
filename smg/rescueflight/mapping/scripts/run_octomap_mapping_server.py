@@ -69,6 +69,10 @@ def main() -> None:
         "--use_received_depth", action="store_true",
         help="whether to use depth images received from the client instead of estimating depth"
     )
+    parser.add_argument(
+        "--use_tsdf", action="store_true",
+        help="whether to additionally reconstruct an Open3D TSDF for visualisation purposes"
+    )
     args: dict = vars(parser.parse_args())
 
     depth_estimator_type: str = args.get("depth_estimator_type")
@@ -94,7 +98,8 @@ def main() -> None:
             detect_skeletons=args["detect_skeletons"], max_received_depth=args["max_depth"],
             output_dir=output_dir, postprocess_depth=postprocess_depth, save_frames=args["save_frames"],
             save_reconstruction=args["save_reconstruction"], save_skeletons=args["save_skeletons"],
-            use_arm_selection=args["use_arm_selection"], use_received_depth=args["use_received_depth"]
+            use_arm_selection=args["use_arm_selection"], use_received_depth=args["use_received_depth"],
+            use_tsdf=args["use_tsdf"]
         ) as mapping_system:
             # Start the server.
             server.start()
