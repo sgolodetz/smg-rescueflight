@@ -115,6 +115,8 @@ def main() -> None:
     }
 
     drone_type: str = args.get("drone_type")
+    should_track: bool = False
+    takeoff_start: Optional[float] = None
 
     with DroneFactory.make_drone(drone_type, **kwargs[drone_type]) as drone:
         # Create the window.
@@ -163,6 +165,7 @@ def main() -> None:
                         if event.type == pygame.JOYBUTTONDOWN:
                             if event.button == 0:
                                 takeoff_requested = True
+                                takeoff_start = timer()
                         elif event.type == pygame.JOYBUTTONUP:
                             if event.button == 0:
                                 landing_requested = True
@@ -186,9 +189,17 @@ def main() -> None:
                     # Get the height of the drone.
                     height: Optional[float] = drone.get_height()
 
+                    # TODO: Comment here.
+                    if takeoff_start is not None:
+                        takeoff_time: float = timer() - takeoff_start
+                        if takeoff_time >= 5.0:
+                            should_track = True
+
+                    # TODO: Update comment.
                     # Try to estimate a transformation from initial camera space to current camera space
                     # using the tracker.
-                    tracker_c_t_i: Optional[np.ndarray] = tracker.estimate_pose(image) if tracker.is_ready() else None
+                    tracker_c_t_i: Optional[np.ndarray] = tracker.estimate_pose(image) \
+                        if tracker.is_ready() and should_track else None
 
                     # Run an iteration of the state machine.
                     state_machine.iterate(
