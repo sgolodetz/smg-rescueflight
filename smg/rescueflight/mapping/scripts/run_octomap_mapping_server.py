@@ -50,6 +50,10 @@ def main() -> None:
         help="the strategy to use when a frame message is received whilst a client handler's frame pool is empty"
     )
     parser.add_argument(
+        "--render_bodies", action="store_true",
+        help="whether to render an SMPL body in place of each detected skeleton"
+    )
+    parser.add_argument(
         "--save_frames", action="store_true",
         help="whether to save the sequence of frames used to reconstruct the Octomap"
     )
@@ -96,10 +100,10 @@ def main() -> None:
         with OctomapMappingSystem(
             server, depth_estimator, camera_mode=args["camera_mode"], detect_objects=args["detect_objects"],
             detect_skeletons=args["detect_skeletons"], max_received_depth=args["max_depth"],
-            output_dir=output_dir, postprocess_depth=postprocess_depth, save_frames=args["save_frames"],
-            save_reconstruction=args["save_reconstruction"], save_skeletons=args["save_skeletons"],
-            use_arm_selection=args["use_arm_selection"], use_received_depth=args["use_received_depth"],
-            use_tsdf=args["use_tsdf"]
+            output_dir=output_dir, postprocess_depth=postprocess_depth, render_bodies=args["render_bodies"],
+            save_frames=args["save_frames"], save_reconstruction=args["save_reconstruction"],
+            save_skeletons=args["save_skeletons"], use_arm_selection=args["use_arm_selection"],
+            use_received_depth=args["use_received_depth"], use_tsdf=args["use_tsdf"]
         ) as mapping_system:
             # Start the server.
             server.start()
