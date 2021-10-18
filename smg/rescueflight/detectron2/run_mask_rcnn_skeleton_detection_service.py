@@ -24,8 +24,8 @@ def make_frame_processor(segmenter: InstanceSegmenter, *, debug: bool = True) \
     :return:            The frame processor.
     """
     # noinspection PyUnusedLocal
-    def generate_people_mask(colour_image: np.ndarray, depth_image: np.ndarray,
-                             world_from_camera: np.ndarray) -> Tuple[List[Skeleton3D], Optional[np.ndarray]]:
+    def generate_people_mask(colour_image: np.ndarray, depth_image: np.ndarray, world_from_camera: np.ndarray) \
+            -> Tuple[List[Skeleton3D], Optional[np.ndarray]]:
         """
         Generate a people mask for an RGB image using Mask R-CNN.
 
@@ -40,12 +40,15 @@ def make_frame_processor(segmenter: InstanceSegmenter, *, debug: bool = True) \
         # Segment the image.
         instances: List[InstanceSegmenter.Instance] = segmenter.segment(colour_image)
 
+        # Make the people mask by unioning the masks of the instances labelled "person".
         people_mask: np.ndarray = np.zeros(colour_image.shape[:2], dtype=np.uint8)
         for i in range(len(instances)):
             instance: InstanceSegmenter.Instance = instances[i]
             if instance.label == "person":
                 people_mask |= instance.mask
 
+        # Dilate the people mask to mitigate the "halo effect", in which a halo around each person is fused into
+        # the scene representation. A rather large kernel size is needed for this in practice.
         kernel_size: int = 21
         kernel: np.ndarray = np.ones((kernel_size, kernel_size), np.uint8)
         people_mask = cv2.dilate(people_mask, kernel)
