@@ -14,7 +14,7 @@ from smg.detectron2 import InstanceSegmenter
 from smg.skeletons import Skeleton3D
 
 
-def make_frame_processor(segmenter: InstanceSegmenter, *, debug: bool = True) \
+def make_frame_processor(segmenter: InstanceSegmenter, *, debug: bool = False) \
         -> Callable[[np.ndarray, np.ndarray, np.ndarray], Tuple[List[Skeleton3D], Optional[np.ndarray]]]:
     """
     Make a frame processor for a skeleton detection service that uses Mask R-CNN to generate people masks.
@@ -78,7 +78,7 @@ def main() -> None:
     window_size: Tuple[int, int] = (1, 1)
     pygame.display.set_mode(window_size, pygame.DOUBLEBUF | pygame.HIDDEN | pygame.OPENGL)
 
-    # Construct the instance segmenter.
+    # Construct the Mask R-CNN instance segmenter.
     segmenter: InstanceSegmenter = InstanceSegmenter.make_mask_rcnn()
 
     # Run the skeleton detection service.
