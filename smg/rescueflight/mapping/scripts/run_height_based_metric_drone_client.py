@@ -90,6 +90,10 @@ def main() -> None:
         "--save_frames", action="store_true",
         help="whether to save the sequence of frames that have been obtained from the drone"
     )
+    parser.add_argument(
+        "--save_scale", action="store_true",
+        help="whether to save the scale estimation figure"
+    )
     args: dict = vars(parser.parse_args())
 
     # Initialise pygame and its joystick module.
@@ -146,7 +150,8 @@ def main() -> None:
                 state_machine: HeightBasedMetricDroneFSM = HeightBasedMetricDroneFSM(
                     drone, joystick, mapping_client,
                     output_dir=args.get("output_dir"),
-                    save_frames=args.get("save_frames")
+                    save_frames=args.get("save_frames"),
+                    save_scale=args.get("save_frames") or args.get("save_scale")
                 )
 
                 # Initialise some variables.
