@@ -187,7 +187,7 @@ def main() -> None:
                     image, image_timestamp = drone.get_timed_image()
 
                     # Get the height of the drone.
-                    height: Optional[float] = drone.get_height()
+                    drone_height: Optional[float] = drone.get_height()
 
                     # TODO: Comment here.
                     if takeoff_start is not None:
@@ -204,7 +204,7 @@ def main() -> None:
                     # Run an iteration of the state machine.
                     state_machine.iterate(
                         image, image_timestamp, drone.get_intrinsics(), tracker_c_t_i,
-                        height, takeoff_requested, landing_requested
+                        drone_height, takeoff_requested, landing_requested
                     )
 
                     # Update the drone's trajectory.
@@ -217,7 +217,7 @@ def main() -> None:
                         "Height-Based Metric Drone Client: "
                         f"State = {int(state_machine.get_state())}; "
                         f"Battery Level = {drone.get_battery_level()}%; "
-                        f"Height = {drone.get_height()}m"
+                        f"Height = {drone_height}m"
                     )
 
                     # Render the contents of the window.
