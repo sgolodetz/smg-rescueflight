@@ -4,11 +4,11 @@ import os
 import pickle
 
 from argparse import ArgumentParser
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from smg.comms.base import RGBDFrameMessageUtil
 from smg.comms.mapping import MappingClient
-from smg.utility import CameraParameters, ImageUtil, PooledQueue
+from smg.utility import CameraParameters, GeometryUtil, ImageUtil, PooledQueue
 
 
 def read_depthmap(name, cam_near_clip, cam_far_clip):
@@ -63,7 +63,16 @@ def try_load_frame(frame_idx: int, sequence_dir: str, info: List[Dict[str, Any]]
 
     world_from_camera: np.ndarray = np.linalg.inv(np.transpose(info_npz["world2cam_trans"][frame_idx]))
     initial_from_world: np.ndarray = np.transpose(info_npz["world2cam_trans"][0])
-    initial_from_camera: np.ndarray = initial_from_world @ world_from_camera
+    # initial_from_camera: np.ndarray = initial_from_world @ world_from_camera
+    initial_from_camera: np.ndarray = world_from_camera.copy()
+    initial_from_camera[0:3, 3] -= np.linalg.inv(initial_from_world)[0:3, 3]
+
+    initial_from_camera = np.array([
+        [1, 0, 0, 0],
+        [0, 0, -1, 0],
+        [0, 1, 0, 0],
+        [0, 0, 0, 1]
+    ]) @ initial_from_camera
 
     return {
         "colour_image": colour_image,
@@ -96,8 +105,13 @@ def main() -> None:
             # Hard-code the camera parameters (for now).
             # FIXME: See https://github.com/ZheC/GTA-IM-Dataset for details on how to obtain the parameters properly.
             calib: CameraParameters = CameraParameters()
-            calib.set("colour", 1920, 1080, 1158.03373708, 1158.03373708, 960.0, 540.0)
-            calib.set("depth", 1920, 1080, 1158.03373708, 1158.03373708, 960.0, 540.0)
+            intrinsics: Tuple[float, float, float, float] = (1158.03373708, 1158.03373708, 960.0, 540.0)
+            image_size: Tuple[int, int] = (480, 270)
+            intrinsics = GeometryUtil.rescale_intrinsics(intrinsics, (1920, 1080), image_size)
+            # calib.set("colour", 1920, 1080, 1158.03373708, 1158.03373708, 960.0, 540.0)
+            # calib.set("depth", 1920, 1080, 1158.03373708, 1158.03373708, 960.0, 540.0)
+            calib.set("colour", *image_size, *intrinsics)
+            calib.set("depth", *image_size, *intrinsics)
 
             # Send a calibration message to tell the server the camera parameters.
             client.send_calibration_message(RGBDFrameMessageUtil.make_calibration_message(
@@ -107,7 +121,6 @@ def main() -> None:
 
             # TODO
             info: List[Dict[str, Any]] = pickle.load(open(os.path.join(sequence_dir, "info_frames.pickle"), "rb"))
-
             info_npz: np.lib.npyio.NpzFile = np.load(os.path.join(sequence_dir, "info_frames.npz"))
 
             # Initialise some variables.
@@ -126,8 +139,8 @@ def main() -> None:
                     # Send the frame across to the server.
                     client.send_frame_message(lambda msg: RGBDFrameMessageUtil.fill_frame_message(
                         frame_idx,
-                        frame["colour_image"],
-                        ImageUtil.to_short_depth(frame["depth_image"]),
+                        cv2.resize(frame["colour_image"], image_size),
+                        ImageUtil.to_short_depth(cv2.resize(frame["depth_image"], image_size, interpolation=cv2.INTER_NEAREST)),
                         frame["world_from_camera"],
                         msg
                     ))
