@@ -1,17 +1,34 @@
 import cv2
 import numpy as np
 import os
+import pickle
 
 from argparse import ArgumentParser
 from typing import Any, Dict, List, Optional
 
 from smg.comms.base import RGBDFrameMessageUtil
 from smg.comms.mapping import MappingClient
-from smg.pyorbslam2 import RGBDTracker
-from smg.utility import CameraParameters, ImageUtil, PooledQueue, PoseUtil
+from smg.utility import CameraParameters, ImageUtil, PooledQueue
 
 
-def try_load_frame(frame_idx: int, sequence_dir: str, frame_numbers: List[int]) -> Optional[Dict[str, Any]]:
+def read_depthmap(name, cam_near_clip, cam_far_clip):
+    # FIXME: This function is currently borrowed from gta_utils.py in the GTA-IM code, but should really be imported.
+    depth = cv2.imread(name)
+    depth = np.concatenate(
+        (depth, np.zeros_like(depth[:, :, 0:1], dtype=np.uint8)), axis=2
+    )
+    depth.dtype = np.uint32
+    depth = 0.05 * 1000 / depth.astype('float')
+    depth = (
+        cam_near_clip
+        * cam_far_clip
+        / (cam_near_clip + depth * (cam_far_clip - cam_near_clip))
+    )
+    return depth
+
+
+def try_load_frame(frame_idx: int, sequence_dir: str, info: List[Dict[str, Any]], info_npz: np.lib.npyio.NpzFile) \
+        -> Optional[Dict[str, Any]]:
     """
     Try to load a frame from a GTA-IM sequence.
 
@@ -23,46 +40,36 @@ def try_load_frame(frame_idx: int, sequence_dir: str, frame_numbers: List[int]) 
 
     :param frame_idx:       The frame index.
     :param sequence_dir:    The sequence directory.
-    :param frame_numbers:   TODO
+    :param info:            TODO
+    :param info_npz:        TODO
     :return:                The RGB-D frame, if possible, or None otherwise.
     """
-    # TODO
-    if frame_idx >= len(frame_numbers):
-        return None
-
     # Determine the names of the colour image,  depth image and pose files.
-    colour_filename: str = os.path.join(sequence_dir, f"{frame_numbers[frame_idx]:05d}.jpg")
-    depth_filename: str = os.path.join(sequence_dir, f"{frame_numbers[frame_idx]:05d}.png")
+    colour_filename: str = os.path.join(sequence_dir, f"{frame_idx:05d}.jpg")
+    depth_filename: str = os.path.join(sequence_dir, f"{frame_idx:05d}.png")
 
     # If one of the files doesn't exist, early out.
     if not os.path.exists(colour_filename) or not os.path.exists(depth_filename):
         return None
 
     # Otherwise, load and return the frame.
+    frame_info: Dict[str, Any] = info[frame_idx]
+
     colour_image: np.ndarray = cv2.imread(colour_filename)
-    # depth_image: np.ndarray = ImageUtil.load_depth_image(depth_filename, depth_scale_factor=1000)
-    depth_image: np.ndarray = np.zeros(colour_image.shape[:2], dtype=np.uint8)
-    world_from_camera: np.ndarray = np.eye(4)
+
+    cam_near_clip: float = frame_info["cam_near_clip"]
+    cam_far_clip: float = frame_info.get("cam_far_clip", 800.0)
+    depth_image: np.ndarray = np.squeeze(read_depthmap(depth_filename, cam_near_clip, cam_far_clip))
+
+    world_from_camera: np.ndarray = np.linalg.inv(np.transpose(info_npz["world2cam_trans"][frame_idx]))
+    initial_from_world: np.ndarray = np.transpose(info_npz["world2cam_trans"][0])
+    initial_from_camera: np.ndarray = initial_from_world @ world_from_camera
 
     return {
         "colour_image": colour_image,
         "depth_image": depth_image,
-        "world_from_camera": world_from_camera
+        "world_from_camera": initial_from_camera
     }
-
-
-def get_frame_number(filename: str) -> int:
-    """
-    Get the frame number corresponding to a GTA-IM image file.
-
-    .. note::
-        The files are named <frame number>.jpg, so we can get the frame numbers directly from the file names.
-
-    :param filename:    The name of a GTA-IM image file.
-    :return:            The corresponding frame number.
-    """
-    frame_number, _ = filename.split(".")
-    return int(frame_number)
 
 
 def main() -> None:
@@ -76,23 +83,10 @@ def main() -> None:
         "--sequence_dir", "-s", type=str, required=True,
         help="the directory from which to load the sequence"
     )
-    parser.add_argument(
-        "--use_tracker", action="store_true",
-        help="whether to use the tracker instead of the ground-truth trajectory"
-    )
     args: dict = vars(parser.parse_args())
 
     batch_mode: bool = args["batch"]
     sequence_dir: str = args["sequence_dir"]
-    use_tracker: bool = args["use_tracker"]
-
-    # Construct the camera tracker if needed.
-    tracker: Optional[RGBDTracker] = None
-    if use_tracker:
-        tracker = RGBDTracker(
-            settings_file="settings-scannet.yaml", use_viewer=True, voc_file="C:/orbslam2/Vocabulary/ORBvoc.bin",
-            wait_till_ready=True
-        )
 
     try:
         with MappingClient(
@@ -111,33 +105,24 @@ def main() -> None:
                 calib.get_intrinsics("colour"), calib.get_intrinsics("depth")
             ))
 
-            frame_numbers: List[int] = sorted(
-                [get_frame_number(f) for f in os.listdir(sequence_dir) if f.endswith(".jpg")],
-            )
+            # TODO
+            info: List[Dict[str, Any]] = pickle.load(open(os.path.join(sequence_dir, "info_frames.pickle"), "rb"))
+
+            info_npz: np.lib.npyio.NpzFile = np.load(os.path.join(sequence_dir, "info_frames.npz"))
 
             # Initialise some variables.
             colour_image: Optional[np.ndarray] = None
+            depth_image: Optional[np.ndarray] = None
             frame_idx: int = 0
             pause: bool = not batch_mode
 
             # Until the user wants to quit:
             while True:
                 # Try to load an RGB-D frame from disk.
-                frame: Optional[Dict[str, Any]] = try_load_frame(frame_idx, sequence_dir, frame_numbers)
+                frame: Optional[Dict[str, Any]] = try_load_frame(frame_idx, sequence_dir, info, info_npz)
 
                 # If the frame was successfully loaded:
                 if frame is not None:
-                    # If we're using the camera tracker:
-                    if use_tracker:
-                        # Try to estimate the camera pose.
-                        camera_from_world: Optional[np.ndarray] = tracker.estimate_pose(
-                            frame["colour_image"], frame["depth_image"]
-                        )
-
-                        # If that succeeds, replace the ground-truth pose in the frame with the tracked pose.
-                        if camera_from_world is not None:
-                            frame["world_from_camera"] = np.linalg.inv(camera_from_world)
-
                     # Send the frame across to the server.
                     client.send_frame_message(lambda msg: RGBDFrameMessageUtil.fill_frame_message(
                         frame_idx,
@@ -150,8 +135,9 @@ def main() -> None:
                     # Increment the frame index.
                     frame_idx += 1
 
-                    # Update the colour image so that it can be shown.
+                    # Update the colour and depth images so that they can be shown.
                     colour_image = frame["colour_image"]
+                    depth_image = frame["depth_image"]
 
                 # Otherwise, if we're in batch mode, exit.
                 elif batch_mode:
@@ -160,7 +146,14 @@ def main() -> None:
 
                 # Show the most recent colour image (if any) so that the user can see what's going on.
                 if colour_image is not None:
-                    cv2.imshow("GTA-IM Client", colour_image)
+                    cv2.imshow(
+                        "GTA-IM Client - Colour Image",
+                        cv2.resize(colour_image, (0, 0), fx=0.25, fy=0.25)
+                    )
+                    cv2.imshow(
+                        "GTA-IM Client - Depth Image",
+                        cv2.resize(depth_image, (0, 0), fx=0.25, fy=0.25, interpolation=cv2.INTER_NEAREST) / 5
+                    )
 
                     if pause:
                         c = cv2.waitKey()
