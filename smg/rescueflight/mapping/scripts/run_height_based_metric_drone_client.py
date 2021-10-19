@@ -189,17 +189,16 @@ def main() -> None:
                     # Get the height of the drone.
                     drone_height: Optional[float] = drone.get_height()
 
-                    # TODO: Comment here.
+                    # If we started taking off more than 5s ago, we'll be in the air by now, so we can start tracking.
                     if takeoff_start is not None:
                         takeoff_time: float = timer() - takeoff_start
                         if takeoff_time >= 5.0:
                             should_track = True
 
-                    # TODO: Update comment.
-                    # Try to estimate a transformation from initial camera space to current camera space
-                    # using the tracker.
+                    # If the drone's taken off and the tracker's ready, try to use it to estimate a transformation
+                    # from initial camera space to current camera space.
                     tracker_c_t_i: Optional[np.ndarray] = tracker.estimate_pose(image) \
-                        if tracker.is_ready() and should_track else None
+                        if should_track and tracker.is_ready() else None
 
                     # Run an iteration of the state machine.
                     state_machine.iterate(
