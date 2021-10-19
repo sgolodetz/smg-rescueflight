@@ -115,8 +115,6 @@ def main() -> None:
     }
 
     drone_type: str = args.get("drone_type")
-    should_track: bool = False
-    takeoff_start: Optional[float] = None
 
     with DroneFactory.make_drone(drone_type, **kwargs[drone_type]) as drone:
         # Create the window.
@@ -151,7 +149,9 @@ def main() -> None:
                     save_frames=args.get("save_frames")
                 )
 
-                # Initialise the timestamp and the drone's trajectory smoother (used for visualisation).
+                # Initialise some variables.
+                should_track: bool = False
+                takeoff_start: Optional[float] = None
                 timestamp: float = 0.0
                 trajectory_smoother: TrajectorySmoother = TrajectorySmoother()
 
