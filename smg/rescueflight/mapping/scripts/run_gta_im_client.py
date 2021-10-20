@@ -62,22 +62,25 @@ def try_load_frame(frame_idx: int, sequence_dir: str, info: List[Dict[str, Any]]
     depth_image: np.ndarray = np.squeeze(read_depthmap(depth_filename, cam_near_clip, cam_far_clip))
 
     world_from_camera: np.ndarray = np.linalg.inv(np.transpose(info_npz["world2cam_trans"][frame_idx]))
-    initial_from_world: np.ndarray = np.transpose(info_npz["world2cam_trans"][0])
-    # initial_from_camera: np.ndarray = initial_from_world @ world_from_camera
-    initial_from_camera: np.ndarray = world_from_camera.copy()
-    initial_from_camera[0:3, 3] -= np.linalg.inv(initial_from_world)[0:3, 3]
+    world_from_initial: np.ndarray = np.linalg.inv(np.transpose(info_npz["world2cam_trans"][0]))
 
-    initial_from_camera = np.array([
+    diff: np.ndarray = world_from_camera - world_from_initial
+    bad: bool = np.linalg.norm(diff) == 0.0
+
+    world_from_camera[0:3, 3] -= world_from_initial[0:3, 3]
+
+    world_from_camera = np.array([
         [1, 0, 0, 0],
         [0, 0, -1, 0],
         [0, 1, 0, 0],
         [0, 0, 0, 1]
-    ]) @ initial_from_camera
+    ]) @ world_from_camera
 
     return {
+        "bad": bad,
         "colour_image": colour_image,
         "depth_image": depth_image,
-        "world_from_camera": initial_from_camera
+        "world_from_camera": world_from_camera
     }
 
 
@@ -102,10 +105,16 @@ def main() -> None:
             frame_compressor=RGBDFrameMessageUtil.compress_frame_message,
             pool_empty_strategy=PooledQueue.PES_WAIT
         ) as client:
+            # TODO
+            info: List[Dict[str, Any]] = pickle.load(open(os.path.join(sequence_dir, "info_frames.pickle"), "rb"))
+            info_npz: np.lib.npyio.NpzFile = np.load(os.path.join(sequence_dir, "info_frames.npz"))
+
+            intrinsics: Tuple[float, float, float, float] = GeometryUtil.intrinsics_to_tuple(info_npz["intrinsics"][0])
+
             # Hard-code the camera parameters (for now).
             # FIXME: See https://github.com/ZheC/GTA-IM-Dataset for details on how to obtain the parameters properly.
             calib: CameraParameters = CameraParameters()
-            intrinsics: Tuple[float, float, float, float] = (1158.03373708, 1158.03373708, 960.0, 540.0)
+            # intrinsics: Tuple[float, float, float, float] = (1158.03373708, 1158.03373708, 960.0, 540.0)
             image_size: Tuple[int, int] = (480, 270)
             intrinsics = GeometryUtil.rescale_intrinsics(intrinsics, (1920, 1080), image_size)
             # calib.set("colour", 1920, 1080, 1158.03373708, 1158.03373708, 960.0, 540.0)
@@ -118,10 +127,6 @@ def main() -> None:
                 calib.get_image_size("colour"), calib.get_image_size("depth"),
                 calib.get_intrinsics("colour"), calib.get_intrinsics("depth")
             ))
-
-            # TODO
-            info: List[Dict[str, Any]] = pickle.load(open(os.path.join(sequence_dir, "info_frames.pickle"), "rb"))
-            info_npz: np.lib.npyio.NpzFile = np.load(os.path.join(sequence_dir, "info_frames.npz"))
 
             # Initialise some variables.
             colour_image: Optional[np.ndarray] = None
@@ -136,14 +141,15 @@ def main() -> None:
 
                 # If the frame was successfully loaded:
                 if frame is not None:
-                    # Send the frame across to the server.
-                    client.send_frame_message(lambda msg: RGBDFrameMessageUtil.fill_frame_message(
-                        frame_idx,
-                        cv2.resize(frame["colour_image"], image_size),
-                        ImageUtil.to_short_depth(cv2.resize(frame["depth_image"], image_size, interpolation=cv2.INTER_NEAREST)),
-                        frame["world_from_camera"],
-                        msg
-                    ))
+                    # If the frame's ok, send it across to the server.
+                    if not frame["bad"]:
+                        client.send_frame_message(lambda msg: RGBDFrameMessageUtil.fill_frame_message(
+                            frame_idx,
+                            cv2.resize(frame["colour_image"], image_size),
+                            ImageUtil.to_short_depth(cv2.resize(frame["depth_image"], image_size, interpolation=cv2.INTER_NEAREST)),
+                            frame["world_from_camera"],
+                            msg
+                        ))
 
                     # Increment the frame index.
                     frame_idx += 1
