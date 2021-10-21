@@ -19,7 +19,7 @@ then
   echo "Waiting for server to initialise...."
   sleep 10
   echo "Reconstructing $1..."
-  python /c/smglib/smg-rescueflight/smg/rescueflight/mapping/scripts/run_scannet_client.py --batch -s "$sequence_dir" > /dev/null 2>&1
+  python /c/smglib/smg-rescueflight/smg/rescueflight/datasets/run_scannet_client.py --batch -s "$sequence_dir" > /dev/null 2>&1
   echo "Written reconstruction to: $sequence_dir/recon/mesh.ply"
 elif [ "$2" = "ours" ]
 then
@@ -27,6 +27,6 @@ then
   echo "Waiting for server to initialise...."
   sleep 10
   echo "Reconstructing $1..."
-  python /c/smglib/smg-rescueflight/smg/rescueflight/mapping/scripts/run_scannet_client.py --batch -s "$sequence_dir" --use_tracker > /dev/null 2>&1
+  python /c/smglib/smg-rescueflight/smg/rescueflight/datasets/run_scannet_client.py --batch -s "$sequence_dir" --use_tracker > /dev/null 2>&1
   echo "Written reconstruction to: $sequence_dir/recon/mesh.ply"
 fi
