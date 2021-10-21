@@ -16,7 +16,7 @@ from smg.skeletons import Skeleton3D
 
 def make_frame_processor(segmenter: InstanceSegmenter, *, debug: bool = False) -> \
         Callable[
-            [np.ndarray, np.ndarray, np.ndarray, Tuple[float, float, float, float]],
+            [int, np.ndarray, np.ndarray, np.ndarray, Tuple[float, float, float, float]],
             Tuple[List[Skeleton3D], Optional[np.ndarray]]
         ]:
     """
@@ -27,12 +27,13 @@ def make_frame_processor(segmenter: InstanceSegmenter, *, debug: bool = False) -
     :return:            The frame processor.
     """
     # noinspection PyUnusedLocal
-    def generate_people_mask(colour_image: np.ndarray, depth_image: np.ndarray, world_from_camera: np.ndarray,
-                             intrinsics: Tuple[float, float, float, float]) \
+    def generate_people_mask(frame_idx: int, colour_image: np.ndarray, depth_image: np.ndarray,
+                             world_from_camera: np.ndarray, intrinsics: Tuple[float, float, float, float]) \
             -> Tuple[List[Skeleton3D], Optional[np.ndarray]]:
         """
         Generate a people mask for an RGB image using Mask R-CNN.
 
+        :param frame_idx:           Passed in by the skeleton detection service, but ignored.
         :param colour_image:        The RGB image.
         :param depth_image:         Passed in by the skeleton detection service, but ignored.
         :param world_from_camera:   Passed in by the skeleton detection service, but ignored.
