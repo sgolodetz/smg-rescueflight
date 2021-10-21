@@ -105,20 +105,18 @@ def main() -> None:
             frame_compressor=RGBDFrameMessageUtil.compress_frame_message,
             pool_empty_strategy=PooledQueue.PES_WAIT
         ) as client:
-            # TODO
+            # Load in the sequence information, as per https://github.com/ZheC/GTA-IM-Dataset.
             info: List[Dict[str, Any]] = pickle.load(open(os.path.join(sequence_dir, "info_frames.pickle"), "rb"))
             info_npz: np.lib.npyio.NpzFile = np.load(os.path.join(sequence_dir, "info_frames.npz"))
 
+            # Get the camera intrinsics.
             intrinsics: Tuple[float, float, float, float] = GeometryUtil.intrinsics_to_tuple(info_npz["intrinsics"][0])
 
-            # Hard-code the camera parameters (for now).
-            # FIXME: See https://github.com/ZheC/GTA-IM-Dataset for details on how to obtain the parameters properly.
+            # Rescale the images and camera intrinsics to 25% of their original size, both to speed things up and
+            # to aid visualisation on a limited-size screen.
             calib: CameraParameters = CameraParameters()
-            # intrinsics: Tuple[float, float, float, float] = (1158.03373708, 1158.03373708, 960.0, 540.0)
             image_size: Tuple[int, int] = (480, 270)
             intrinsics = GeometryUtil.rescale_intrinsics(intrinsics, (1920, 1080), image_size)
-            # calib.set("colour", 1920, 1080, 1158.03373708, 1158.03373708, 960.0, 540.0)
-            # calib.set("depth", 1920, 1080, 1158.03373708, 1158.03373708, 960.0, 540.0)
             calib.set("colour", *image_size, *intrinsics)
             calib.set("depth", *image_size, *intrinsics)
 
@@ -141,38 +139,29 @@ def main() -> None:
 
                 # If the frame was successfully loaded:
                 if frame is not None:
+                    # Update the colour and depth images so that they can be shown.
+                    colour_image = cv2.resize(frame["colour_image"], image_size)
+                    depth_image = cv2.resize(frame["depth_image"], image_size, interpolation=cv2.INTER_NEAREST)
+
                     # If the frame's ok, send it across to the server.
                     if not frame["bad"]:
                         client.send_frame_message(lambda msg: RGBDFrameMessageUtil.fill_frame_message(
-                            frame_idx,
-                            cv2.resize(frame["colour_image"], image_size),
-                            ImageUtil.to_short_depth(cv2.resize(frame["depth_image"], image_size, interpolation=cv2.INTER_NEAREST)),
-                            frame["world_from_camera"],
-                            msg
+                            frame_idx, colour_image, ImageUtil.to_short_depth(depth_image),
+                            frame["world_from_camera"], msg
                         ))
 
                     # Increment the frame index.
                     frame_idx += 1
-
-                    # Update the colour and depth images so that they can be shown.
-                    colour_image = frame["colour_image"]
-                    depth_image = frame["depth_image"]
 
                 # Otherwise, if we're in batch mode, exit.
                 elif batch_mode:
                     # noinspection PyProtectedMember
                     os._exit(0)
 
-                # Show the most recent colour image (if any) so that the user can see what's going on.
+                # Show the most recent colour and depth images (if any) so that the user can see what's going on.
                 if colour_image is not None:
-                    cv2.imshow(
-                        "GTA-IM Client - Colour Image",
-                        cv2.resize(colour_image, (0, 0), fx=0.25, fy=0.25)
-                    )
-                    cv2.imshow(
-                        "GTA-IM Client - Depth Image",
-                        cv2.resize(depth_image, (0, 0), fx=0.25, fy=0.25, interpolation=cv2.INTER_NEAREST) / 5
-                    )
+                    cv2.imshow("GTA-IM Client - Colour Image", colour_image)
+                    cv2.imshow("GTA-IM Client - Depth Image", depth_image / 5)
 
                     if pause:
                         c = cv2.waitKey()
