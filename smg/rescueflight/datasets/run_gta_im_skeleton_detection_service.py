@@ -45,6 +45,11 @@ def make_keypoint(new_name: str, old_name: str, frame_info: Dict[str, Any], orig
     return new_name, Keypoint(new_name, position)
 
 
+def make_sequence_key(sequence_dir: str) -> str:
+    sequence_components: List[str] = os.path.normpath(sequence_dir).split(os.sep)
+    return f"{sequence_components[-2]}/{sequence_components[-1]}"
+
+
 def make_frame_processor(sequence_dir: str, info: List[Dict[str, Any]], info_npz: np.lib.npyio.NpzFile) -> \
         Callable[
             [int, np.ndarray, np.ndarray, np.ndarray, Tuple[float, float, float, float]],
@@ -122,7 +127,13 @@ def make_frame_processor(sequence_dir: str, info: List[Dict[str, Any]], info_npz
         height, width = colour_image.shape[:2]
         id_map: np.ndarray = generate_id_map(os.path.join(sequence_dir, f"{frame_idx:05d}_id.png"), (width, height))
 
-        person_ids: List[int] = [16386, 389890]
+        sequence_to_person_ids: Dict[str, List[int]] = {
+            "FPS-5/2020-06-09-17-14-03": [16386, 389890],
+            "FPS-5/2020-06-21-19-42-55": [609026],
+            "FPS-30/2020-06-02-18-09-25": [465415, 725762]
+        }
+
+        person_ids: List[int] = sequence_to_person_ids.get(make_sequence_key(sequence_dir), [])
 
         people_mask: np.ndarray = np.zeros(colour_image.shape[:2], dtype=np.uint8)
         for person_id in person_ids:
@@ -131,12 +142,12 @@ def make_frame_processor(sequence_dir: str, info: List[Dict[str, Any]], info_npz
 
         # Dilate the people mask to mitigate the "halo effect", in which a halo around each person is fused into
         # the scene representation. Since the masks are ground-truth ones, only a small kernel size is needed.
-        kernel_size: int = 3
+        kernel_size: int = 5
         kernel: np.ndarray = np.ones((kernel_size, kernel_size), np.uint8)
         people_mask = cv2.dilate(people_mask, kernel)
 
-        # cv2.imshow("People Mask", people_mask)
-        # cv2.waitKey(1)
+        cv2.imshow("People Mask", people_mask)
+        cv2.waitKey(1)
 
         return [skeleton], people_mask
 
@@ -167,7 +178,7 @@ def main() -> None:
     info_npz: np.lib.npyio.NpzFile = np.load(os.path.join(sequence_dir, "info_frames.npz"))
 
     # TEMPORARY
-    # idm = generate_id_map(os.path.join(sequence_dir, "00000_id.png"))
+    # idm = generate_id_map(os.path.join(sequence_dir, "00000_id.png"), (1920, 1080))
     # ids = np.unique(idm)
     # print(ids)
     # for id in ids:
