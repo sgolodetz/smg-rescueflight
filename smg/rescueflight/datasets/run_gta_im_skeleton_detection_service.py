@@ -10,7 +10,7 @@ from argparse import ArgumentParser
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from smg.comms.skeletons import SkeletonDetectionService
-from smg.skeletons import Skeleton3D
+from smg.skeletons import Keypoint, Skeleton3D
 
 
 # def generate_id_map(map_path):
@@ -33,6 +33,16 @@ def generate_id_map(map_path, image_size):
     )
     id_map.dtype = np.uint32
     return np.squeeze(id_map)
+
+
+def make_keypoint(new_name: str, old_name: str, frame_info: Dict[str, Any], origin: np.ndarray) -> Tuple[str, Keypoint]:
+    position: np.ndarray = np.array(frame_info[old_name]) - origin
+    position = np.array([
+        [1, 0, 0],
+        [0, 0, -1],
+        [0, 1, 0]
+    ]) @ position
+    return new_name, Keypoint(new_name, position)
 
 
 def make_frame_processor(sequence_dir: str, info: List[Dict[str, Any]], info_npz: np.lib.npyio.NpzFile) -> \
@@ -63,6 +73,52 @@ def make_frame_processor(sequence_dir: str, info: List[Dict[str, Any]], info_npz
         :param intrinsics:          Passed in by the skeleton detection service, but ignored.
         :return:                    The ground-truth 3D skeletons and people mask for the specified GTA-IM frame.
         """
+        frame_info: Dict[str, Any] = info[frame_idx]
+
+        world_from_initial: np.ndarray = np.linalg.inv(np.transpose(info_npz["world2cam_trans"][0]))
+        origin: np.ndarray = world_from_initial[0:3, 3]
+
+        keypoints: Dict[str, Keypoint] = dict([
+            make_keypoint("Head", "head", frame_info, origin),
+            make_keypoint("LAnkle", "left_ankle", frame_info, origin),
+            make_keypoint("LClavicle", "left_clavicle", frame_info, origin),
+            make_keypoint("LElbow", "left_elbow", frame_info, origin),
+            make_keypoint("LHip", "left_hip", frame_info, origin),
+            make_keypoint("LKnee", "left_knee", frame_info, origin),
+            make_keypoint("LShoulder", "left_shoulder", frame_info, origin),
+            make_keypoint("LWrist", "left_wrist", frame_info, origin),
+            make_keypoint("MidHip", "spine4", frame_info, origin),
+            make_keypoint("Neck", "neck", frame_info, origin),
+            make_keypoint("RAnkle", "right_ankle", frame_info, origin),
+            make_keypoint("RClavicle", "right_clavicle", frame_info, origin),
+            make_keypoint("RElbow", "right_elbow", frame_info, origin),
+            make_keypoint("RHip", "right_hip", frame_info, origin),
+            make_keypoint("RKnee", "right_knee", frame_info, origin),
+            make_keypoint("RShoulder", "right_shoulder", frame_info, origin),
+            make_keypoint("RWrist", "right_wrist", frame_info, origin),
+            make_keypoint("Spine0", "spine0", frame_info, origin),
+            make_keypoint("Spine1", "spine1", frame_info, origin),
+            make_keypoint("Spine2", "spine2", frame_info, origin),
+            make_keypoint("Spine3", "spine3", frame_info, origin)
+        ])
+
+        keypoint_names: Dict[int, str] = {
+            0: "Head", 1: "Neck", 2: "RClavicle", 3: "RShoulder", 4: "RElbow", 5: "RWrist",
+            6: "LClavicle", 7: "LShoulder", 8: "LElbow", 9: "LWrist", 10: "Spine0",
+            11: "Spine1", 12: "Spine2", 13: "Spine3", 14: "MidHip", 15: "RHip",
+            16: "RKnee", 17: "RAnkle", 18: "LHip", 19: "LKnee", 20: "LAnkle"
+        }
+
+        keypoint_pairs: List[Tuple[str, str]] = [
+            (keypoint_names[i], keypoint_names[j]) for i, j in [
+                # See: https://github.com/ZheC/GTA-IM-Dataset.
+                (0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (1, 6), (6, 7), (7, 8), (8, 9), (1, 10), (10, 11),
+                (11, 12), (12, 13), (13, 14), (14, 15), (15, 16), (16, 17), (14, 18), (18, 19), (19, 20)
+            ]
+        ]
+
+        skeleton: Skeleton3D = Skeleton3D(keypoints, keypoint_pairs)
+
         height, width = colour_image.shape[:2]
         id_map: np.ndarray = generate_id_map(os.path.join(sequence_dir, f"{frame_idx:05d}_id.png"), (width, height))
 
@@ -73,10 +129,10 @@ def make_frame_processor(sequence_dir: str, info: List[Dict[str, Any]], info_npz
             person_mask: np.ndarray = np.where(id_map == person_id, 255, 0).astype(np.uint8)
             people_mask |= person_mask
 
-        cv2.imshow("People Mask", people_mask)
-        cv2.waitKey(1)
+        # cv2.imshow("People Mask", people_mask)
+        # cv2.waitKey(1)
 
-        return [], people_mask
+        return [skeleton], people_mask
 
     return get_skeletons
 
