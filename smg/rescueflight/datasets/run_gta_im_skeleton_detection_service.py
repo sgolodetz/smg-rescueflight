@@ -129,6 +129,7 @@ def make_frame_processor(sequence_dir: str, info: List[Dict[str, Any]], info_npz
 
         sequence_to_person_ids: Dict[str, List[int]] = {
             "FPS-5/2020-06-09-17-14-03": [16386, 389890],
+            "FPS-5/2020-06-10-21-53-42": [16386],
             "FPS-5/2020-06-21-19-42-55": [609026],
             "FPS-30/2020-06-02-18-09-25": [465415, 725762]
         }
