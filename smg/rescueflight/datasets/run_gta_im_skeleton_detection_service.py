@@ -129,6 +129,12 @@ def make_frame_processor(sequence_dir: str, info: List[Dict[str, Any]], info_npz
             person_mask: np.ndarray = np.where(id_map == person_id, 255, 0).astype(np.uint8)
             people_mask |= person_mask
 
+        # Dilate the people mask to mitigate the "halo effect", in which a halo around each person is fused into
+        # the scene representation. Since the masks are ground-truth ones, only a small kernel size is needed.
+        kernel_size: int = 3
+        kernel: np.ndarray = np.ones((kernel_size, kernel_size), np.uint8)
+        people_mask = cv2.dilate(people_mask, kernel)
+
         # cv2.imshow("People Mask", people_mask)
         # cv2.waitKey(1)
 
