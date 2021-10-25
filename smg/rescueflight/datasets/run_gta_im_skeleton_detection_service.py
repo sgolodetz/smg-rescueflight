@@ -131,7 +131,8 @@ def make_frame_processor(sequence_dir: str, info: List[Dict[str, Any]], info_npz
             "FPS-5/2020-06-09-17-14-03": [16386, 389890],
             "FPS-5/2020-06-10-21-53-42": [16386],
             "FPS-5/2020-06-21-19-42-55": [609026],
-            "FPS-30/2020-06-02-18-09-25": [465415, 725762]
+            "FPS-30/2020-06-02-18-09-25": [465415, 725762],
+            "FPS-30/2020-06-03-20-28-01": [223239]
         }
 
         person_ids: List[int] = sequence_to_person_ids.get(make_sequence_key(sequence_dir), [])
@@ -159,6 +160,10 @@ def main() -> None:
     # Parse any command-line arguments.
     parser = ArgumentParser()
     parser.add_argument(
+        "--frame_idx", type=int,
+        help="an optional frame index for which to show the instance masks (instead of running the service)"
+    )
+    parser.add_argument(
         "--port", "-p", type=int, default=7852,
         help="the port on which the service should listen for a connection"
     )
@@ -178,14 +183,16 @@ def main() -> None:
     info: List[Dict[str, Any]] = pickle.load(open(os.path.join(sequence_dir, "info_frames.pickle"), "rb"))
     info_npz: np.lib.npyio.NpzFile = np.load(os.path.join(sequence_dir, "info_frames.npz"))
 
-    # TEMPORARY
-    # idm = generate_id_map(os.path.join(sequence_dir, "00000_id.png"), (1920, 1080))
-    # ids = np.unique(idm)
-    # print(ids)
-    # for id in ids:
-    #     cv2.imshow(f"ID {id}", cv2.resize(np.where(idm == id, 255, 0).astype(np.uint8), (0, 0), fx=0.25, fy=0.25))
-    # cv2.waitKey()
-    # exit(0)
+    # TODO: Comment here.
+    frame_idx: Optional[int] = args.get("frame_idx")
+    if frame_idx is not None:
+        id_map = generate_id_map(os.path.join(sequence_dir, f"{frame_idx:05d}_id.png"), (1920, 1080))
+        ids = np.unique(id_map)
+        print(ids)
+        for i in ids:
+            cv2.imshow(f"ID {i}", cv2.resize(np.where(id_map == i, 255, 0).astype(np.uint8), (0, 0), fx=0.25, fy=0.25))
+        cv2.waitKey()
+        exit(0)
 
     # Run the skeleton detection service.
     service: SkeletonDetectionService = SkeletonDetectionService(
