@@ -147,8 +147,8 @@ def make_frame_processor(sequence_dir: str, info: List[Dict[str, Any]], info_npz
         kernel: np.ndarray = np.ones((kernel_size, kernel_size), np.uint8)
         people_mask = cv2.dilate(people_mask, kernel)
 
-        cv2.imshow("People Mask", people_mask)
-        cv2.waitKey(1)
+        # cv2.imshow("People Mask", people_mask)
+        # cv2.waitKey(1)
 
         return [skeleton], people_mask
 
