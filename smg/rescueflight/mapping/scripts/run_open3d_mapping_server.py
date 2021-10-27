@@ -82,6 +82,10 @@ def main() -> None:
         "--use_received_depth", action="store_true",
         help="whether to use depth images received from the client instead of estimating depth"
     )
+    parser.add_argument(
+        "--voxel_size", type=float, default=0.01,
+        help="the voxel size (in m) to use for the TSDF"
+    )
     args: dict = vars(parser.parse_args())
 
     batch_mode: bool = args.get("batch")
@@ -120,7 +124,8 @@ def main() -> None:
             server, depth_estimator, aruco_relocaliser=aruco_relocaliser, batch_mode=batch_mode,
             debug=args["debug"], detect_objects=args["detect_objects"], detect_skeletons=args["detect_skeletons"],
             max_received_depth=args["max_depth"], output_dir=output_dir, postprocess_depth=postprocess_depth,
-            save_frames=args["save_frames"], use_received_depth=args["use_received_depth"]
+            save_frames=args["save_frames"], use_received_depth=args["use_received_depth"],
+            voxel_size=args["voxel_size"]
         )
 
         # Start the server.

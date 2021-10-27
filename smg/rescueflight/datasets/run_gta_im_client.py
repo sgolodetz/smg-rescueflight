@@ -115,7 +115,7 @@ def main() -> None:
             # Rescale the images and camera intrinsics to 25% of their original size, both to speed things up and
             # to aid visualisation on a limited-size screen.
             calib: CameraParameters = CameraParameters()
-            image_size: Tuple[int, int] = (480, 270)
+            image_size: Tuple[int, int] = (960, 540)
             intrinsics = GeometryUtil.rescale_intrinsics(intrinsics, (1920, 1080), image_size)
             calib.set("colour", *image_size, *intrinsics)
             calib.set("depth", *image_size, *intrinsics)
