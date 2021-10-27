@@ -1,5 +1,5 @@
 #! /bin/bash -e
-if [ -z "$1" ] || [ -z "$2" ]
+if [ $# -lt 2 ]
 then
   echo "Usage: reconstruct_scannet_scene.sh <scene name> {gt|ours} [args]"
   exit 1
