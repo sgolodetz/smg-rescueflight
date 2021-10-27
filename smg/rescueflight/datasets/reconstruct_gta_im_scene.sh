@@ -5,7 +5,7 @@ then
   exit 1
 fi
 
-sequence_dir="/d/GTA-IM-Dataset/$1"
+sequence_dir="/c/datasets/gta-im/$1"
 
 if [ ! -e "$sequence_dir" ]
 then
