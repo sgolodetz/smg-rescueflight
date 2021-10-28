@@ -11,7 +11,15 @@ from smg.comms.mapping import MappingClient
 from smg.utility import CameraParameters, GeometryUtil, ImageUtil, PooledQueue
 
 
-def read_depthmap(name, cam_near_clip, cam_far_clip):
+def read_depthmap(name: str, cam_near_clip: float, cam_far_clip: float) -> np.ndarray:
+    """
+    Load a GTA-IM depth image from disk.
+
+    :param name:            The name of the file containing the depth image.
+    :param cam_near_clip:   The distance to the near clipping plane.
+    :param cam_far_clip:    The distance to the far clipping plane.
+    :return:                The loaded depth image.
+    """
     # FIXME: This function is currently borrowed from gta_utils.py in the GTA-IM code, but should really be imported.
     depth = cv2.imread(name)
     depth = np.concatenate(
@@ -40,11 +48,11 @@ def try_load_frame(frame_idx: int, sequence_dir: str, info: List[Dict[str, Any]]
 
     :param frame_idx:       The frame index.
     :param sequence_dir:    The sequence directory.
-    :param info:            TODO
-    :param info_npz:        TODO
+    :param info:            The information loaded from the sequence's .pickle file.
+    :param info_npz:        The information loaded from the sequence's .npz file.
     :return:                The RGB-D frame, if possible, or None otherwise.
     """
-    # Determine the names of the colour image,  depth image and pose files.
+    # Determine the names of the colour image and depth image files.
     colour_filename: str = os.path.join(sequence_dir, f"{frame_idx:05d}.jpg")
     depth_filename: str = os.path.join(sequence_dir, f"{frame_idx:05d}.png")
 
