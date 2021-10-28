@@ -17,15 +17,15 @@ if [ "$2" = "gt" ]
 then
   echo "Initialising mapping server..."
   python /c/smglib/smg-rescueflight/smg/rescueflight/mapping/scripts/run_open3d_mapping_server.py --batch --debug -p wait --output_dir="$sequence_dir/recon" --save_reconstruction --use_received_depth "${@:3}" > /dev/null 2>&1 &
-  sleep 10
+  sleep 5
   echo "Reconstructing $1..."
-  python /c/smglib/smg-rescueflight/smg/rescueflight/datasets/run_scannet_client.py --batch -s "$sequence_dir" > /dev/null 2>&1
+  python /c/smglib/smg-rescueflight/smg/rescueflight/datasets/run_scannet_client.py --batch --canonicalise_poses -s "$sequence_dir" > /dev/null 2>&1
   echo "Written reconstruction to: $sequence_dir/recon/mesh.ply"
 elif [ "$2" = "ours" ]
 then
   echo "Initialising mapping server..."
   python /c/smglib/smg-rescueflight/smg/rescueflight/mapping/scripts/run_open3d_mapping_server.py --batch --debug -p wait --output_dir="$sequence_dir/recon" --save_reconstruction "${@:3}" > /dev/null 2>&1 &
-  sleep 10
+  sleep 5
   echo "Reconstructing $1..."
   python /c/smglib/smg-rescueflight/smg/rescueflight/datasets/run_scannet_client.py --batch -s "$sequence_dir" --use_tracker > /dev/null 2>&1
   echo "Written reconstruction to: $sequence_dir/recon/mesh.ply"
