@@ -20,7 +20,7 @@ def read_depthmap(name: str, cam_near_clip: float, cam_far_clip: float) -> np.nd
     :param cam_far_clip:    The distance to the far clipping plane.
     :return:                The loaded depth image.
     """
-    # FIXME: This function is currently borrowed from gta_utils.py in the GTA-IM code, but should really be imported.
+    # FIXME: This function is borrowed from gta_utils.py in the GTA-IM code, but should really be imported.
     depth = cv2.imread(name)
     depth = np.concatenate(
         (depth, np.zeros_like(depth[:, :, 0:1], dtype=np.uint8)), axis=2
@@ -60,7 +60,7 @@ def try_load_frame(frame_idx: int, sequence_dir: str, info: List[Dict[str, Any]]
     if not os.path.exists(colour_filename) or not os.path.exists(depth_filename):
         return None
 
-    # Otherwise, load and return the frame.
+    # Load the frame.
     frame_info: Dict[str, Any] = info[frame_idx]
 
     colour_image: np.ndarray = cv2.imread(colour_filename)
@@ -70,13 +70,19 @@ def try_load_frame(frame_idx: int, sequence_dir: str, info: List[Dict[str, Any]]
     depth_image: np.ndarray = np.squeeze(read_depthmap(depth_filename, cam_near_clip, cam_far_clip))
 
     world_from_camera: np.ndarray = np.linalg.inv(np.transpose(info_npz["world2cam_trans"][frame_idx]))
+
+    # Look up what the camera-to-world transformation was in the first frame.
     world_from_initial: np.ndarray = np.linalg.inv(np.transpose(info_npz["world2cam_trans"][0]))
 
+    # Check whether the frame has a bad pose (in sequence FPS-5/2020-06-21-19-42-55 in the dataset, a number of
+    # frames at the start of the sequence all have the initial pose, even though the camera is clearly moving).
     diff: np.ndarray = world_from_camera - world_from_initial
     bad: bool = np.linalg.norm(diff) == 0.0
 
+    # Translate the pose to make the camera trajectory start at the origin.
     world_from_camera[0:3, 3] -= world_from_initial[0:3, 3]
 
+    # Rotate the pose so that -y points up.
     world_from_camera = np.array([
         [1, 0, 0, 0],
         [0, 0, -1, 0],
@@ -120,7 +126,7 @@ def main() -> None:
             # Get the camera intrinsics.
             intrinsics: Tuple[float, float, float, float] = GeometryUtil.intrinsics_to_tuple(info_npz["intrinsics"][0])
 
-            # Rescale the images and camera intrinsics to 25% of their original size, both to speed things up and
+            # Rescale the images and camera intrinsics to 50% of their original size, both to speed things up and
             # to aid visualisation on a limited-size screen.
             calib: CameraParameters = CameraParameters()
             image_size: Tuple[int, int] = (960, 540)
@@ -147,11 +153,11 @@ def main() -> None:
 
                 # If the frame was successfully loaded:
                 if frame is not None:
-                    # Update the colour and depth images so that they can be shown.
+                    # Resize the colour and depth images to the desired size.
                     colour_image = cv2.resize(frame["colour_image"], image_size)
                     depth_image = cv2.resize(frame["depth_image"], image_size, interpolation=cv2.INTER_NEAREST)
 
-                    # If the frame's ok, send it across to the server.
+                    # If the frame's not one with a bad pose (see try_load_frame), send it across to the server.
                     if not frame["bad"]:
                         client.send_frame_message(lambda msg: RGBDFrameMessageUtil.fill_frame_message(
                             frame_idx, colour_image, ImageUtil.to_short_depth(depth_image),
