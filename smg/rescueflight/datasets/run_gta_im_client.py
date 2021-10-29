@@ -15,12 +15,14 @@ def read_depthmap(name: str, cam_near_clip: float, cam_far_clip: float) -> np.nd
     """
     Load a GTA-IM depth image from disk.
 
+    .. note::
+        This function is borrowed from gta_utils.py in the GTA-IM code.
+
     :param name:            The name of the file containing the depth image.
     :param cam_near_clip:   The distance to the near clipping plane.
     :param cam_far_clip:    The distance to the far clipping plane.
     :return:                The loaded depth image.
     """
-    # FIXME: This function is borrowed from gta_utils.py in the GTA-IM code, but should really be imported.
     depth = cv2.imread(name)
     depth = np.concatenate(
         (depth, np.zeros_like(depth[:, :, 0:1], dtype=np.uint8)), axis=2
@@ -126,15 +128,16 @@ def main() -> None:
             # Get the camera intrinsics.
             intrinsics: Tuple[float, float, float, float] = GeometryUtil.intrinsics_to_tuple(info_npz["intrinsics"][0])
 
-            # Rescale the images and camera intrinsics to 50% of their original size, both to speed things up and
-            # to aid visualisation on a limited-size screen.
-            calib: CameraParameters = CameraParameters()
+            # Use an image size that is 50% of the original size, both to speed things up and to aid visualisation
+            # on a limited-size screen.
             image_size: Tuple[int, int] = (960, 540)
             intrinsics = GeometryUtil.rescale_intrinsics(intrinsics, (1920, 1080), image_size)
+
+            # Send a calibration message to tell the server the camera parameters.
+            calib: CameraParameters = CameraParameters()
             calib.set("colour", *image_size, *intrinsics)
             calib.set("depth", *image_size, *intrinsics)
 
-            # Send a calibration message to tell the server the camera parameters.
             client.send_calibration_message(RGBDFrameMessageUtil.make_calibration_message(
                 calib.get_image_size("colour"), calib.get_image_size("depth"),
                 calib.get_intrinsics("colour"), calib.get_intrinsics("depth")

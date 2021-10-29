@@ -55,6 +55,7 @@ def make_keypoint(new_name: str, old_name: str, frame_info: Dict[str, Any], orig
         [0, 0, -1],
         [0, 1, 0]
     ]) @ position
+
     return new_name, Keypoint(new_name, position)
 
 
@@ -63,7 +64,7 @@ def make_sequence_key(sequence_dir: str) -> str:
     Make the key for a GTA-IM sequence based on the path to the sequence directory.
 
     .. note::
-        For example, the sequence key for .../gta-im/FPS-5/2020-06-09-17-07-15 is FPS-5/2020-06-09-17-07-15.
+        As an example, the sequence key for .../gta-im/FPS-5/2020-06-09-17-07-15 is FPS-5/2020-06-09-17-07-15.
 
     :param sequence_dir:    The directory containing the GTA-IM sequence.
     :return:                The key for the sequence.
@@ -221,7 +222,7 @@ def main() -> None:
         for i in ids:
             cv2.imshow(f"ID {i}", cv2.resize(np.where(id_map == i, 255, 0).astype(np.uint8), (0, 0), fx=0.25, fy=0.25))
 
-        # If the user presses a key, early out.
+        # Wait for the user to press a key, and then exit.
         cv2.waitKey()
         exit(0)
 

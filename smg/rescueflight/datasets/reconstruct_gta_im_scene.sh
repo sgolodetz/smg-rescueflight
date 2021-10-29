@@ -6,11 +6,14 @@ then
 fi
 
 sequence_dir="/c/datasets/gta-im/$1"
-
 if [ ! -e "$sequence_dir" ]
 then
-  echo "No such sequence: $sequence_dir"
-  exit 1
+  sequence_dir="/d/datasets/gta-im/$1"
+  if [ ! -e "$sequence_dir" ]
+  then
+    echo "No such sequence: $sequence_dir"
+    exit 1
+  fi
 fi
 
 # trap 'kill $(jobs -pr)' SIGINT SIGTERM EXIT
