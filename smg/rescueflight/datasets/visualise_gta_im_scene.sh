@@ -1,4 +1,5 @@
 #! /bin/bash -e
+
 if [ $# -lt 1 ]
 then
   echo "Usage: visualise_gta_im_scene.sh <scene name> [args]"
