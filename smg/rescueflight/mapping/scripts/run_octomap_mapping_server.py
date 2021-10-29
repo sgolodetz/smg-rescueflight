@@ -41,6 +41,10 @@ def main() -> None:
         help="whether to suppress depth post-processing"
     )
     parser.add_argument(
+        "--octree_voxel_size", type=float, default=0.05,
+        help="the voxel size (in m) to use for the Octomap"
+    )
+    parser.add_argument(
         "--output_dir", "-o", type=str,
         help="an optional directory into which to save output files"
     )
@@ -64,6 +68,10 @@ def main() -> None:
     parser.add_argument(
         "--save_reconstruction", action="store_true",
         help="whether to save the reconstructed Octomap"
+    )
+    parser.add_argument(
+        "--tsdf_voxel_size", type=float, default=0.01,
+        help="the voxel size (in m) to use for the TSDF (if we're reconstructing it)"
     )
     parser.add_argument(
         "--use_arm_selection", action="store_true",
@@ -100,9 +108,10 @@ def main() -> None:
         with OctomapMappingSystem(
             server, depth_estimator, camera_mode=args["camera_mode"], detect_objects=args["detect_objects"],
             detect_skeletons=args["detect_skeletons"], max_received_depth=args["max_depth"],
-            output_dir=output_dir, postprocess_depth=postprocess_depth, render_bodies=args["render_bodies"],
-            save_frames=args["save_frames"], save_reconstruction=args["save_reconstruction"],
-            save_skeletons=args["save_skeletons"], use_arm_selection=args["use_arm_selection"],
+            octree_voxel_size=args["octree_voxel_size"], output_dir=output_dir, postprocess_depth=postprocess_depth,
+            render_bodies=args["render_bodies"], save_frames=args["save_frames"],
+            save_reconstruction=args["save_reconstruction"], save_skeletons=args["save_skeletons"],
+            tsdf_voxel_size=args["tsdf_voxel_size"], use_arm_selection=args["use_arm_selection"],
             use_received_depth=args["use_received_depth"], use_tsdf=args["use_tsdf"]
         ) as mapping_system:
             # Start the server.

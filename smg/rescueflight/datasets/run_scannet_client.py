@@ -57,6 +57,10 @@ def main() -> None:
         help="whether to run in batch mode"
     )
     parser.add_argument(
+        "--canonicalise_poses", action="store_true",
+        help="whether to canonicalise the poses (i.e. start the camera trajectory from the identity)"
+    )
+    parser.add_argument(
         "--sequence_dir", "-s", type=str, required=True,
         help="the directory from which to load the sequence"
     )
@@ -67,6 +71,7 @@ def main() -> None:
     args: dict = vars(parser.parse_args())
 
     batch_mode: bool = args["batch"]
+    canonicalise_poses: bool = args["canonicalise_poses"]
     sequence_dir: str = args["sequence_dir"]
     use_tracker: bool = args["use_tracker"]
 
@@ -100,6 +105,7 @@ def main() -> None:
             # Initialise some variables.
             colour_image: Optional[np.ndarray] = None
             frame_idx: int = 0
+            initial_from_world: Optional[np.ndarray] = None
             pause: bool = not batch_mode
 
             # Until the user wants to quit:
@@ -116,18 +122,29 @@ def main() -> None:
                             frame["colour_image"], frame["depth_image"]
                         )
 
-                        # If that succeeds, replace the ground-truth pose in the frame with the tracked pose.
+                        # Replace the ground-truth pose in the frame with the tracked pose.
                         if camera_from_world is not None:
                             frame["world_from_camera"] = np.linalg.inv(camera_from_world)
+                        else:
+                            frame["world_from_camera"] = None
 
-                    # Send the frame across to the server.
-                    client.send_frame_message(lambda msg: RGBDFrameMessageUtil.fill_frame_message(
-                        frame_idx,
-                        frame["colour_image"],
-                        ImageUtil.to_short_depth(frame["depth_image"]),
-                        frame["world_from_camera"],
-                        msg
-                    ))
+                    # If the frame has a valid camera pose:
+                    if frame["world_from_camera"] is not None:
+                        # Canonicalise the camera pose if requested.
+                        if canonicalise_poses:
+                            if initial_from_world is None:
+                                initial_from_world = np.linalg.inv(frame["world_from_camera"])
+
+                            frame["world_from_camera"] = initial_from_world @ frame["world_from_camera"]
+
+                        # Send the frame across to the server.
+                        client.send_frame_message(lambda msg: RGBDFrameMessageUtil.fill_frame_message(
+                            frame_idx,
+                            frame["colour_image"],
+                            ImageUtil.to_short_depth(frame["depth_image"]),
+                            frame["world_from_camera"],
+                            msg
+                        ))
 
                     # Increment the frame index.
                     frame_idx += 1
