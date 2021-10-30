@@ -1,8 +1,8 @@
 #! /bin/bash -e
 
-if [ $# -ne 2 ]
+if [ $# -ne 3 ]
 then
-  echo "Usage: evaluate_scannet_scene.sh <sequence name> <tag>"
+  echo "Usage: evaluate_scannet_scene.sh <sequence name> <tag> <gt tag>"
   exit 1
 fi
 
@@ -21,13 +21,13 @@ then
   exit 1
 fi
 
-if [ ! -f "$recon_dir/gt_4m.ply" ]
+if [ ! -f "$recon_dir/$3.ply" ]
 then
-  echo "Missing gt_4m.ply in $recon_dir"
+  echo "Missing $3.ply in $recon_dir"
   exit 1
 fi
 
-"/c/Program Files/CloudCompare/CloudCompare.exe" -SILENT -C_EXPORT_FMT ASC -SEP SPACE -ADD_HEADER -ADD_PTS_COUNT -O "$recon_dir/$2.ply" -O "$recon_dir/gt_4m.ply" -extract_vertices -c2c_dist > /dev/null 2>&1
+"/c/Program Files/CloudCompare/CloudCompare.exe" -SILENT -C_EXPORT_FMT ASC -SEP SPACE -ADD_HEADER -ADD_PTS_COUNT -O "$recon_dir/$2.ply" -O "$recon_dir/$3.ply" -extract_vertices -c2c_dist > /dev/null 2>&1
 c2c_file=$(ls "$recon_dir"/*C2C_DIST*.asc)
 
 CONDA_BASE=$(conda info --base)
