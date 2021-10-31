@@ -33,6 +33,6 @@ c2c_file=$(ls "$recon_dir"/*C2C_DIST*.asc)
 CONDA_BASE=$(conda info --base)
 source "$CONDA_BASE\\etc\\profile.d\\conda.sh"
 conda activate python2.7
-python /c/datasets/computeStats.py "$c2c_file"
 
+python /c/datasets/computeStats.py "$c2c_file" > "$recon_dir/c2c_dist-$2-$3.txt"
 rm "$recon_dir"/*.asc

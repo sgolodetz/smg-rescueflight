@@ -15,42 +15,42 @@ else
   echo "Found $1"
 fi
 
-tag="gt_4m"
+tag="gt_4m_gt"
 if [ -f "$sequence_dir/recon/$tag.ply" ]
 then
   echo "- Found $tag: skipping"
 else
-  ./reconstruct_scannet_scene.sh "$1" "$tag" gt --max_depth=4.0
+  ./reconstruct_scannet_scene.sh "$1" "$tag" gt gt --max_depth=4.0
 fi
 
-tag="dvmvs_raw_4m"
+tag="dvmvs_4m_gt"
 if [ -f "$sequence_dir/recon/$tag.ply" ]
 then
   echo "- Found $tag: skipping"
 else
-  ./reconstruct_scannet_scene.sh "$1" "$tag" ours --depth_estimator_type=dvmvs --max_depth=4.0 --no_depth_postprocessing
+  ./reconstruct_scannet_scene.sh "$1" "$tag" dvmvs gt --max_depth=4.0 --no_depth_postprocessing
 fi
 
-tag="dvmvs_pp_4m"
+tag="dvmvs_pp_4m_gt"
 if [ -f "$sequence_dir/recon/$tag.ply" ]
 then
   echo "- Found $tag: skipping"
 else
-  ./reconstruct_scannet_scene.sh "$1" "$tag" ours --depth_estimator_type=dvmvs --max_depth=4.0
+  ./reconstruct_scannet_scene.sh "$1" "$tag" dvmvs gt --max_depth=4.0
 fi
 
-tag="mvdepth_raw_4m"
+tag="mvdepth_4m_gt"
 if [ -f "$sequence_dir/recon/$tag.ply" ]
 then
   echo "- Found $tag: skipping"
 else
-  ./reconstruct_scannet_scene.sh "$1" "$tag" ours --depth_estimator_type=mvdepth --max_depth=4.0 --no_depth_postprocessing
+  ./reconstruct_scannet_scene.sh "$1" "$tag" mvdepth gt --max_depth=4.0 --no_depth_postprocessing
 fi
 
-tag="mvdepth_pp_4m"
+tag="mvdepth_pp_4m_gt"
 if [ -f "$sequence_dir/recon/$tag.ply" ]
 then
   echo "- Found $tag: skipping"
 else
-  ./reconstruct_scannet_scene.sh "$1" "$tag" ours --depth_estimator_type=mvdepth --max_depth=4.0
+  ./reconstruct_scannet_scene.sh "$1" "$tag" mvdepth gt --max_depth=4.0
 fi

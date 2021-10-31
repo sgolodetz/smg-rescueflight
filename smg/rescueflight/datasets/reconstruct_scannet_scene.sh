@@ -1,8 +1,8 @@
 #! /bin/bash -e
 
-if [ $# -lt 3 ]
+if [ $# -lt 4 ]
 then
-  echo "Usage: reconstruct_scannet_scene.sh <sequence name> <tag> {gt|ours} [args]"
+  echo "Usage: reconstruct_scannet_scene.sh <sequence name> <tag> {gt|dvmvs|mvdepth} {gt|track} [args]"
   exit 1
 fi
 
@@ -13,21 +13,27 @@ then
   exit 1
 fi
 
+CONDA_BASE=$(conda info --base)
+source "$CONDA_BASE\\etc\\profile.d\\conda.sh"
+conda activate smglib
+
+echo "Reconstructing $1 ($2)"
+
+echo "- Running mapping server..."
 if [ "$3" = "gt" ]
 then
-  echo "Reconstructing $1 ($2)"
-  echo "- Running mapping server..."
-  python ../mapping/scripts/run_open3d_mapping_server.py --batch --debug -p wait --output_dir="$sequence_dir/recon" --reconstruction_filename="$2.ply" --save_reconstruction --use_received_depth "${@:4}" > /dev/null 2>&1 &
-  sleep 5
-  echo "- Running mapping client..."
-  python run_scannet_client.py --batch --canonicalise_poses -s "$sequence_dir" > /dev/null 2>&1
-elif [ "$3" = "ours" ]
+  python ../mapping/scripts/run_open3d_mapping_server.py --batch --debug --output_dir="$sequence_dir/recon" -p wait --reconstruction_filename="$2.ply" --save_reconstruction --use_received_depth "${@:5}" > /dev/null 2>&1 &
+else
+  python ../mapping/scripts/run_open3d_mapping_server.py --batch --debug --output_dir="$sequence_dir/recon" -p wait --reconstruction_filename="$2.ply" --save_reconstruction --depth_estimator_type="$3" "${@:5}" > /dev/null 2>&1 &
+fi
+
+sleep 5
+
+echo "- Running mapping client..."
+if [ "$4" = "gt" ]
 then
-  echo "Reconstructing $1 ($2)"
-  echo "- Running mapping server..."
-  python ../mapping/scripts/run_open3d_mapping_server.py --batch --debug -p wait --output_dir="$sequence_dir/recon" --reconstruction_filename="$2.ply" --save_reconstruction "${@:4}" > /dev/null 2>&1 &
-  sleep 5
-  echo "- Running mapping client..."
+  python run_scannet_client.py --batch -s "$sequence_dir" --canonicalise_poses > /dev/null 2>&1
+else
   python run_scannet_client.py --batch -s "$sequence_dir" --use_tracker > /dev/null 2>&1
 fi
 
