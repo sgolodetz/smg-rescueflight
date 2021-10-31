@@ -91,6 +91,7 @@ def main() -> None:
             # Hard-code the camera parameters (for now). Note that we upsample the depth images to be the same
             # size as the colour images, since that's what Open3D expects, so we need to change the intrinsics
             # here to reflect that as well.
+            # FIXME: Load in the correct camera parameters (they're not the same for each sequence).
             calib: CameraParameters = CameraParameters()
             calib.set("colour", 1296, 968, 1169.621094, 1167.105103, 646.295044, 489.927032)
             calib.set("depth", 1296, 968, 1169.621094, 1167.105103, 646.295044, 489.927032)

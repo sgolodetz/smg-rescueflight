@@ -13,11 +13,17 @@ then
   exit 1
 fi
 
+echo "Reconstructing $1 ($2)"
+
+if [ -f "$sequence_dir/recon/$2.ply" ]
+then
+  echo "- Found $2.ply: skipping"
+  exit 0
+fi
+
 CONDA_BASE=$(conda info --base)
 source "$CONDA_BASE\\etc\\profile.d\\conda.sh"
 conda activate smglib
-
-echo "Reconstructing $1 ($2)"
 
 echo "- Running mapping server..."
 if [ "$3" = "gt" ]
@@ -37,4 +43,5 @@ else
   python run_scannet_client.py --batch -s "$sequence_dir" --use_tracker > /dev/null 2>&1
 fi
 
-echo "- Written reconstruction to: $sequence_dir/recon/$2.ply"
+echo "- Writing reconstruction to: $sequence_dir/recon/$2.ply"
+sleep 5

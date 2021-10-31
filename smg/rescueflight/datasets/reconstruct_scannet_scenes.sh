@@ -11,46 +11,10 @@ if [ -z "$sequence_dir" ]
 then
   echo "No such sequence: $1"
   exit 1
-else
-  echo "Found $1"
 fi
 
-tag="gt_4m_gt"
-if [ -f "$sequence_dir/recon/$tag.ply" ]
-then
-  echo "- Found $tag: skipping"
-else
-  ./reconstruct_scannet_scene.sh "$1" "$tag" gt gt --max_depth=4.0
-fi
-
-tag="dvmvs_4m_gt"
-if [ -f "$sequence_dir/recon/$tag.ply" ]
-then
-  echo "- Found $tag: skipping"
-else
-  ./reconstruct_scannet_scene.sh "$1" "$tag" dvmvs gt --max_depth=4.0 --no_depth_postprocessing
-fi
-
-tag="dvmvs_pp_4m_gt"
-if [ -f "$sequence_dir/recon/$tag.ply" ]
-then
-  echo "- Found $tag: skipping"
-else
-  ./reconstruct_scannet_scene.sh "$1" "$tag" dvmvs gt --max_depth=4.0
-fi
-
-tag="mvdepth_4m_gt"
-if [ -f "$sequence_dir/recon/$tag.ply" ]
-then
-  echo "- Found $tag: skipping"
-else
-  ./reconstruct_scannet_scene.sh "$1" "$tag" mvdepth gt --max_depth=4.0 --no_depth_postprocessing
-fi
-
-tag="mvdepth_pp_4m_gt"
-if [ -f "$sequence_dir/recon/$tag.ply" ]
-then
-  echo "- Found $tag: skipping"
-else
-  ./reconstruct_scannet_scene.sh "$1" "$tag" mvdepth gt --max_depth=4.0
-fi
+./reconstruct_scannet_scene.sh "$1" "gt_gt" gt gt --max_depth=20.0
+./reconstruct_scannet_scene.sh "$1" "dvmvs_4m_gt" dvmvs gt --max_depth=4.0 --no_depth_postprocessing
+./reconstruct_scannet_scene.sh "$1" "dvmvs_pp_4m_gt" dvmvs gt --max_depth=4.0
+./reconstruct_scannet_scene.sh "$1" "mvdepth_4m_gt" mvdepth gt --max_depth=4.0 --no_depth_postprocessing
+./reconstruct_scannet_scene.sh "$1" "mvdepth_pp_4m_gt" mvdepth gt --max_depth=4.0
