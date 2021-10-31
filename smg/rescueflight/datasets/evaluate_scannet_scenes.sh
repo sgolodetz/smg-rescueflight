@@ -17,25 +17,3 @@ for tag in dvmvs_4m_gt dvmvs_pp_4m_gt mvdepth_4m_gt mvdepth_pp_4m_gt
 do
   ./evaluate_scannet_scene.sh "$1" "$tag" gt_4m_gt
 done
-
-#if [ ! -f "$recon_dir/$2.ply" ]
-#then
-#  echo "Missing $2.ply in $recon_dir"
-#  exit 1
-#fi
-#
-#if [ ! -f "$recon_dir/$3.ply" ]
-#then
-#  echo "Missing $3.ply in $recon_dir"
-#  exit 1
-#fi
-#
-#"/c/Program Files/CloudCompare/CloudCompare.exe" -SILENT -C_EXPORT_FMT ASC -SEP SPACE -ADD_HEADER -ADD_PTS_COUNT -O "$recon_dir/$2.ply" -O "$recon_dir/$3.ply" -extract_vertices -c2c_dist > /dev/null 2>&1
-#c2c_file=$(ls "$recon_dir"/*C2C_DIST*.asc)
-#
-#CONDA_BASE=$(conda info --base)
-#source "$CONDA_BASE\\etc\\profile.d\\conda.sh"
-#conda activate python2.7
-#
-#python /c/datasets/computeStats.py "$c2c_file"
-#rm "$recon_dir"/*.asc
