@@ -6,7 +6,7 @@ then
   exit 1
 fi
 
-./reconstruct_scannet_scenes.sh "$1"
+./reconstruct_scannet_sequence.sh "$1"
 
 for tag in dvmvs_4m_gt dvmvs_pp_4m_gt mvdepth_4m_gt mvdepth_pp_4m_gt
 do

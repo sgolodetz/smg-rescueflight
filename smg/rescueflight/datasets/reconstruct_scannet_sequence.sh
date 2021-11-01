@@ -2,7 +2,7 @@
 
 if [ $# -lt 1 ]
 then
-  echo "Usage: reconstruct_scannet_scenes.sh <sequence name>"
+  echo "Usage: reconstruct_scannet_sequence.sh <sequence name>"
   exit 1
 fi
 
