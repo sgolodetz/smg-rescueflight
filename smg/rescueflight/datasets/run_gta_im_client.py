@@ -79,7 +79,7 @@ def try_load_frame(frame_idx: int, sequence_dir: str, info: List[Dict[str, Any]]
     # Check whether the frame has a bad pose (in sequence FPS-5/2020-06-21-19-42-55 in the dataset, a number of
     # frames at the start of the sequence all have the initial pose, even though the camera is clearly moving).
     diff: np.ndarray = world_from_camera - world_from_initial
-    bad: bool = np.linalg.norm(diff) == 0.0
+    bad: bool = "2020-06-21-19-42-55" in sequence_dir and np.linalg.norm(diff) == 0.0
 
     # Translate the pose to make the camera trajectory start at the origin.
     world_from_camera[0:3, 3] -= world_from_initial[0:3, 3]
