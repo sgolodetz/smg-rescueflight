@@ -10,3 +10,9 @@ tr -d '\r' < "$1" | while read f
 do
   ./evaluate_scannet_sequence.sh "$f"
 done
+
+CONDA_BASE=$(conda info --base)
+source "$CONDA_BASE\\etc\\profile.d\\conda.sh"
+conda activate smglib
+
+python make_scannet_tables.py -s "$1"

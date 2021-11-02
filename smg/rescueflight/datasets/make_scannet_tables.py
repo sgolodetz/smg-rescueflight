@@ -1,13 +1,22 @@
 import pandas as pd
 import xarray as xr
 
+from argparse import ArgumentParser
 from typing import List
 
 
 def main() -> None:
-    sequence_names: List[str] = [
-        "scene0707_00", "scene0708_00", "scene0709_00", "scene0710_00"
-    ]
+    # Parse any command-line arguments.
+    parser = ArgumentParser()
+    parser.add_argument(
+        "--sequence_list", "-s", type=str, default="scannetv2_smg.txt",
+        help="a file containing the list of ScanNet sequences we want to use (one per line)"
+    )
+    args: dict = vars(parser.parse_args())
+
+    with open(args["sequence_list"]) as f:
+        sequence_names: List[str] = [line.rstrip() for line in f.readlines()]
+
     method_names: List[str] = [
         "dvmvs_4m_gt", "dvmvs_pp_4m_gt", "mvdepth_4m_gt", "mvdepth_pp_4m_gt"
     ]
@@ -34,9 +43,9 @@ def main() -> None:
     # print(da.sel(Attribute="median").idxmin(dim="Method"))
     # print(da.sel(Attribute="mean"))
     # print(da.sel(Attribute="mean").mean(dim="Sequence").to_pandas())
-    print(da.sel(Attribute=["mean", "median", "std"]).mean(dim="Sequence").to_pandas())
-    print()
     print(da.sel(Attribute="mean").to_pandas())
+    print()
+    print(da.sel(Attribute=["mean", "median", "std"]).mean(dim="Sequence").to_pandas())
 
 
 if __name__ == "__main__":
