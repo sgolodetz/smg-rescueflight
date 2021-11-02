@@ -3,12 +3,26 @@ import numpy as np
 import os
 
 from argparse import ArgumentParser
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 from smg.comms.base import RGBDFrameMessageUtil
 from smg.comms.mapping import MappingClient
 from smg.pyorbslam2 import RGBDTracker
-from smg.utility import CameraParameters, ImageUtil, PooledQueue, PoseUtil
+from smg.utility import CameraParameters, GeometryUtil, ImageUtil, PooledQueue, PoseUtil
+
+
+def load_intrinsics(filename: str) -> Tuple[float, float, float, float]:
+    """
+    Load a set of camera intrinsics from a file on disk.
+
+    .. note::
+        In ScanNet, the camera intrinsics are stored as a 4x4 matrix, where the top-left 3x3 sub-matrix is K.
+
+    :param filename:    The file containing the camera intrinsics.
+    :return:            The camera intrinsics, as an (fx, fy, cx, cy) tuple.
+    """
+    k_4x4: np.ndarray = PoseUtil.load_pose(filename)
+    return GeometryUtil.intrinsics_to_tuple(k_4x4[0:3, 0:3])
 
 
 def try_load_frame(frame_idx: int, sequence_dir: str) -> Optional[Dict[str, Any]]:
@@ -88,13 +102,20 @@ def main() -> None:
             frame_compressor=RGBDFrameMessageUtil.compress_frame_message,
             pool_empty_strategy=PooledQueue.PES_WAIT
         ) as client:
-            # Hard-code the camera parameters (for now). Note that we upsample the depth images to be the same
-            # size as the colour images, since that's what Open3D expects, so we need to change the intrinsics
-            # here to reflect that as well.
+            # Load in the camera parameters. Note that we upsample the depth images to be the same size as
+            # the colour images, since that's what Open3D expects, so we rescale the intrinsics here to
+            # reflect that as well.
+            colour_intrinsics: Tuple[float, float, float, float] = load_intrinsics(
+                os.path.join(sequence_dir, "intrinsic", "intrinsic_color.txt")
+            )
+            depth_intrinsics: Tuple[float, float, float, float] = load_intrinsics(
+                os.path.join(sequence_dir, "intrinsic", "intrinsic_depth.txt")
+            )
+            depth_intrinsics = GeometryUtil.rescale_intrinsics(depth_intrinsics, (640, 480), (1296, 968))
+
             calib: CameraParameters = CameraParameters()
-            calib.set("colour", 1296, 968, 1169.621094, 1167.105103, 646.295044, 489.927032)
-            calib.set("depth", 1296, 968, 1169.621094, 1167.105103, 646.295044, 489.927032)
-            # calib.set("depth", 640, 480, 577.590698, 578.729797, 318.905426, 242.683609)
+            calib.set("colour", 1296, 968, *colour_intrinsics)
+            calib.set("depth", 1296, 968, *depth_intrinsics)
 
             # Send a calibration message to tell the server the camera parameters.
             client.send_calibration_message(RGBDFrameMessageUtil.make_calibration_message(

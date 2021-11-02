@@ -59,6 +59,10 @@ def main() -> None:
         help="the strategy to use when a frame message is received whilst a client handler's frame pool is empty"
     )
     parser.add_argument(
+        "--reconstruction_filename", type=str, default="mesh.ply",
+        help="the name of the file to which to save the reconstructed mesh"
+    )
+    parser.add_argument(
         "--save_frames", action="store_true",
         help="whether to save the sequence of frames used to reconstruct the TSDF"
     )
@@ -164,8 +168,9 @@ def main() -> None:
             os.makedirs(output_dir, exist_ok=True)
 
             # Save the mesh itself.
+            reconstruction_filename: str = os.path.join(output_dir, args["reconstruction_filename"])
             # noinspection PyTypeChecker
-            o3d.io.write_triangle_mesh(os.path.join(output_dir, "mesh.ply"), mesh, print_progress=True)
+            o3d.io.write_triangle_mesh(reconstruction_filename, mesh, print_progress=True)
 
             # Also save the transformation from world space to ArUco marker space if available.
             aruco_from_world: Optional[np.ndarray] = mapping_system.get_aruco_from_world()

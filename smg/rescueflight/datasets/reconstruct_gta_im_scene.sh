@@ -1,4 +1,5 @@
 #! /bin/bash -e
+
 if [ $# -lt 2 ]
 then
   echo "Usage: reconstruct_gta_im_scene.sh <scene name> {gt|ours} [args]"
