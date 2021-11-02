@@ -10,7 +10,7 @@ fi
 # Try to determine the location of the ScanNet root directory.
 root_dir=`./determine_scannet_root_dir.sh`
 
-# TODO: Check if this is the right condition when the root directory can't be found.
+# If the root directory was found:
 if [ -e "$root_dir" ]
 then
   # Derive the location of the sequence directory from the root directory.
@@ -20,6 +20,5 @@ then
   if [ -e "$sequence_dir" ] || [ $# -eq 2 ]
   then
     echo "$sequence_dir"
-    exit 0
   fi
 fi
