@@ -1,13 +1,16 @@
 #! /bin/bash -e
 
+# Check that the script is being used correctly.
 if [ $# -ne 1 ]
 then
   echo "Usage: obtain_scannet_sequence.sh <sequence name>"
   exit 1
 fi
 
+# Start obtaining the sequence.
 echo "Obtaining $1"
 
+# If the sequence directory already exists, there's no need to obtain the sequence, so early out.
 sequence_dir=`./determine_scannet_sequence_dir.sh "$1" true`
 if [ -e "$sequence_dir" ]
 then
@@ -15,6 +18,7 @@ then
   exit 0
 fi
 
+# Download the sequence if necessary.
 CONDA_BASE=$(conda info --base)
 source "$CONDA_BASE\\etc\\profile.d\\conda.sh"
 conda activate python2.7
@@ -36,6 +40,7 @@ else
   fi
 fi
 
+# Export the images, poses and camera intrinsics from the downloaded .sens file if necessary.
 if [ -e "$temp_dir/exported" ]
 then
   echo "- Already exported $1: skipping"
@@ -46,6 +51,9 @@ else
   cd -
 fi
 
+# Move the directory containing the exported sequence into the correct place.
 echo "- Finalising..."
 mv "$temp_dir/exported" "$sequence_dir"
+
+# Clean up.
 /bin/rm -fR temp
