@@ -1,8 +1,9 @@
 #! /bin/bash -e
 
+# Check that the script is being used correctly.
 if [ $# -lt 2 ]
 then
-  echo "Usage: reconstruct_gta_im_scene.sh <scene name> {gt|ours} [args]"
+  echo "Usage: reconstruct_gta_im_scene.sh <sequence name> {gt|dvmvs|mvdepth} [args]"
   exit 1
 fi
 

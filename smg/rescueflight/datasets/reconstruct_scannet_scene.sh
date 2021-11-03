@@ -3,12 +3,12 @@
 # Check that the script is being used correctly.
 if [ $# -lt 4 ]
 then
-  echo "Usage: reconstruct_scannet_scene.sh <sequence name> <method tag> {gt|dvmvs|mvdepth} {gt|track} [args]"
+  echo "Usage: reconstruct_scannet_scene.sh <sequence name> <method tag> {gt|dvmvs|mvdepth} {gt|orb2} [args]"
   exit 1
 fi
 
 # Check that the sequence directory exists.
-sequence_dir=`./determine_scannet_sequence_dir.sh "$1"`
+sequence_dir=`./determine_sequence_dir.sh scannet "$1"`
 if [ -z "$sequence_dir" ]
 then
   echo "No such sequence: $1"

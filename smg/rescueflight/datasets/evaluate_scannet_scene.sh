@@ -8,7 +8,7 @@ then
 fi
 
 # Check that the sequence directory exists.
-sequence_dir=`./determine_scannet_sequence_dir.sh "$1"`
+sequence_dir=`./determine_sequence_dir.sh scannet "$1"`
 if [ -z "$sequence_dir" ]
 then
   echo "No such sequence: $1"
