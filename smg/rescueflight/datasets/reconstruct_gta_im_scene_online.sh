@@ -21,12 +21,21 @@ source "$CONDA_BASE\\etc\\profile.d\\conda.sh"
 
 # Run the people masking service.
 echo "- Running people masking service..."
-# TODO: LCR-Net.
 if [ "$3" == "gt" ]
 then
   conda activate smglib
   python run_gta_im_skeleton_detection_service.py -s "$sequence_dir" > /dev/null 2>&1 &
   pms_pid="$!"
+  conda deactivate
+elif [ "$3" == "lcrnet" ]
+then
+  conda activate lcrnet
+  export PYTHONPATH="C:/smglib/smg-lcrnet/smg/external/lcrnet/Detectron.pytorch/lib;$PYTHONPATH"
+  export PYTHONPATH="C:/smglib/smg-lcrnet/smg/external/lcrnet;$PYTHONPATH"
+  export PYTHONPATH="C:/smglib/smg-lcrnet;$PYTHONPATH"
+  python /c/smglib/smg-lcrnet/scripts/run_lcrnet_skeleton_detection_service.py > /dev/null 2>&1 &
+  pms_pid="$!"
+  export PYTHONPATH=
   conda deactivate
 elif [ "$3" == "maskrcnn" ]
 then
@@ -53,6 +62,7 @@ then
   export PYTHONPATH="C:/smglib/smg-lcrnet;$PYTHONPATH"
   python /c/smglib/smg-lcrnet/scripts/run_lcrnet_skeleton_detection_service.py -p 7853 > /dev/null 2>&1 &
   sds_pid="$!"
+  export PYTHONPATH=
   conda deactivate
 fi
 
