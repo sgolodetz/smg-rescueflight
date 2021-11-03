@@ -3,7 +3,7 @@
 # Check that the script is being used correctly.
 if [ $# -lt 4 ]
 then
-  echo "Usage: detect_gta_im_people.sh <sequence name> <method tag> {gt|lcrnet|maskrcnn} {gt|lcrnet|xnect} [args]"
+  echo "Usage: reconstruct_gta_im_scene_online.sh <sequence name> {batch|nobatch} {gt|lcrnet|maskrcnn} {gt|lcrnet|xnect} [args]"
   exit 1
 fi
 
@@ -18,16 +18,6 @@ fi
 # Enable the conda command.
 CONDA_BASE=$(conda info --base)
 source "$CONDA_BASE\\etc\\profile.d\\conda.sh"
-
-# Start the people detection process.
-echo "Detecting people for $1 ($2)"
-
-# If the output directory already exists, early out.
-if [ -e "$sequence_dir/people/$2" ]
-then
-  echo "- Found people/$2 directory: skipping"
-  exit 0
-fi
 
 # Run the people masking service.
 echo "- Running people masking service..."
@@ -57,7 +47,12 @@ sleep 5
 # Run the mapping server.
 echo "- Running mapping server..."
 conda activate smglib
-python ../mapping/scripts/run_octomap_mapping_server.py --batch --detect_skeletons -p wait --use_received_depth --octree_voxel_size=0.1 --output_dir="$sequence_dir/people/$2" "${@:5}" > /dev/null 2>& 1 &
+if [ "$2" == "batch" ]
+then
+  python ../mapping/scripts/run_octomap_mapping_server.py --batch --detect_skeletons --use_received_depth "${@:5}" > /dev/null 2>& 1 &
+else
+  python ../mapping/scripts/run_octomap_mapping_server.py --detect_skeletons --use_received_depth "${@:5}" > /dev/null 2>& 1 &
+fi
 conda deactivate
 
 # Wait for the mapping server to initialise.
@@ -66,7 +61,12 @@ sleep 5
 # Run the mapping client.
 echo "- Running mapping client..."
 conda activate smglib
-python run_gta_im_client.py --batch -s "$sequence_dir"
+if [ "$2" == "batch" ]
+then
+  python run_gta_im_client.py --batch -s "$sequence_dir"
+else
+  python run_gta_im_client.py -s "$sequence_dir"
+fi
 conda deactivate
 
 # Ruthlessly kill the people masking and live skeleton detection services, which would otherwise run foreover.

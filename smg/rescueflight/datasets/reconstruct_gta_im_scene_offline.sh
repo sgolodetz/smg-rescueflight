@@ -3,7 +3,7 @@
 # Check that the script is being used correctly.
 if [ $# -lt 4 ]
 then
-  echo "Usage: reconstruct_gta_im_scene.sh <sequence name> <method tag> {gt|dvmvs|mvdepth} {gt|maskrcnn} [args]"
+  echo "Usage: reconstruct_gta_im_scene_offline.sh <sequence name> <method tag> {gt|dvmvs|mvdepth} {gt|maskrcnn} [args]"
   exit 1
 fi
 
