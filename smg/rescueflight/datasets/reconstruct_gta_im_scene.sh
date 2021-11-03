@@ -32,9 +32,9 @@ conda activate smglib
 
 # Run the people masking service.
 # TODO: Different people masking services.
-echo "- Initialising skeleton detection service..."
+echo "- Running people masking service..."
 python run_gta_im_skeleton_detection_service.py -s "$sequence_dir" > /dev/null 2>&1 &
-sds_pid="$!"
+pms_pid="$!"
 sleep 5
 
 # Run the mapping server.
@@ -62,4 +62,4 @@ do
 done
 
 # Ruthlessly kill the people masking service, which would otherwise run forever.
-kill -9 "$sds_pid"
+kill -9 "$pms_pid"
