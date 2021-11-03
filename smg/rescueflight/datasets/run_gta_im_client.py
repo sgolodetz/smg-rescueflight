@@ -108,12 +108,17 @@ def main() -> None:
         help="whether to run in batch mode"
     )
     parser.add_argument(
+        "--canonicalise_poses", action="store_true",
+        help="whether to canonicalise the poses (i.e. start the camera trajectory from the identity)"
+    )
+    parser.add_argument(
         "--sequence_dir", "-s", type=str, required=True,
         help="the directory from which to load the sequence"
     )
     args: dict = vars(parser.parse_args())
 
     batch_mode: bool = args["batch"]
+    canonicalise_poses: bool = args["canonicalise_poses"]
     sequence_dir: str = args["sequence_dir"]
 
     try:
@@ -147,6 +152,7 @@ def main() -> None:
             colour_image: Optional[np.ndarray] = None
             depth_image: Optional[np.ndarray] = None
             frame_idx: int = 0
+            initial_from_world: Optional[np.ndarray] = None
             pause: bool = not batch_mode
 
             # Until the user wants to quit:
@@ -160,11 +166,22 @@ def main() -> None:
                     colour_image = cv2.resize(frame["colour_image"], image_size)
                     depth_image = cv2.resize(frame["depth_image"], image_size, interpolation=cv2.INTER_NEAREST)
 
-                    # If the frame's not one with a bad pose (see try_load_frame), send it across to the server.
+                    # If the frame's not one with a bad pose (see try_load_frame):
                     if not frame["bad"]:
+                        # Canonicalise the camera pose if requested.
+                        if canonicalise_poses:
+                            if initial_from_world is None:
+                                initial_from_world = np.linalg.inv(frame["world_from_camera"])
+
+                            frame["world_from_camera"] = initial_from_world @ frame["world_from_camera"]
+
+                        # Send the frame across to the server.
                         client.send_frame_message(lambda msg: RGBDFrameMessageUtil.fill_frame_message(
-                            frame_idx, colour_image, ImageUtil.to_short_depth(depth_image),
-                            frame["world_from_camera"], msg
+                            frame_idx,
+                            colour_image,
+                            ImageUtil.to_short_depth(depth_image),
+                            frame["world_from_camera"],
+                            msg
                         ))
 
                     # Increment the frame index.

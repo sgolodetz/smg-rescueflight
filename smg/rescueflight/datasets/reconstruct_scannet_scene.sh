@@ -25,11 +25,12 @@ then
   exit 0
 fi
 
-# Run the mapping server.
+# Activate the appropriate Conda environment.
 CONDA_BASE=$(conda info --base)
 source "$CONDA_BASE\\etc\\profile.d\\conda.sh"
 conda activate smglib
 
+# Run the mapping server.
 echo "- Running mapping server..."
 if [ "$3" = "gt" ]
 then
@@ -50,7 +51,8 @@ else
   python run_scannet_client.py --batch -s "$sequence_dir" --use_tracker > /dev/null 2>&1
 fi
 
-# Wait for the reconstruction to be written to disk.
+# Wait for the reconstruction to start being written to disk.
+# FIXME: Ideally we'd wait for it to finish being written to disk, but that's a little trickier.
 echo "- Writing reconstruction to: $sequence_dir/recon/$2.ply"
 while [ ! -f "$sequence_dir/recon/$2.ply" ]
 do
