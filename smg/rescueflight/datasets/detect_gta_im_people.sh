@@ -57,7 +57,7 @@ sleep 5
 # Run the mapping server.
 echo "- Running mapping server..."
 conda activate smglib
-python ../mapping/scripts/run_octomap_mapping_server.py --detect_skeletons -p wait --use_received_depth --octree_voxel_size=0.1 --output_dir="$sequence_dir/people/$2" "${@:5}" > /dev/null 2>& 1 &
+python ../mapping/scripts/run_octomap_mapping_server.py --batch --detect_skeletons -p wait --use_received_depth --octree_voxel_size=0.1 --output_dir="$sequence_dir/people/$2" "${@:5}" > /dev/null 2>& 1 &
 conda deactivate
 
 # Wait for the mapping server to initialise.
