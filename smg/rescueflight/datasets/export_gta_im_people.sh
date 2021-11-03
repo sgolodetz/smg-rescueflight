@@ -26,4 +26,4 @@ then
 fi
 
 # Otherwise, run the reconstruction.
-./reconstruct_gta_im_scene_online.sh "$1" batch "${@:3}" --octree_voxel_size=0.2 --output_dir="$sequence_dir/people/$2" -p wait
+./reconstruct_gta_im_scene_online.sh "$1" batch "$3" "$4" --octree_voxel_size=0.2 --output_dir="$sequence_dir/people/$2" -p wait "${@:5}"

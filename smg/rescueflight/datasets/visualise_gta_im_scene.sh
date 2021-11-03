@@ -9,4 +9,4 @@ fi
 
 # Run the visualisation.
 echo "Visualising $1"
-./reconstruct_gta_im_scene_online.sh "$1" nobatch "${@:2}" --use_tsdf
+./reconstruct_gta_im_scene_online.sh "$1" nobatch "$2" "$3" --use_tsdf "${@:4}"
