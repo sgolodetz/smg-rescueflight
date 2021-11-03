@@ -52,4 +52,7 @@ fi
 
 # Wait for the reconstruction to be written to disk.
 echo "- Writing reconstruction to: $sequence_dir/recon/$2.ply"
-sleep 5
+while [ ! -f "$sequence_dir/recon/$2.ply" ]
+do
+  sleep 1
+done
