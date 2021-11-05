@@ -90,6 +90,10 @@ def main() -> None:
         "--save_frames", action="store_true",
         help="whether to save the sequence of frames that have been obtained from the drone"
     )
+    parser.add_argument(
+        "--save_scale", action="store_true",
+        help="whether to save the scale estimation figure"
+    )
     args: dict = vars(parser.parse_args())
 
     # Initialise pygame and its joystick module.
@@ -146,10 +150,13 @@ def main() -> None:
                 state_machine: HeightBasedMetricDroneFSM = HeightBasedMetricDroneFSM(
                     drone, joystick, mapping_client,
                     output_dir=args.get("output_dir"),
-                    save_frames=args.get("save_frames")
+                    save_frames=args.get("save_frames"),
+                    save_scale=args.get("save_frames") or args.get("save_scale")
                 )
 
-                # Initialise the timestamp and the drone's trajectory smoother (used for visualisation).
+                # Initialise some variables.
+                should_track: bool = False
+                takeoff_start: Optional[float] = None
                 timestamp: float = 0.0
                 trajectory_smoother: TrajectorySmoother = TrajectorySmoother()
 
@@ -163,6 +170,7 @@ def main() -> None:
                         if event.type == pygame.JOYBUTTONDOWN:
                             if event.button == 0:
                                 takeoff_requested = True
+                                takeoff_start = timer()
                         elif event.type == pygame.JOYBUTTONUP:
                             if event.button == 0:
                                 landing_requested = True
@@ -183,14 +191,24 @@ def main() -> None:
                     # Get a timed image from the drone.
                     image, image_timestamp = drone.get_timed_image()
 
-                    # Try to estimate a transformation from initial camera space to current camera space
-                    # using the tracker.
-                    tracker_c_t_i: Optional[np.ndarray] = tracker.estimate_pose(image) if tracker.is_ready() else None
+                    # Get the height of the drone.
+                    drone_height: Optional[float] = drone.get_height()
+
+                    # If we started taking off more than 5s ago, we'll be in the air by now, so we can start tracking.
+                    if takeoff_start is not None:
+                        takeoff_time: float = timer() - takeoff_start
+                        if takeoff_time >= 5.0:
+                            should_track = True
+
+                    # If the drone's taken off and the tracker's ready, try to use it to estimate a transformation
+                    # from initial camera space to current camera space.
+                    tracker_c_t_i: Optional[np.ndarray] = tracker.estimate_pose(image) \
+                        if should_track and tracker.is_ready() else None
 
                     # Run an iteration of the state machine.
                     state_machine.iterate(
                         image, image_timestamp, drone.get_intrinsics(), tracker_c_t_i,
-                        drone.get_height(), takeoff_requested, landing_requested
+                        drone_height, takeoff_requested, landing_requested
                     )
 
                     # Update the drone's trajectory.
@@ -203,7 +221,7 @@ def main() -> None:
                         "Height-Based Metric Drone Client: "
                         f"State = {int(state_machine.get_state())}; "
                         f"Battery Level = {drone.get_battery_level()}%; "
-                        f"Height = {drone.get_height()}m"
+                        f"Height = {drone_height}m"
                     )
 
                     # Render the contents of the window.
