@@ -28,11 +28,16 @@ def main() -> None:
         "--use_tracked_poses", action="store_true",
         help="whether to use the tracked camera poses stored with the sequence instead of the Vicon-based poses"
     )
+    parser.add_argument(
+        "--use_vicon_scale", action="store_true",
+        help="whether to convert the tracked poses to Vicon scale using a pre-calculated scale factor"
+    )
     args: dict = vars(parser.parse_args())
 
     sequence_dir: str = args["sequence_dir"]
     source_subject: str = args["source_subject"]
     use_tracked_poses: bool = args["use_tracked_poses"]
+    use_vicon_scale: bool = args["use_vicon_scale"]
 
     # Construct the subject-from-source cache.
     subject_from_source_cache: SubjectFromSourceCache = SubjectFromSourceCache(".")
@@ -61,6 +66,13 @@ def main() -> None:
             pause: bool = True
             shown_colour_image: bool = False
 
+            # If we're using tracked poses and they're to be converted to Vicon scale, load in the scale factor.
+            scale_factor: float = 1.0
+            if use_tracked_poses and use_vicon_scale:
+                scale_filename: str = os.path.join(sequence_dir, "reconstruction", "vicon_from_world_scale_factor.txt")
+                with open(scale_filename, "r") as file:
+                    scale_factor = float(file.readline())
+
             # Until the user wants to quit:
             while True:
                 # Try to load a Vicon frame from disk. If that succeeds:
@@ -80,6 +92,8 @@ def main() -> None:
                         if use_tracked_poses:
                             pose_filename: str = os.path.join(sequence_dir, f"{frame_number}.pose.txt")
                             pose = PoseUtil.load_pose(pose_filename)
+                            if use_vicon_scale:
+                                pose[0:3, 3] *= scale_factor
                         else:
                             vicon_from_source: Optional[np.ndarray] = vicon.get_image_source_pose(
                                 source_subject, subject_from_source_cache
