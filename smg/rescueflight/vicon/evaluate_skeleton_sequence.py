@@ -114,6 +114,7 @@ def main() -> None:
                 process_next = not pause
 
             # Get the frame number of the current Vicon frame, and print it out.
+            # FIXME: This can be None, and we should be checking for it.
             frame_number: int = vicon.get_frame_number()
 
             print("===")

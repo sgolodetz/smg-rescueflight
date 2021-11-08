@@ -51,7 +51,7 @@ sleep 5
 
 # Run the mapping client.
 echo "- Running mapping client..."
-python run_gta_im_client.py --batch -s "$sequence_dir" --canonicalise_poses > /dev/null 2>&1
+python run_gta_im_client.py --batch -s "$sequence_dir" > /dev/null 2>&1
 
 # Wait for the reconstruction to start being written to disk.
 # FIXME: Ideally we'd wait for it to finish being written to disk, but that's a little trickier.
