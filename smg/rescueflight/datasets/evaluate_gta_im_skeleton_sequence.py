@@ -53,7 +53,7 @@ def main() -> None:
 
     # Try to load in the ground-truth mesh.
     scene_mesh: Optional[OpenGLTriMesh] = None
-    mesh_filename: str = os.path.join(sequence_dir, "recon", "gt_skeleton_eval.ply")
+    mesh_filename: str = os.path.join(sequence_dir, "recon", "gt_gt.ply")
     if os.path.exists(mesh_filename):
         scene_mesh_o3d: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(mesh_filename)
         scene_mesh = MeshUtil.convert_trimesh_to_opengl(scene_mesh_o3d)
@@ -113,8 +113,6 @@ def main() -> None:
                 # Then forcibly terminate the whole process.
                 # noinspection PyProtectedMember
                 os._exit(0)
-
-            # ...
 
         # If we're ready to do so, process the next frame.
         if process_next:
