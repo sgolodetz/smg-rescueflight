@@ -39,6 +39,10 @@ def main() -> None:
     # Parse any command-line arguments.
     parser = ArgumentParser()
     parser.add_argument(
+        "--batch", action="store_true",
+        help="whether to run in batch mode"
+    )
+    parser.add_argument(
         "--detector_type", "-t", type=str, default="lcrnet", choices=("gt", "lcrnet", "xnect"),
         help="the skeleton detector whose (pre-saved) skeletons are to be evaluated"
     )
@@ -48,12 +52,13 @@ def main() -> None:
     )
     args: dict = vars(parser.parse_args())
 
+    batch: bool = args["batch"]
     detector_type: str = args["detector_type"]
     sequence_dir: str = args["sequence_dir"]
 
     # Try to load in the ground-truth mesh.
     scene_mesh: Optional[OpenGLTriMesh] = None
-    mesh_filename: str = os.path.join(sequence_dir, "recon", "gt_gt.ply")
+    mesh_filename: str = os.path.join(sequence_dir, "recon", "gt_skeleton_eval.ply")
     if os.path.exists(mesh_filename):
         scene_mesh_o3d: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(mesh_filename)
         scene_mesh = MeshUtil.convert_trimesh_to_opengl(scene_mesh_o3d)
@@ -88,8 +93,8 @@ def main() -> None:
     # Initialise a few variables.
     detected_skeletons: Optional[List[Skeleton3D]] = None
     gt_skeletons: Optional[List[Skeleton3D]] = None
-    pause: bool = True
-    process_next: bool = False
+    pause: bool = not batch
+    process_next: bool = not pause
 
     # Until we reach the end of the sequence:
     i: int = 0

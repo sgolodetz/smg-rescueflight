@@ -7,7 +7,7 @@ then
   exit 1
 fi
 
-# Repeatedly reconstruct the ScanNet sequence using the various different methods we want to compare.
+# Repeatedly reconstruct the sequence using the various different methods we want to compare.
 ./reconstruct_scannet_sequence.sh "$1"
 
 # Evaluate the reconstructions for each of the different methods in turn.

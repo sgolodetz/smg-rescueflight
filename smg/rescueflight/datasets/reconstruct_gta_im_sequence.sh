@@ -8,7 +8,7 @@ then
 fi
 
 # Reconstruct the sequence using the various different methods we want to compare.
-./reconstruct_gta_im_scene_offline.sh "$1" "gt_gt" gt gt --max_depth=20.0 --voxel_size=0.05
+./reconstruct_gta_im_scene_offline.sh "$1" "gt_skeleton_eval" gt gt --max_depth=20.0 --voxel_size=0.05
 # TODO: Other depth estimators.
 
 # TODO: Comment here.
