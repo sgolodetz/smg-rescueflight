@@ -61,5 +61,8 @@ do
   sleep 1
 done
 
+# Give it at least a chance to finish(!).
+sleep 5
+
 # Ruthlessly kill the people masking service, which would otherwise run forever.
 kill -9 "$pms_pid"

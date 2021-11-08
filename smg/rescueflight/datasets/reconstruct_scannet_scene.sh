@@ -58,3 +58,6 @@ while [ ! -f "$sequence_dir/recon/$2.ply" ]
 do
   sleep 1
 done
+
+# Give it at least a chance to finish(!).
+sleep 5
