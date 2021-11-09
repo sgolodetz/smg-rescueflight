@@ -15,3 +15,4 @@ fi
 ./export_gta_im_people.sh "$1" gt gt gt --max_depth=10.0 --save_people_masks --save_skeletons
 #./export_gta_im_people.sh "$1" lcrnet lcrnet gt --max_depth=10.0 --save_people_masks --save_skeletons
 #./export_gta_im_people.sh "$1" maskrcnn maskrcnn gt --max_depth=10.0 --save_people_masks
+#./export_gta_im_people.sh "$1" xnect xnect gt --max_depth=10.0 --save_people_masks --save_skeletons

@@ -53,7 +53,7 @@ def main() -> None:
         help="whether to enable debugging"
     )
     parser.add_argument(
-        "--generator_type", "-t", type=str, default="maskrcnn", choices=("gt", "lcrnet", "maskrcnn"),
+        "--generator_type", "-t", type=str, default="maskrcnn", choices=("gt", "lcrnet", "maskrcnn", "xnect"),
         help="the people mask generator whose (pre-saved) masks are to be evaluated"
     )
     parser.add_argument(

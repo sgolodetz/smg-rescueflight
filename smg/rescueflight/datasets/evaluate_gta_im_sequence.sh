@@ -30,7 +30,7 @@ source "$CONDA_BASE\\etc\\profile.d\\conda.sh"
 #done
 
 # Evaluate the people masks for each of the different methods in turn.
-for generator_type in lcrnet maskrcnn
+for generator_type in lcrnet maskrcnn xnect
 do
   echo "Evaluating people masks for $1 ($generator_type)"
   output_filename="people_mask_metrics-$generator_type.txt"
@@ -59,7 +59,7 @@ do
   elif [ -e "$sequence_dir/people/$detector_type" ]
   then
     conda activate smglib
-    python evaluate_gta_im_skeleton_sequence.py --batch -s "$sequence_dir" -t "$detector_type" > "$sequence_dir/people/$output_filename"
+    python evaluate_gta_im_skeleton_sequence.py --batch -s "$sequence_dir" -t "$detector_type" > "$sequence_dir/people/$output_filename" 2>/dev/null
     echo "- Written metrics to $output_filename"
     conda deactivate
   else
