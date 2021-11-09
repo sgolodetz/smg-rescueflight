@@ -29,29 +29,40 @@ source "$CONDA_BASE\\etc\\profile.d\\conda.sh"
 #  ./evaluate_gta_im_scene.sh "$1" "$method_tag" gt_gt
 #done
 
-# TODO: Comment here, plus add the other methods.
-for generator_type in gt
-#for generator_type in lcrnet maskrcnn
+# Evaluate the people masks for each of the different methods in turn.
+for generator_type in lcrnet maskrcnn
 do
   echo "Evaluating people masks for $1 ($generator_type)"
   output_filename="people_mask_metrics-$generator_type.txt"
   if [ -e "$sequence_dir/people/$output_filename" ]
   then
     echo "- Found $output_filename: skipping"
-  else
+  elif [ -e "$sequence_dir/people/$generator_type" ]
+  then
     conda activate smglib
     python evaluate_gta_im_people_mask_sequence.py -s "$sequence_dir" -t "$generator_type" > "$sequence_dir/people/$output_filename"
     echo "- Written metrics to $output_filename"
     conda deactivate
+  else
+    echo "- Missing people mask results for $generator_type"
   fi
 done
 
-# TODO: Comment here, plus add the other methods.
-for detector_type in gt
-#for detector_type in lcrnet
+# Evaluate the 3D skeletons for each of the different methods in turn.
+for detector_type in lcrnet xnect
 do
   echo "Evaluating skeletons for $1 ($detector_type)"
-  conda activate smglib
-  python evaluate_gta_im_skeleton_sequence.py --batch -s "$sequence_dir" -t "$detector_type"
-  conda deactivate
+  output_filename="skeleton_metrics-$detector_type.txt"
+  if [ -e "$sequence_dir/people/$output_filename" ]
+  then
+    echo "- Found $output_filename: skipping"
+  elif [ -e "$sequence_dir/people/$detector_type" ]
+  then
+    conda activate smglib
+    python evaluate_gta_im_skeleton_sequence.py --batch -s "$sequence_dir" -t "$detector_type" > "$sequence_dir/people/$output_filename"
+    echo "- Written metrics to $output_filename"
+    conda deactivate
+  else
+    echo "- Missing skeleton detection results for $detector_type"
+  fi
 done

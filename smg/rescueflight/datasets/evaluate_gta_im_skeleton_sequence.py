@@ -134,9 +134,9 @@ def main() -> None:
                 os.path.join(sequence_dir, "people", detector_type, skeleton_filenames[i])
             )
 
-            # BEGIN TEMPORARY
-            # This is for variety, since I can't run LCR-Net on the desktop in the lab.
-            if detected_skeletons is not None:
+            # If the "detected" skeletons are the ground-truth ones, perturb them a bit. This is useful for
+            # performing quick tests on machines where the real skeleton detection results are unavailable.
+            if detector_type == "gt" and detected_skeletons is not None:
                 for j in range(len(detected_skeletons)):
                     detected_skeletons[j] = detected_skeletons[j].transform(np.array([
                         [1.0, 0.0, 0.0, np.random.normal(0.15, 0.05)],
@@ -144,7 +144,6 @@ def main() -> None:
                         [0.0, 0.0, 1.0, 0.0],
                         [0.0, 0.0, 0.0, 1.0]
                     ]))
-            # END TEMPORARY
 
             # If the frame contains a single ground-truth skeleton:
             if gt_skeletons is not None and len(gt_skeletons) == 1:

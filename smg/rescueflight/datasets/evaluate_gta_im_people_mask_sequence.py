@@ -103,10 +103,10 @@ def main() -> None:
             if generated_mask is not None:
                 generated_mask = generated_mask[:, :, 0]
 
-                # BEGIN TEMPORARY
-                # This is for variety, since I can't run Mask R-CNN on the desktop in the lab yet.
-                generated_mask = np.flipud(generated_mask)
-                # END TEMPORARY
+                # If the "generated" people mask is the ground-truth one, flip it. This is useful for performing quick
+                # tests on machines where the real people masks are unavailable.
+                if generator_type == "gt":
+                    generated_mask = np.flipud(generated_mask)
 
                 if debug:
                     cv2.imshow("Generated Mask", generated_mask)
