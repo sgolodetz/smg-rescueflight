@@ -43,10 +43,15 @@ then
   python ../detectron2/run_mask_rcnn_skeleton_detection_service.py > /dev/null 2>&1 &
   pms_pid="$!"
   conda deactivate
+elif [ "$3" == "xnect" ]
+then
+  conda activate xnect
+  python /c/smglib/smg-pyxnect/scripts/run_xnect_skeleton_detection_service.py > /dev/null 2>&1 &
+  pms_pid="$!"
+  conda deactivate
 fi
 
 # Run the live skeleton detection service.
-# TODO: XNect.
 echo "- Running live skeleton detection service..."
 if [ "$4" == "gt" ]
 then
@@ -63,6 +68,12 @@ then
   python /c/smglib/smg-lcrnet/scripts/run_lcrnet_skeleton_detection_service.py -p 7853 > /dev/null 2>&1 &
   sds_pid="$!"
   export PYTHONPATH=
+  conda deactivate
+elif [ "$4" == "xnect" ]
+then
+  conda activate xnect
+  python /c/smglib/smg-pyxnect/scripts/run_xnect_skeleton_detection_service.py -p 7853 > /dev/null 2>&1 &
+  sds_pid="$!"
   conda deactivate
 fi
 
