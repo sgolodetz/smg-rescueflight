@@ -78,6 +78,7 @@ then
 else
   python ../mapping/scripts/run_octomap_mapping_server.py --detect_skeletons --use_received_depth "${@:5}" > /dev/null 2>& 1 &
 fi
+server_pid="$!"
 conda deactivate
 
 # Wait for the mapping server to initialise.
@@ -94,5 +95,8 @@ else
 fi
 conda deactivate
 
-# Ruthlessly kill the people masking and live skeleton detection services, which would otherwise run foreover.
+# Wait for the server to finish.
+wait "$server_pid"
+
+# Ruthlessly kill the people masking and live skeleton detection services, which would otherwise run forever.
 kill -9 "$pms_pid" "$sds_pid"

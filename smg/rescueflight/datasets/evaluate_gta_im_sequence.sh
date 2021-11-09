@@ -31,6 +31,7 @@ source "$CONDA_BASE\\etc\\profile.d\\conda.sh"
 
 # TODO: Comment here, plus add the other methods.
 for generator_type in gt
+#for generator_type in lcrnet maskrcnn
 do
   echo "Evaluating people masks for $1 ($generator_type)"
   output_filename="people_mask_metrics-$generator_type.txt"
@@ -49,6 +50,7 @@ done
 for detector_type in gt
 #for detector_type in lcrnet
 do
+  echo "Evaluating skeletons for $1 ($detector_type)"
   conda activate smglib
   python evaluate_gta_im_skeleton_sequence.py --batch -s "$sequence_dir" -t "$detector_type"
   conda deactivate

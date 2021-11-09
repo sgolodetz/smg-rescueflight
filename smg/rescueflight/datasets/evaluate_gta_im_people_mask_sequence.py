@@ -6,6 +6,15 @@ from argparse import ArgumentParser
 from typing import List, Optional
 
 
+def calculate_iog(mask: np.ndarray, gt_mask: np.ndarray) -> Optional[float]:
+    mask_i: np.ndarray = np.logical_and(mask, gt_mask).astype(np.uint8) * 255
+
+    i: int = np.count_nonzero(mask_i)
+    g: int = np.count_nonzero(gt_mask)
+
+    return i / g if g > 0 else None
+
+
 def calculate_iou(mask1: np.ndarray, mask2: np.ndarray, *, debug: bool = False) -> Optional[float]:
     mask_i: np.ndarray = np.logical_and(mask1, mask2).astype(np.uint8) * 255
     mask_u: np.ndarray = np.logical_or(mask1, mask2).astype(np.uint8) * 255
@@ -65,8 +74,10 @@ def main() -> None:
     mask_filenames = sorted(mask_filenames, key=get_frame_index)
 
     # Initialise some variables.
-    count: int = 0
     f1_sum: float = 0.0
+    iog_count: int = 0
+    iou_count: int = 0
+    iog_sum: float = 0.0
     iou_sum: float = 0.0
 
     # For each frame in the sequence:
@@ -108,9 +119,15 @@ def main() -> None:
                     if debug:
                         print(f"Frame {get_frame_index(mask_filenames[i])} - IoU: {iou}; F1: {f1}")
 
-                    count += 1
+                    iou_count += 1
                     f1_sum += f1
                     iou_sum += iou
+
+                iog: Optional[float] = calculate_iog(generated_mask, gt_mask)
+
+                if iog is not None:
+                    iog_count += 1
+                    iog_sum += iog
             else:
                 pass
 
@@ -122,9 +139,11 @@ def main() -> None:
     if debug:
         print()
 
-    print(f"Frame Count: {count}")
-    print(f"Mean IoU: {iou_sum / count}")
-    print(f"Mean F1: {f1_sum / count}")
+    print(f"IoG Frame Count: {iog_count}")
+    print(f"IoU Frame Count: {iou_count}")
+    print(f"Mean IoG: {iog_sum / iog_count}")
+    print(f"Mean IoU: {iou_sum / iou_count}")
+    print(f"Mean F1: {f1_sum / iou_count}")
 
 
 if __name__ == "__main__":
