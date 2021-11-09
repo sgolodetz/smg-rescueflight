@@ -28,6 +28,7 @@ def main() -> None:
     for sequence in sequence_names:
         da_methods: List[xr.DataArray] = []
         for method in method_tags:
+            # FIXME: The ScanNet root directory should be detected not hard-coded here.
             filename: str = f"C:/datasets/scannet/{sequence}/recon/c2c_dist-{method}-gt_gt.txt"
             da_method: xr.DataArray = xr.DataArray(
                 pd.read_csv(filename, delimiter=' ').values[:, 0].astype(float),
