@@ -7,6 +7,18 @@ from typing import List, Optional
 
 
 def calculate_iog(mask: np.ndarray, gt_mask: np.ndarray) -> Optional[float]:
+    """
+    Try to calculate the intersection-over-ground-truth (IoG) metric for a binary mask.
+
+    .. note::
+        An alternative name for this metric might be "ground-truth coverage ratio". I'm not sure what the canonical
+        name is, but I'll change the name later if I find out.
+
+    :param mask:    The binary mask whose IoG we want to calculate.
+    :param gt_mask: The ground-truth binary mask.
+    :return:        The IoG for the binary mask, provided the ground-truth is non-empty, or None otherwise.
+    """
+    # FIXME: This should be moved somewhere more central: perhaps ImageUtil?
     mask_i: np.ndarray = np.logical_and(mask, gt_mask).astype(np.uint8) * 255
 
     i: int = np.count_nonzero(mask_i)
@@ -16,6 +28,16 @@ def calculate_iog(mask: np.ndarray, gt_mask: np.ndarray) -> Optional[float]:
 
 
 def calculate_iou(mask1: np.ndarray, mask2: np.ndarray, *, debug: bool = False) -> Optional[float]:
+    """
+    Try to calculate the intersection-over-union (IoU) between two binary masks.
+
+    :param mask1:   The first binary mask.
+    :param mask2:   The second binary mask.
+    :param debug:   Whether to show the intersection and union masks for debugging purposes.
+    :return:        The IoU of the two masks, provided their union is non-empty, or None otherwise.
+    """
+    # FIXME: This should be moved somewhere more central: perhaps ImageUtil?
+    # Note: Faster implementations of this are possible if necessary. This implementation is focused on clarity.
     mask_i: np.ndarray = np.logical_and(mask1, mask2).astype(np.uint8) * 255
     mask_u: np.ndarray = np.logical_or(mask1, mask2).astype(np.uint8) * 255
 
