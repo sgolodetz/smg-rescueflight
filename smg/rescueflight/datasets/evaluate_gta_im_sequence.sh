@@ -19,7 +19,7 @@ fi
 CONDA_BASE=$(conda info --base)
 source "$CONDA_BASE\\etc\\profile.d\\conda.sh"
 
-# Repeatedly reconstruct the scene and the people in it using the various different methods we want to compare.
+# Reconstruct the scene and the people in it using the various different methods we want to compare.
 ./reconstruct_gta_im_sequence.sh "$1"
 
 # Evaluate the scene reconstructions for each of the different methods in turn.
