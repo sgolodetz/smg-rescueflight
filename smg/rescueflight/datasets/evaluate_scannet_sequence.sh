@@ -7,11 +7,11 @@ then
   exit 1
 fi
 
-# Repeatedly reconstruct the sequence using the various different methods we want to compare.
+# Reconstruct the scene using the various different methods we want to compare.
 ./reconstruct_scannet_sequence.sh "$1"
 
 # Evaluate the reconstructions for each of the different methods in turn.
 for method_tag in dvmvs_4m_gt dvmvs_pp_4m_gt mvdepth_4m_gt mvdepth_pp_4m_gt
 do
-  ./evaluate_scannet_scene.sh "$1" "$method_tag" gt_gt
+  ./evaluate_scene.sh scannet "$1" "$method_tag" gt_gt
 done

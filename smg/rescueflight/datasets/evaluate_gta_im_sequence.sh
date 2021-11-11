@@ -22,11 +22,7 @@ source "$CONDA_BASE\\etc\\profile.d\\conda.sh"
 # Reconstruct the scene and the people in it using the various different methods we want to compare.
 ./reconstruct_gta_im_sequence.sh "$1"
 
-# Evaluate the scene reconstructions for each of the different methods in turn.
-#for method_tag in dvmvs_4m_gt dvmvs_pp_4m_gt mvdepth_4m_gt mvdepth_pp_4m_gt
-#do
-#  ./evaluate_gta_im_scene.sh "$1" "$method_tag" gt_gt
-#done
+# TODO: Evaluate the scene reconstructions for each of the different methods in turn.
 
 # Evaluate the people masks for each of the different methods in turn.
 for generator_tag in lcrnet maskrcnn xnect
