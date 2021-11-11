@@ -54,7 +54,7 @@ do
   elif [ -e "$sequence_dir/people/$detector_type" ]
   then
     conda activate smglib
-    python evaluate_gta_im_skeleton_sequence.py --batch -s "$sequence_dir" -t "$detector_type" > "$sequence_dir/people/$output_filename" 2>/dev/null
+    python evaluate_skeleton_sequence.py --batch -s "$sequence_dir" -t "$detector_type" > "$sequence_dir/people/$output_filename" 2>/dev/null
     echo "- Written metrics to $output_filename"
     conda deactivate
   else
