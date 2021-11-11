@@ -3,7 +3,7 @@
 # Check that the script is being used correctly.
 if [ $# -lt 4 ]
 then
-  echo "Usage: export_gta_im_people.sh <sequence name> <method tag> {gt|lcrnet|maskrcnn} {gt|lcrnet|xnect} [args]"
+  echo "Usage: reconstruct_gta_im_people.sh <sequence name> <method tag> {gt|lcrnet|maskrcnn} {gt|lcrnet|xnect} [args]"
   exit 1
 fi
 
@@ -15,8 +15,8 @@ then
   exit 1
 fi
 
-# Run the people export process.
-echo "Exporting people for $1 ($2)"
+# Start the people reconstruction process.
+echo "Reconstructing people for $1 ($2)"
 
 # If the output directory already exists, early out.
 if [ -e "$sequence_dir/people/$2" ]

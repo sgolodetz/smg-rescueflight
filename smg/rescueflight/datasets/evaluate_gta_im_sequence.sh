@@ -19,32 +19,31 @@ fi
 CONDA_BASE=$(conda info --base)
 source "$CONDA_BASE\\etc\\profile.d\\conda.sh"
 
-# Repeatedly reconstruct the sequence using the various different methods we want to compare.
-# TODO: Improve this comment (include something about skeletons and people masks).
+# Repeatedly reconstruct the scene and the people in it using the various different methods we want to compare.
 ./reconstruct_gta_im_sequence.sh "$1"
 
-# Evaluate the reconstructions for each of the different methods in turn.
+# Evaluate the scene reconstructions for each of the different methods in turn.
 #for method_tag in dvmvs_4m_gt dvmvs_pp_4m_gt mvdepth_4m_gt mvdepth_pp_4m_gt
 #do
 #  ./evaluate_gta_im_scene.sh "$1" "$method_tag" gt_gt
 #done
 
 # Evaluate the people masks for each of the different methods in turn.
-for generator_type in lcrnet maskrcnn xnect
+for generator_tag in lcrnet maskrcnn xnect
 do
-  echo "Evaluating people masks for $1 ($generator_type)"
-  output_filename="people_mask_metrics-$generator_type.txt"
+  echo "Evaluating people masks for $1 ($generator_tag)"
+  output_filename="people_mask_metrics-$generator_tag.txt"
   if [ -e "$sequence_dir/people/$output_filename" ]
   then
     echo "- Found $output_filename: skipping"
-  elif [ -e "$sequence_dir/people/$generator_type" ]
+  elif [ -e "$sequence_dir/people/$generator_tag" ]
   then
     conda activate smglib
-    python evaluate_gta_im_people_mask_sequence.py -s "$sequence_dir" -t "$generator_type" > "$sequence_dir/people/$output_filename"
+    python evaluate_people_mask_sequence.py -s "$sequence_dir" -t "$generator_tag" > "$sequence_dir/people/$output_filename"
     echo "- Written metrics to $output_filename"
     conda deactivate
   else
-    echo "- Missing people mask results for $generator_type"
+    echo "- Missing people mask results for $generator_tag"
   fi
 done
 
