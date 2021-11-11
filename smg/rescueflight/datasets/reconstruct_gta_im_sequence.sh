@@ -21,7 +21,7 @@ else
   echo "Cannot reconstruct people for $1 (lcrnet)"
 fi
 
-#./reconstruct_gta_im_people.sh "$1" maskrcnn maskrcnn gt --max_depth=10.0 --save_people_masks
+./reconstruct_gta_im_people.sh "$1" maskrcnn maskrcnn gt --max_depth=10.0 --save_people_masks
 
 if [ `./conda_env_exists.sh xnect` == "1" ]
 then
