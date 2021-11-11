@@ -43,8 +43,12 @@ def main() -> None:
         help="whether to run in batch mode"
     )
     parser.add_argument(
-        "--detector_type", "-t", type=str, default="lcrnet", choices=("gt", "lcrnet", "xnect"),
-        help="the skeleton detector whose (pre-saved) skeletons are to be evaluated"
+        "--detector_tag", "-t", type=str, required=True,
+        help="the tag of the skeleton detector whose (pre-saved) skeletons are to be evaluated"
+    )
+    parser.add_argument(
+        "--gt_detector_tag", type=str, default="gt",
+        help="the tag of the (pre-saved) ground-truth skeletons"
     )
     parser.add_argument(
         "--sequence_dir", "-s", type=str, required=True,
@@ -53,7 +57,8 @@ def main() -> None:
     args: dict = vars(parser.parse_args())
 
     batch: bool = args["batch"]
-    detector_type: str = args["detector_type"]
+    detector_tag: str = args["detector_tag"]
+    gt_detector_tag: str = args["gt_detector_tag"]
     sequence_dir: str = args["sequence_dir"]
 
     # Try to load in the ground-truth mesh.
@@ -85,7 +90,7 @@ def main() -> None:
 
     # Determine the list of skeleton filenames to use.
     skeleton_filenames: List[str] = [
-        f for f in os.listdir(os.path.join(sequence_dir, "people", "gt")) if f.endswith(".skeletons.txt")
+        f for f in os.listdir(os.path.join(sequence_dir, "people", gt_detector_tag)) if f.endswith(".skeletons.txt")
     ]
 
     skeleton_filenames = sorted(skeleton_filenames, key=get_frame_index)
@@ -127,16 +132,16 @@ def main() -> None:
 
             # Get the ground-truth and (previously) detected skeletons for the frame.
             gt_skeletons = SkeletonUtil.try_load_skeletons(
-                os.path.join(sequence_dir, "people", "gt", skeleton_filenames[i])
+                os.path.join(sequence_dir, "people", gt_detector_tag, skeleton_filenames[i])
             )
 
             detected_skeletons = SkeletonUtil.try_load_skeletons(
-                os.path.join(sequence_dir, "people", detector_type, skeleton_filenames[i])
+                os.path.join(sequence_dir, "people", detector_tag, skeleton_filenames[i])
             )
 
             # If the "detected" skeletons are the ground-truth ones, perturb them a bit. This is useful for
             # performing quick tests on machines where the real skeleton detection results are unavailable.
-            if detector_type == "gt" and detected_skeletons is not None:
+            if detector_tag == gt_detector_tag and detected_skeletons is not None:
                 for j in range(len(detected_skeletons)):
                     detected_skeletons[j] = detected_skeletons[j].transform(np.array([
                         [1.0, 0.0, 0.0, np.random.normal(0.15, 0.05)],

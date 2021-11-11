@@ -44,20 +44,20 @@ do
 done
 
 # Evaluate the 3D skeletons for each of the different methods in turn.
-for detector_type in lcrnet xnect
+for detector_tag in lcrnet xnect
 do
-  echo "Evaluating skeletons for $1 ($detector_type)"
-  output_filename="skeleton_metrics-$detector_type.txt"
+  echo "Evaluating skeletons for $1 ($detector_tag)"
+  output_filename="skeleton_metrics-$detector_tag.txt"
   if [ -e "$sequence_dir/people/$output_filename" ]
   then
     echo "- Found $output_filename: skipping"
-  elif [ -e "$sequence_dir/people/$detector_type" ]
+  elif [ -e "$sequence_dir/people/$detector_tag" ]
   then
     conda activate smglib
-    python evaluate_skeleton_sequence.py --batch -s "$sequence_dir" -t "$detector_type" > "$sequence_dir/people/$output_filename" 2>/dev/null
+    python evaluate_skeleton_sequence.py --batch -s "$sequence_dir" -t "$detector_tag" > "$sequence_dir/people/$output_filename" 2>/dev/null
     echo "- Written metrics to $output_filename"
     conda deactivate
   else
-    echo "- Missing skeleton detection results for $detector_type"
+    echo "- Missing skeleton detection results for $detector_tag"
   fi
 done
