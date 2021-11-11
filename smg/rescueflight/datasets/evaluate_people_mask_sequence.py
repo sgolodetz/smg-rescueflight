@@ -60,29 +60,29 @@ def main() -> None:
     # Initialise some variables.
     f1_sum: float = 0.0
     iog_count: int = 0
-    iou_count: int = 0
     iog_sum: float = 0.0
+    iou_count: int = 0
     iou_sum: float = 0.0
 
     # For each frame in the sequence:
     for i in range(len(mask_filenames)):
-        # Load in the ground-truth mask.
+        # Try to load in the ground-truth mask.
         gt_mask: Optional[np.ndarray] = cv2.imread(
             os.path.join(sequence_dir, "people", gt_generator_tag, mask_filenames[i])
         )
 
-        # Load in the generated mask.
+        # Try to load in the generated mask.
         generated_mask: Optional[np.ndarray] = cv2.imread(
             os.path.join(sequence_dir, "people", generator_tag, mask_filenames[i])
         )
 
-        # Assuming the masks are available (which should always be the case, unless they get deleted):
+        # Assuming the masks are available (which should always be the case, unless they've been deleted):
         if gt_mask is not None and generated_mask is not None:
             # Convert them into single-channel images.
             gt_mask = gt_mask[:, :, 0]
             generated_mask = generated_mask[:, :, 0]
 
-            # If the "generated" people mask is the ground-truth one, flip it. This is useful for performing quick
+            # If the "generated" mask is the ground-truth one, flip it. This is useful for performing quick
             # non-trivial tests on machines where the real people masks are unavailable.
             if generator_tag == gt_generator_tag:
                 generated_mask = np.flipud(generated_mask)
