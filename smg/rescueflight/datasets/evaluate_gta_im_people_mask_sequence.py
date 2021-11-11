@@ -32,8 +32,12 @@ def main() -> None:
         help="whether to enable debugging"
     )
     parser.add_argument(
-        "--generator_type", "-t", type=str, default="maskrcnn", choices=("gt", "lcrnet", "maskrcnn", "xnect"),
-        help="the people mask generator whose (pre-saved) masks are to be evaluated"
+        "--generator_tag", "-t", type=str, required=True,
+        help="the tag of the people mask generator whose (pre-saved) masks are to be evaluated"
+    )
+    parser.add_argument(
+        "--gt_generator_tag", type=str, default="gt",
+        help="the tag of the (pre-saved) ground-truth masks"
     )
     parser.add_argument(
         "--sequence_dir", "-s", type=str, required=True,
@@ -42,12 +46,13 @@ def main() -> None:
     args: dict = vars(parser.parse_args())
 
     debug: bool = args["debug"]
-    generator_type: str = args["generator_type"]
+    generator_tag: str = args["generator_tag"]
+    gt_generator_tag: str = args["gt_generator_tag"]
     sequence_dir: str = args["sequence_dir"]
 
     # Determine the list of people mask filenames to use.
     mask_filenames: List[str] = [
-        f for f in os.listdir(os.path.join(sequence_dir, "people", "gt")) if f.endswith(".people.png")
+        f for f in os.listdir(os.path.join(sequence_dir, "people", gt_generator_tag)) if f.endswith(".people.png")
     ]
 
     mask_filenames = sorted(mask_filenames, key=get_frame_index)
@@ -63,61 +68,67 @@ def main() -> None:
     for i in range(len(mask_filenames)):
         # Load in the ground-truth mask.
         gt_mask: Optional[np.ndarray] = cv2.imread(
-            os.path.join(sequence_dir, "people", "gt", mask_filenames[i])
+            os.path.join(sequence_dir, "people", gt_generator_tag, mask_filenames[i])
         )
 
         # Load in the generated mask.
         generated_mask: Optional[np.ndarray] = cv2.imread(
-            os.path.join(sequence_dir, "people", generator_type, mask_filenames[i])
+            os.path.join(sequence_dir, "people", generator_tag, mask_filenames[i])
         )
 
-        # Assuming the ground-truth mask is available (which should always be the case, unless it gets deleted):
-        if gt_mask is not None:
-            # TODO
+        # Assuming the masks are available (which should always be the case, unless they get deleted):
+        if gt_mask is not None and generated_mask is not None:
+            # Convert them into single-channel images.
             gt_mask = gt_mask[:, :, 0]
+            generated_mask = generated_mask[:, :, 0]
 
+            # If the "generated" people mask is the ground-truth one, flip it. This is useful for performing quick
+            # non-trivial tests on machines where the real people masks are unavailable.
+            if generator_tag == gt_generator_tag:
+                generated_mask = np.flipud(generated_mask)
+
+            # If we're debugging, show the masks.
             if debug:
                 cv2.imshow("GT Mask", gt_mask)
+                cv2.imshow("Generated Mask", generated_mask)
 
-            if generated_mask is not None:
-                generated_mask = generated_mask[:, :, 0]
+            # Try to calculate the IoU between the masks.
+            iou: Optional[float] = ImageUtil.calculate_iou(generated_mask, gt_mask, debug=debug)
 
-                # If the "generated" people mask is the ground-truth one, flip it. This is useful for performing quick
-                # tests on machines where the real people masks are unavailable.
-                if generator_type == "gt":
-                    generated_mask = np.flipud(generated_mask)
+            # If this succeeds:
+            if iou is not None:
+                # Compute the F1 score from the IoU.
+                f1: float = 2 * iou / (iou + 1)
 
+                # If we're debugging, print out the IoU and F1 scores.
                 if debug:
-                    cv2.imshow("Generated Mask", generated_mask)
+                    print(f"Frame {get_frame_index(mask_filenames[i])} - IoU: {iou}; F1: {f1}")
 
-                iou: Optional[float] = ImageUtil.calculate_iou(generated_mask, gt_mask, debug=debug)
+                # Update the running IoU and F1 sums.
+                iou_count += 1
+                f1_sum += f1
+                iou_sum += iou
 
-                if iou is not None:
-                    f1: float = 2 * iou / (iou + 1)
+            # Try to calculate the IoG (a.k.a. ground-truth coverage ratio) of the "generated" mask.
+            iog: Optional[float] = ImageUtil.calculate_iog(generated_mask, gt_mask)
 
-                    if debug:
-                        print(f"Frame {get_frame_index(mask_filenames[i])} - IoU: {iou}; F1: {f1}")
+            # If this succeeds:
+            if iog is not None:
+                # Update the running IoG sum.
+                iog_count += 1
+                iog_sum += iog
 
-                    iou_count += 1
-                    f1_sum += f1
-                    iou_sum += iou
-
-                iog: Optional[float] = ImageUtil.calculate_iog(generated_mask, gt_mask)
-
-                if iog is not None:
-                    iog_count += 1
-                    iog_sum += iog
-            else:
-                pass
-
+            # If we're debugging, run the OpenCV event loop, and quit if 'q' is pressed.
             if debug:
                 c: int = cv2.waitKey(1)
                 if c == ord('q'):
                     break
 
+    # If we're debugging, print a blank line before the summary statistics.
     if debug:
         print()
 
+    # Print out the summary statistics.
     print(f"IoG Frame Count: {iog_count}")
     print(f"IoU Frame Count: {iou_count}")
     print(f"Mean IoG: {iog_sum / iog_count}")
