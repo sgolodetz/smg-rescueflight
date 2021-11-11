@@ -124,11 +124,11 @@ def main() -> None:
                 if c == ord('q'):
                     break
 
-    # If we're debugging, print a blank line before the summary statistics.
+    # If we're debugging, print a blank line before the summary metrics.
     if debug:
         print()
 
-    # Print out the summary statistics.
+    # Print out the summary metrics.
     print(f"IoG Frame Count: {iog_count}")
     print(f"IoU Frame Count: {iou_count}")
     print(f"Mean IoG: {iog_sum / iog_count}")
