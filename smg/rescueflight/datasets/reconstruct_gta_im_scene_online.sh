@@ -74,7 +74,7 @@ else
 fi
 conda deactivate
 
-# Wait for the server to finish.
+# Wait for the mapping server to finish.
 wait "$server_pid"
 
 # Ruthlessly kill the people masking and live skeleton detection services, which would otherwise run forever.

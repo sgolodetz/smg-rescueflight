@@ -48,7 +48,7 @@ sleep 5
 # Run the mapping server.
 echo "- Running mapping server..."
 conda activate smglib
-if [ "$3" = "gt" ]
+if [ "$3" == "gt" ]
 then
   python ../mapping/scripts/run_open3d_mapping_server.py --batch --debug --detect_skeletons --output_dir="$sequence_dir/recon" -p wait --reconstruction_filename="$2.ply" --save_reconstruction --use_received_depth "${@:5}" > /dev/null 2>&1 &
 else
@@ -66,7 +66,7 @@ conda activate smglib
 python run_gta_im_client.py --batch -s "$sequence_dir" > /dev/null 2>&1
 conda deactivate
 
-# Wait for the server to finish.
+# Wait for the mapping server to finish.
 echo "- Writing reconstruction to: $sequence_dir/recon/$2.ply"
 wait "$server_pid"
 
