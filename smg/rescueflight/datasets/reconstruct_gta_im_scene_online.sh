@@ -3,7 +3,7 @@
 # Check that the script is being used correctly.
 if [ $# -lt 4 ]
 then
-  echo "Usage: reconstruct_gta_im_scene_online.sh <sequence name> {batch|nobatch} {gt|lcrnet|maskrcnn} {gt|lcrnet|xnect} [args]"
+  echo "Usage: reconstruct_gta_im_scene_online.sh <sequence name> {batch|nobatch} {gt|lcrnet|maskrcnn|xnect} {gt|lcrnet|xnect} [args]"
   exit 1
 fi
 
@@ -27,28 +27,9 @@ then
   python run_gta_im_skeleton_detection_service.py -s "$sequence_dir" > /dev/null 2>&1 &
   pms_pid="$!"
   conda deactivate
-elif [ "$3" == "lcrnet" ]
-then
-  conda activate lcrnet
-  export PYTHONPATH="C:/smglib/smg-lcrnet/smg/external/lcrnet/Detectron.pytorch/lib;$PYTHONPATH"
-  export PYTHONPATH="C:/smglib/smg-lcrnet/smg/external/lcrnet;$PYTHONPATH"
-  export PYTHONPATH="C:/smglib/smg-lcrnet;$PYTHONPATH"
-  python /c/smglib/smg-lcrnet/scripts/run_lcrnet_skeleton_detection_service.py > /dev/null 2>&1 &
+else
+  ./run_skeleton_detection_service.sh "$3" > /dev/null 2>&1 &
   pms_pid="$!"
-  export PYTHONPATH=
-  conda deactivate
-elif [ "$3" == "maskrcnn" ]
-then
-  conda activate smglib
-  python ../detectron2/run_mask_rcnn_skeleton_detection_service.py > /dev/null 2>&1 &
-  pms_pid="$!"
-  conda deactivate
-elif [ "$3" == "xnect" ]
-then
-  conda activate xnect
-  python /c/smglib/smg-pyxnect/scripts/run_xnect_skeleton_detection_service.py > /dev/null 2>&1 &
-  pms_pid="$!"
-  conda deactivate
 fi
 
 # Run the live skeleton detection service.
@@ -59,22 +40,9 @@ then
   python run_gta_im_skeleton_detection_service.py -s "$sequence_dir" -p 7853 > /dev/null 2>&1 &
   sds_pid="$!"
   conda deactivate
-elif [ "$4" == "lcrnet" ]
-then
-  conda activate lcrnet
-  export PYTHONPATH="C:/smglib/smg-lcrnet/smg/external/lcrnet/Detectron.pytorch/lib;$PYTHONPATH"
-  export PYTHONPATH="C:/smglib/smg-lcrnet/smg/external/lcrnet;$PYTHONPATH"
-  export PYTHONPATH="C:/smglib/smg-lcrnet;$PYTHONPATH"
-  python /c/smglib/smg-lcrnet/scripts/run_lcrnet_skeleton_detection_service.py -p 7853 > /dev/null 2>&1 &
+else
+  ./run_skeleton_detection_service.sh "$4" -p 7853 > /dev/null 2>&1 &
   sds_pid="$!"
-  export PYTHONPATH=
-  conda deactivate
-elif [ "$4" == "xnect" ]
-then
-  conda activate xnect
-  python /c/smglib/smg-pyxnect/scripts/run_xnect_skeleton_detection_service.py -p 7853 > /dev/null 2>&1 &
-  sds_pid="$!"
-  conda deactivate
 fi
 
 # Wait for the services to initialise.
@@ -110,4 +78,5 @@ conda deactivate
 wait "$server_pid"
 
 # Ruthlessly kill the people masking and live skeleton detection services, which would otherwise run forever.
+for p in $(ps | perl -lane 'if($F[1] eq '"$pms_pid"' || $F[1] eq '"$sds_pid"') { print $F[0]; }'); do kill -9 "$p"; done || true
 kill -9 "$pms_pid" "$sds_pid"
