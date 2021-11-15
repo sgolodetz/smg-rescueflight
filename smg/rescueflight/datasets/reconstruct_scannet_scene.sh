@@ -46,12 +46,14 @@ sleep 5
 
 # Run the mapping client.
 echo "- Running mapping client..."
+conda activate smglib
 if [ "$4" == "gt" ]
 then
   python run_scannet_client.py --batch -s "$sequence_dir" --canonicalise_poses > /dev/null 2>&1
 else
   python run_scannet_client.py --batch -s "$sequence_dir" --use_tracker > /dev/null 2>&1
 fi
+conda deactivate
 
 # Wait for the mapping server to finish.
 echo "- Writing reconstruction to: $sequence_dir/recon/$2.ply"
