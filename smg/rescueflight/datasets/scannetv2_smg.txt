@@ -2,7 +2,6 @@ scene0707_00
 scene0708_00
 scene0709_00
 scene0710_00
-scene0799_00
 scene0800_00
 scene0801_00
 scene0802_00

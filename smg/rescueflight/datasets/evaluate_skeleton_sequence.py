@@ -190,6 +190,11 @@ def main() -> None:
                 if detected_skeletons is not None and len(detected_skeletons) == 1:
                     detected_skeleton: Skeleton3D = detected_skeletons[0]
                     matched_skeletons.append([(gt_skeleton, detected_skeleton)])
+                elif detected_skeletons is not None and len(detected_skeletons) > 1:
+                    print("===")
+                    for j in range(len(detected_skeletons)):
+                        detected_skeleton: Skeleton3D = detected_skeletons[j]
+                        print(f"{j}: {SkeletonEvaluator.calculate_distance_between_skeletons(gt_skeleton, detected_skeleton)}")
                 else:
                     matched_skeletons.append([(gt_skeleton, None)])
 
