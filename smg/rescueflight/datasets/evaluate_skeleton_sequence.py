@@ -181,22 +181,28 @@ def main() -> None:
 
             # If the frame contains a single ground-truth skeleton:
             # FIXME: We should eventually upgrade this to support multiple ground-truth skeletons.
+            #        It's fine for now though, as GTA-IM sequences have a single primary character.
             if gt_skeletons is not None and len(gt_skeletons) == 1:
                 # Get the ground-truth skeleton.
                 gt_skeleton: Skeleton3D = gt_skeletons[0]
 
-                # If a single skeleton was detected in this frame, match it with the ground-truth one. Otherwise,
-                # record that the ground-truth skeleton has no match.
-                if detected_skeletons is not None and len(detected_skeletons) == 1:
-                    detected_skeleton: Skeleton3D = detected_skeletons[0]
-                    matched_skeletons.append([(gt_skeleton, detected_skeleton)])
-                elif detected_skeletons is not None and len(detected_skeletons) > 1:
-                    print("===")
+                # If at least one skeleton was detected in this frame, match the ground-truth skeleton with the
+                # detected skeleton that is closest to it. Otherwise, record that the ground-truth skeleton has
+                # no match.
+                if detected_skeletons is not None and len(detected_skeletons) > 0:
+                    distances: List[float] = []
                     for j in range(len(detected_skeletons)):
-                        detected_skeleton: Skeleton3D = detected_skeletons[j]
-                        print(f"{j}: {SkeletonEvaluator.calculate_distance_between_skeletons(gt_skeleton, detected_skeleton)}")
+                        distances.append(
+                            SkeletonUtil.calculate_distance_between_skeletons(gt_skeleton, detected_skeletons[j])
+                        )
+
+                    detected_skeleton: Skeleton3D = detected_skeletons[np.argmin(distances)]
+                    matched_skeletons.append([(gt_skeleton, detected_skeleton)])
                 else:
                     matched_skeletons.append([(gt_skeleton, None)])
+            else:
+                # If we accidentally run this on a sequence that has multiple ground-truth skeletons, raise an error.
+                raise NotImplementedError()
 
             # If we're debugging, calculate and print the evaluation metrics for all the matches we've seen so far.
             if debug:
