@@ -128,12 +128,21 @@ def main() -> None:
     if debug:
         print()
 
-    # Print out the summary metrics.
+    # Print out the summary metrics. Note that the IoG and IoU counts will be 0 iff the ground-truth masks are blank.
+    # If this happens, set the person IDs for the sequence in the GTA-IM skeleton detection service.
     print(f"IoG Frame Count: {iog_count}")
     print(f"IoU Frame Count: {iou_count}")
-    print(f"Mean IoG: {iog_sum / iog_count}")
-    print(f"Mean IoU: {iou_sum / iou_count}")
-    print(f"Mean F1: {f1_sum / iou_count}")
+
+    if iog_count > 0:
+        print(f"Mean IoG: {iog_sum / iog_count}")
+    else:
+        raise RuntimeError("Error: IoG count is zero (try setting the person IDs in the skeleton detection service)")
+
+    if iou_count > 0:
+        print(f"Mean IoU: {iou_sum / iou_count}")
+        print(f"Mean F1: {f1_sum / iou_count}")
+    else:
+        raise RuntimeError("Error: IoU count is zero (try setting the person IDs in the skeleton detection service)")
 
 
 if __name__ == "__main__":
