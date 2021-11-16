@@ -3,7 +3,7 @@
 # Check that the script is being used correctly.
 if [ $# -ne 1 ]
 then
-  echo "Usage: determine_root_dir.sh <dataset name>"
+  echo "Usage: determine_dataset_root_dir.sh <dataset name>"
   exit 1
 fi
 

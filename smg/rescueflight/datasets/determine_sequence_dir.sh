@@ -8,7 +8,7 @@ then
 fi
 
 # Try to determine the location of the dataset root directory.
-root_dir=`./determine_root_dir.sh "$1"`
+root_dir=`./determine_dataset_root_dir.sh "$1"`
 
 # If the root directory was found:
 if [ -e "$root_dir" ]

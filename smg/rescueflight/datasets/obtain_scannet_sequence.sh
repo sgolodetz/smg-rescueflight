@@ -23,7 +23,7 @@ CONDA_BASE=$(conda info --base)
 source "$CONDA_BASE\\etc\\profile.d\\conda.sh"
 conda activate python2.7
 
-root_dir=`./determine_root_dir.sh scannet`
+root_dir=`./determine_dataset_root_dir.sh scannet`
 cd "$root_dir"
 
 temp_dir="$root_dir/temp/scans_test/$1"
