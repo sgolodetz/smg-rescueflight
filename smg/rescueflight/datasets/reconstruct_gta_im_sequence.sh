@@ -7,6 +7,9 @@ then
   exit 1
 fi
 
+# Make sure that the sequence has been downloaded.
+./obtain_gta_im_sequence.sh "$1"
+
 # Reconstruct the scene using the various different methods we want to compare.
 ./reconstruct_gta_im_scene_offline.sh "$1" "gt_skeleton_eval" gt gt --max_depth=20.0 --voxel_size=0.05
 # TODO: Other depth estimators.
