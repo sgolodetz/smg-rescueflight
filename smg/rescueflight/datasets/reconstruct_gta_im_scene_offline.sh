@@ -38,7 +38,7 @@ then
   pms_pid="$!"
   conda deactivate
 else
-  ./run_skeleton_detection_service.sh "$4" > /dev/null 2>&1 &
+  ../skeletons/scripts/run_skeleton_detection_service.sh "$4" > /dev/null 2>&1 &
   pms_pid="$!"
 fi
 
