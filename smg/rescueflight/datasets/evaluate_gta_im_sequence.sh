@@ -7,22 +7,17 @@ then
   exit 1
 fi
 
-# Check that the sequence directory exists.
-sequence_dir=`./determine_sequence_dir.sh gta-im "$1"`
-if [ -z "$sequence_dir" ]
-then
-  echo "No such sequence: $1"
-  exit 1
-fi
+# Reconstruct the scene and the people in it using the various different methods we want to compare.
+./reconstruct_gta_im_sequence.sh "$1"
+
+# TODO: Evaluate the scene reconstructions for each of the different methods in turn.
 
 # Enable the conda command.
 CONDA_BASE=$(conda info --base)
 source "$CONDA_BASE\\etc\\profile.d\\conda.sh"
 
-# Reconstruct the scene and the people in it using the various different methods we want to compare.
-./reconstruct_gta_im_sequence.sh "$1"
-
-# TODO: Evaluate the scene reconstructions for each of the different methods in turn.
+# Determine the sequence directory.
+sequence_dir=`./determine_sequence_dir.sh gta-im "$1" true`
 
 # Evaluate the people masks for each of the different methods in turn.
 for generator_tag in lcrnet maskrcnn xnect
