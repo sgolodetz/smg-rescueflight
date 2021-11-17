@@ -1,4 +1,5 @@
 import cv2
+import glob
 import numpy as np
 import os
 import pickle
@@ -37,7 +38,8 @@ def read_depthmap(name: str, cam_near_clip: float, cam_far_clip: float) -> np.nd
     return depth
 
 
-def try_load_frame(frame_idx: int, sequence_dir: str, info: List[Dict[str, Any]], info_npz: np.lib.npyio.NpzFile) \
+def try_load_frame(frame_idx: int, frame_idx_to_stop: Optional[int], sequence_dir: str,
+                   info: List[Dict[str, Any]], info_npz: np.lib.npyio.NpzFile) \
         -> Optional[Dict[str, Any]]:
     """
     Try to load a frame from a GTA-IM sequence.
@@ -48,12 +50,17 @@ def try_load_frame(frame_idx: int, sequence_dir: str, info: List[Dict[str, Any]]
             "depth_image" -> np.ndarray (a float image)
             "world_from_camera" -> np.ndarray (a 4x4 transformation matrix)
 
-    :param frame_idx:       The frame index.
-    :param sequence_dir:    The sequence directory.
-    :param info:            The information loaded from the sequence's .pickle file.
-    :param info_npz:        The information loaded from the sequence's .npz file.
-    :return:                The RGB-D frame, if possible, or None otherwise.
+    :param frame_idx:           The frame index.
+    :param frame_idx_to_stop:   The frame index (if any) at which to stop yielding frames.
+    :param sequence_dir:        The sequence directory.
+    :param info:                The information loaded from the sequence's .pickle file.
+    :param info_npz:            The information loaded from the sequence's .npz file.
+    :return:                    The RGB-D frame, if possible, or None otherwise.
     """
+    # If there's a point at which we should stop yielding frames, and we're at or past it, early out.
+    if frame_idx_to_stop is not None and frame_idx >= frame_idx_to_stop:
+        return None
+
     # Determine the names of the colour image and depth image files.
     colour_filename: str = os.path.join(sequence_dir, f"{frame_idx:05d}.jpg")
     depth_filename: str = os.path.join(sequence_dir, f"{frame_idx:05d}.png")
@@ -112,6 +119,10 @@ def main() -> None:
         help="whether to canonicalise the poses (i.e. start the camera trajectory from the identity)"
     )
     parser.add_argument(
+        "--percent_to_stop", type=float,
+        help="an optional percentage through the sequence at which to stop yielding frames (useful for experiments)"
+    )
+    parser.add_argument(
         "--sequence_dir", "-s", type=str, required=True,
         help="the directory from which to load the sequence"
     )
@@ -119,6 +130,7 @@ def main() -> None:
 
     batch_mode: bool = args["batch"]
     canonicalise_poses: bool = args["canonicalise_poses"]
+    percent_to_stop: Optional[float] = args.get("percent_to_stop")
     sequence_dir: str = args["sequence_dir"]
 
     try:
@@ -126,6 +138,13 @@ def main() -> None:
             frame_compressor=RGBDFrameMessageUtil.compress_frame_message,
             pool_empty_strategy=PooledQueue.PES_WAIT
         ) as client:
+            # If we need to stop yielding frames at a certain point in the sequence, determine the frame index
+            # at which to stop.
+            frame_idx_to_stop: Optional[int] = None
+            if percent_to_stop is not None:
+                frame_count: int = len(glob.glob(f"{sequence_dir}/*.jpg"))
+                frame_idx_to_stop = int(frame_count * percent_to_stop / 100)
+
             # Load in the sequence information, as per https://github.com/ZheC/GTA-IM-Dataset.
             info: List[Dict[str, Any]] = pickle.load(open(os.path.join(sequence_dir, "info_frames.pickle"), "rb"))
             info_npz: np.lib.npyio.NpzFile = np.load(os.path.join(sequence_dir, "info_frames.npz"))
@@ -158,7 +177,9 @@ def main() -> None:
             # Until the user wants to quit:
             while True:
                 # Try to load an RGB-D frame from disk.
-                frame: Optional[Dict[str, Any]] = try_load_frame(frame_idx, sequence_dir, info, info_npz)
+                frame: Optional[Dict[str, Any]] = try_load_frame(
+                    frame_idx, frame_idx_to_stop, sequence_dir, info, info_npz
+                )
 
                 # If the frame was successfully loaded:
                 if frame is not None:
