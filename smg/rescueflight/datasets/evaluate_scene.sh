@@ -51,9 +51,11 @@ echo "- Computing statistics..."
 
 CONDA_BASE=$(conda info --base)
 source "$CONDA_BASE\\etc\\profile.d\\conda.sh"
-conda activate python2.7
 
-python "$sequence_dir/../../computeStats.py" "$c2c_file" > "$recon_dir/$output_file"
+conda activate python2.7
+root_dir=`./determine_dataset_root_dir.sh "$1"`
+python "$root_dir/../computeStats.py" "$c2c_file" > "$recon_dir/$output_file"
+
 echo "- Writing statistics to: $recon_dir/$output_file"
 
 # Clean up by removing the temporary files output by CloudCompare.

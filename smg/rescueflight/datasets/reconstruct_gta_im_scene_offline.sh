@@ -63,7 +63,7 @@ sleep 5
 # Run the mapping client.
 echo "- Running mapping client..."
 conda activate smglib
-python run_gta_im_client.py --batch -s "$sequence_dir" > /dev/null 2>&1
+echo "$GTA_IM_CLIENT_FLAGS" | xargs python run_gta_im_client.py --batch -s "$sequence_dir" > /dev/null 2>&1
 conda deactivate
 
 # Wait for the mapping server to finish.
