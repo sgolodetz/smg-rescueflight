@@ -16,7 +16,7 @@ then
 fi
 
 # Start the evaluation.
-echo "Evaluating $2 ($3)"
+echo "Evaluating $2 ($3 vs. $4)"
 recon_dir="$sequence_dir/recon"
 
 # If the evaluation has already been run, avoid running it again.
