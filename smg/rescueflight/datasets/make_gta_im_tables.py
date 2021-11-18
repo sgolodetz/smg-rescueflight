@@ -6,7 +6,14 @@ from argparse import ArgumentParser
 from typing import List
 
 
-def load_results(sequence_names: List[str], which: str) -> xr.DataArray:
+def make_inaccuracy_or_incompleteness_table(which: str, sequence_names: List[str]) -> xr.DataArray:
+    """
+    TODO
+
+    :param which:           Which table to make ("Inaccuracy" or "Incompleteness").
+    :param sequence_names:  The names of the GTA-IM sequences whose data is to be included in the table.
+    :return:                The table.
+    """
     da_sequences: List[xr.DataArray] = []
     for sequence in sequence_names:
         da_methods: List[xr.DataArray] = []
@@ -17,8 +24,9 @@ def load_results(sequence_names: List[str], which: str) -> xr.DataArray:
             percent_tags: List[str] = ["20", "40", "60", "80", "100"]
 
             for percent_to_stop in percent_tags:
-                # FIXME: The location of the recon directory should be detected not hard-coded here.
+                # FIXME: The location of the recon directory should be determined not hard-coded here.
                 recon_dir: str = f"C:/datasets/gta-im/{sequence}/recon"
+
                 if which == "Inaccuracy":
                     filename: str = os.path.join(
                         recon_dir, f"c2c_dist-gt_{method}_{percent_to_stop}-gt_gt_{percent_to_stop}.txt"
@@ -48,29 +56,43 @@ def load_results(sequence_names: List[str], which: str) -> xr.DataArray:
     return da
 
 
+def print_inaccuracy_and_incompleteness_tables(sequence_names: List[str]) -> None:
+    """
+    TODO
+
+    :param sequence_names:  The names of the GTA-IM sequences whose data is to be included in the tables.
+    """
+    # Load the results for all the sequences and variants into two big tensors.
+    da_inaccuracy: xr.DataArray = make_inaccuracy_or_incompleteness_table("Inaccuracy", sequence_names)
+    da_incompleteness: xr.DataArray = make_inaccuracy_or_incompleteness_table("Incompleteness", sequence_names)
+
+    # Tell pandas to show the whole tables.
+    pd.set_option("display.max_columns", None)
+    pd.set_option("display.max_rows", None)
+
+    # TODO: Comment here.
+    print("Inaccuracy Metrics (m)")
+    print(da_inaccuracy.sel(Attribute="mean").mean(dim="Sequence").to_pandas().transpose())
+    print()
+    print("Incompleteness Metrics (m)")
+    print(da_incompleteness.sel(Attribute="mean").mean(dim="Sequence").to_pandas().transpose())
+
+
 def main() -> None:
     # Parse any command-line arguments.
-    # parser = ArgumentParser()
-    # parser.add_argument(
-    #     "--sequence_list", "-s", type=str, default="scannetv2_smg.txt",
-    #     help="a file containing the list of ScanNet sequences we want to use (one per line)"
-    # )
-    # args: dict = vars(parser.parse_args())
-    #
-    # # Load in the names of the sequences we want to use.
-    # with open(args["sequence_list"]) as f:
-    #     sequence_names: List[str] = [line.rstrip() for line in f.readlines()]
+    parser = ArgumentParser()
+    parser.add_argument(
+        "--sequence_list", "-s", type=str, default="gta_im_smg.txt",
+        help="a file containing the list of GTA-IM sequences we want to use (one per line)"
+    )
+    args: dict = vars(parser.parse_args())
 
-    sequence_names: List[str] = ["FPS-5/2020-06-09-17-14-03"]
+    # Load in the names of the sequences we want to use.
+    with open(args["sequence_list"]) as f:
+        sequence_names: List[str] = [line.rstrip() for line in f.readlines() if not line.lstrip().startswith("#")]
 
-    # Load the results for all the sequences and variants into two big tensors.
-    da_inaccuracy: xr.DataArray = load_results(sequence_names, "Inaccuracy")
-    da_incompleteness: xr.DataArray = load_results(sequence_names, "Incompleteness")
-
-    pd.set_option("display.max_rows", None)
-    pd.set_option("display.max_columns", None)
-    print(da_inaccuracy.sel(Sequence=sequence_names[0]).sel(Attribute="mean").to_pandas().transpose())
-    print(da_incompleteness.sel(Sequence=sequence_names[0]).sel(Attribute="mean").to_pandas().transpose())
+    # TODO: Comment here.
+    print_inaccuracy_and_incompleteness_tables(sequence_names)
 
 
 if __name__ == "__main__":
