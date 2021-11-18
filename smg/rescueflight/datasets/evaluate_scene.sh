@@ -3,7 +3,7 @@
 # Check that the script is being used correctly.
 if [ $# -ne 4 ]
 then
-  echo "Usage: evaluate_scene.sh <dataset name> <sequence name> <method tag> <gt method tag>"
+  echo "Usage: evaluate_scene.sh <dataset name> <sequence name> <source method tag> <target method tag>"
   exit 1
 fi
 

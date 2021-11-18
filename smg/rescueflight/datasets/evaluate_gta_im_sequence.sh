@@ -7,15 +7,13 @@ then
   exit 1
 fi
 
-# Reconstruct the scene and the people in it using the various different methods we want to compare.
+# Reconstruct the scene and the people in it in various different ways.
 ./reconstruct_gta_im_sequence.sh "$1"
 
-# TODO: Evaluate the scene reconstructions for each of the different methods in turn.
+# Evaluate the various different scene reconstructions.
 for method_tag in lcrnet maskrcnn xnect
 do
-    ./evaluate_scene.sh gta-im "$1" gt_"$method_tag" gt_gt
-    ./evaluate_scene.sh gta-im "$1" gt_gt gt_"$method_tag"
-    for percent_to_stop in 20 40 60 80
+    for percent_to_stop in 20 40 60 80 100
     do
         ./evaluate_scene.sh gta-im "$1" gt_"$method_tag"_"$percent_to_stop" gt_gt_"$percent_to_stop"
         ./evaluate_scene.sh gta-im "$1" gt_gt_"$percent_to_stop" gt_"$method_tag"_"$percent_to_stop"
