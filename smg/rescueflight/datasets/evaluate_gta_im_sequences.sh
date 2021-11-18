@@ -18,5 +18,6 @@ CONDA_BASE=$(conda info --base)
 source "$CONDA_BASE\\etc\\profile.d\\conda.sh"
 
 # Make the output tables for the paper.
+echo "Making output tables"
 conda activate smglib
-#python make_gta_im_tables.py -s "$1"
+python make_gta_im_tables.py -s "$1"
