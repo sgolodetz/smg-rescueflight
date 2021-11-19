@@ -156,8 +156,14 @@ def make_frame_processor(sequence_dir: str, info: List[Dict[str, Any]], info_npz
         # Note: The instance IDs corresponding to people don't seem to be available in the sequence information, so
         #       I'm hard-coding them here for specific sequences. This will change when new sequences are added.
         sequence_to_person_ids: Dict[str, List[int]] = {
+            "FPS-5/2020-06-09-16-09-56": [260354, 261890, 512514, 512770],
+            "FPS-5/2020-06-09-16-43-21": [260354],
+            "FPS-5/2020-06-09-16-53-33": [145160],
+            "FPS-5/2020-06-09-17-07-15": [271110, 305925],
             "FPS-5/2020-06-09-17-14-03": [16386, 389890],
+            "FPS-5/2020-06-10-21-47-45": [16386],
             "FPS-5/2020-06-10-21-53-42": [16386],
+            "FPS-5/2020-06-11-10-06-48": [16386],
             "FPS-5/2020-06-12-18-53-02": [16386],
             "FPS-5/2020-06-21-19-42-55": [609026],
             "FPS-30/2020-06-02-18-09-25": [465415, 725762],

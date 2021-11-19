@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import xarray as xr
 
@@ -9,14 +10,21 @@ def main() -> None:
     # Parse any command-line arguments.
     parser = ArgumentParser()
     parser.add_argument(
+        "--root_dir", "-r", type=str, required=True,
+        help="the root directory for the ScanNet dataset"
+    )
+    parser.add_argument(
         "--sequence_list", "-s", type=str, default="scannetv2_smg.txt",
         help="a file containing the list of ScanNet sequences we want to use (one per line)"
     )
     args: dict = vars(parser.parse_args())
 
+    root_dir: str = args["root_dir"]
+    sequence_list: str = args["sequence_list"]
+
     # Load in the names of the sequences we want to use.
-    with open(args["sequence_list"]) as f:
-        sequence_names: List[str] = [line.rstrip() for line in f.readlines()]
+    with open(sequence_list) as f:
+        sequence_names: List[str] = [line.rstrip() for line in f.readlines() if not line.lstrip().startswith("#")]
 
     # Specify the tags for the various different methods we want to consider.
     method_tags: List[str] = [
@@ -28,10 +36,10 @@ def main() -> None:
     for sequence in sequence_names:
         da_methods: List[xr.DataArray] = []
         for method in method_tags:
-            filename: str = f"C:/datasets/scannet/{sequence}/recon/c2c_dist-{method}-gt_gt.txt"
+            filename: str = os.path.join(root_dir, f"{sequence}/recon/c2c_dist-{method}-gt_gt.txt")
             da_method: xr.DataArray = xr.DataArray(
                 pd.read_csv(filename, delimiter=' ').values[:, 0].astype(float),
-                name=method, dims="Attribute", coords={"Attribute": ["mean", "median", "std", "min", "max"]}
+                name=method, dims="Metric", coords={"Metric": ["mean", "median", "std", "min", "max"]}
             )
             da_methods.append(da_method)
 
@@ -43,9 +51,10 @@ def main() -> None:
     da.name = "Data"
 
     # Print out the tables we want to use for the paper.
-    print(da.sel(Attribute="mean").to_pandas())
     print()
-    print(da.sel(Attribute=["mean", "median", "std"]).mean(dim="Sequence").to_pandas())
+    print(da.sel(Metric="mean").to_pandas())
+    print()
+    print(da.sel(Metric=["mean", "median", "std"]).mean(dim="Sequence").to_pandas())
 
 
 if __name__ == "__main__":
