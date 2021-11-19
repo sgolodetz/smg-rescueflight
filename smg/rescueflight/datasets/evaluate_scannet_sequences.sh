@@ -18,5 +18,7 @@ CONDA_BASE=$(conda info --base)
 source "$CONDA_BASE\\etc\\profile.d\\conda.sh"
 
 # Make the output tables for the paper.
+echo "Making output tables"
+root_dir=`./determine_dataset_root_dir.sh scannet`
 conda activate smglib
-python make_scannet_tables.py -s "$1"
+python make_scannet_tables.py -r "$root_dir" -s "$1"
