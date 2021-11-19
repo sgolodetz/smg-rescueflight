@@ -7,7 +7,7 @@ then
   exit 1
 fi
 
-# Make sure that the ScanNet sequence has been downloaded.
+# Make sure that the sequence has been downloaded.
 ./obtain_scannet_sequence.sh "$1"
 
 # Reconstruct the sequence using the various different methods we want to compare.

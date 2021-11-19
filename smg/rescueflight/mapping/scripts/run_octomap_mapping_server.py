@@ -17,6 +17,10 @@ def main() -> None:
     # Parse any command-line arguments.
     parser = ArgumentParser()
     parser.add_argument(
+        "--batch", action="store_true",
+        help="whether to run in batch mode"
+    )
+    parser.add_argument(
         "--camera_mode", "-m", type=str, choices=("follow", "free"), default="free",
         help="the camera mode"
     )
@@ -62,12 +66,16 @@ def main() -> None:
         help="whether to save the sequence of frames used to reconstruct the Octomap"
     )
     parser.add_argument(
-        "--save_skeletons", action="store_true",
-        help="whether to save the skeletons detected in each frame"
+        "--save_people_masks", action="store_true",
+        help="whether to save the people mask for each frame"
     )
     parser.add_argument(
         "--save_reconstruction", action="store_true",
         help="whether to save the reconstructed Octomap"
+    )
+    parser.add_argument(
+        "--save_skeletons", action="store_true",
+        help="whether to save the skeletons detected in each frame"
     )
     parser.add_argument(
         "--tsdf_voxel_size", type=float, default=0.01,
@@ -106,13 +114,14 @@ def main() -> None:
     ) as server:
         # Construct the mapping system.
         with OctomapMappingSystem(
-            server, depth_estimator, camera_mode=args["camera_mode"], detect_objects=args["detect_objects"],
-            detect_skeletons=args["detect_skeletons"], max_received_depth=args["max_depth"],
-            octree_voxel_size=args["octree_voxel_size"], output_dir=output_dir, postprocess_depth=postprocess_depth,
-            render_bodies=args["render_bodies"], save_frames=args["save_frames"],
-            save_reconstruction=args["save_reconstruction"], save_skeletons=args["save_skeletons"],
-            tsdf_voxel_size=args["tsdf_voxel_size"], use_arm_selection=args["use_arm_selection"],
-            use_received_depth=args["use_received_depth"], use_tsdf=args["use_tsdf"]
+            server, depth_estimator, batch_mode=args["batch"], camera_mode=args["camera_mode"],
+            detect_objects=args["detect_objects"], detect_skeletons=args["detect_skeletons"],
+            max_received_depth=args["max_depth"], octree_voxel_size=args["octree_voxel_size"], output_dir=output_dir,
+            postprocess_depth=postprocess_depth, render_bodies=args["render_bodies"], save_frames=args["save_frames"],
+            save_people_masks=args["save_people_masks"], save_reconstruction=args["save_reconstruction"],
+            save_skeletons=args["save_skeletons"], tsdf_voxel_size=args["tsdf_voxel_size"],
+            use_arm_selection=args["use_arm_selection"], use_received_depth=args["use_received_depth"],
+            use_tsdf=args["use_tsdf"]
         ) as mapping_system:
             # Start the server.
             server.start()
