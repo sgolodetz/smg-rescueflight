@@ -5,7 +5,8 @@ import pandas as pd
 import xarray as xr
 
 from argparse import ArgumentParser
-from typing import List, Optional
+from numpy import nan
+from typing import Dict, List, Optional
 
 
 def load_inaccuracy_or_incompleteness_results(which: str, sequence_names: List[str]) -> Optional[xr.DataArray]:
@@ -104,6 +105,54 @@ def load_people_mask_results(sequence_names: List[str]) -> Optional[xr.DataArray
         return None
 
 
+def load_skeleton_results(sequence_names: List[str]) -> Optional[xr.DataArray]:
+    da_sequences: List[xr.DataArray] = []
+    for sequence in sequence_names:
+        da_methods: List[xr.DataArray] = []
+        method_tags: List[str] = ["lcrnet", "xnect"]
+        available_method_tags: List[str] = []
+
+        # FIXME: The location of the people directory should be determined not hard-coded here.
+        people_dir: str = f"C:/datasets/gta-im/{sequence}/people"
+
+        for method in method_tags:
+            filename: str = os.path.join(people_dir, f"skeleton_metrics-{method}.txt")
+            if os.path.exists(filename):
+                da_metrics: List[xr.DataArray] = []
+                metric_tags: List[str] = []
+
+                with open(filename) as f:
+                    lines: List[str] = [line.strip() for line in f.readlines() if line != ""]
+                    for line in lines:
+                        metric, joint_to_value_data = line.split(":", 1)
+                        joint_to_value_map: Dict[str, float] = eval(joint_to_value_data)
+                        da_metric: xr.DataArray = xr.DataArray(
+                            np.fromiter(joint_to_value_map.values(), dtype=float),
+                            name=metric, dims="Joint", coords={"Joint": list(joint_to_value_map.keys())}
+                        )
+                        da_metrics.append(da_metric)
+                        metric_tags.append(metric)
+
+                da_method: xr.DataArray = xr.concat(da_metrics, pd.Index(metric_tags, name="Metric"))
+                da_method.name = method
+                da_methods.append(da_method)
+                available_method_tags.append(method)
+            else:
+                print(f"- Missing {filename}")
+
+        if len(da_methods) > 0:
+            da_sequence: xr.DataArray = xr.concat(da_methods, pd.Index(available_method_tags, name="Method"))
+            da_sequence.name = sequence
+            da_sequences.append(da_sequence)
+
+    if len(da_sequences) > 0:
+        da: xr.DataArray = xr.concat(da_sequences, pd.Index(sequence_names, name="Sequence"))
+        da.name = f"Skeleton Data"
+        return da
+    else:
+        return None
+
+
 def print_inaccuracy_and_incompleteness_tables(sequence_names: List[str]) -> None:
     """
     TODO
@@ -118,24 +167,28 @@ def print_inaccuracy_and_incompleteness_tables(sequence_names: List[str]) -> Non
         "Incompleteness", sequence_names
     )
 
+    print()
+
     # TODO: Comment here.
     if da_inaccuracy is not None:
-        print()
         print("Mean Inaccuracy (mean of all sequences, m)")
         print(da_inaccuracy.sel(Attribute="mean").mean(dim="Sequence").to_pandas().transpose())
+        print()
     else:
-        print("- Couldn't construct inaccuracy table (no data)")
+        print("- Couldn't load inaccuracy results (no data)")
 
     if da_incompleteness is not None:
-        print()
         print("Mean Incompleteness (mean of all sequences, m)")
         print(da_incompleteness.sel(Attribute="mean").mean(dim="Sequence").to_pandas().transpose())
     else:
-        print("- Couldn't construct incompleteness table (no data)")
+        print("- Couldn't load incompleteness results (no data)")
 
 
 def print_people_mask_tables(sequence_names: List[str]) -> None:
     da_people_masks: Optional[xr.DataArray] = load_people_mask_results(sequence_names)
+
+    print()
+
     if da_people_masks is not None:
         print("People Mask Metrics (mean of all sequences)")
         print(
@@ -143,6 +196,23 @@ def print_people_mask_tables(sequence_names: List[str]) -> None:
                 Attribute=["Mean IoG", "Mean IoU", "Mean F1"]
             ).mean(dim="Sequence").to_pandas().transpose()
         )
+    else:
+        print("- Couldn't load people mask results (no data)")
+
+
+def print_skeleton_tables(sequence_names: List[str]) -> None:
+    da_skeletons: Optional[xr.DataArray] = load_skeleton_results(sequence_names)
+
+    print()
+
+    if da_skeletons is not None:
+        print("MPJPEs (mean of all sequences, m)")
+        print(da_skeletons.sel(Metric="MPJPEs").mean(dim="Sequence").to_pandas().transpose())
+        print()
+        print("3DPCKs (mean of all sequences, %)")
+        print(da_skeletons.sel(Metric="3DPCKs").mean(dim="Sequence").to_pandas().transpose())
+    else:
+        print("- Couldn't load skeleton results (no data)")
 
 
 def main() -> None:
@@ -167,8 +237,8 @@ def main() -> None:
 
     # TODO: Comment here.
     print_inaccuracy_and_incompleteness_tables(sequence_names)
-    print()
     print_people_mask_tables(sequence_names)
+    print_skeleton_tables(sequence_names)
 
 
 if __name__ == "__main__":
