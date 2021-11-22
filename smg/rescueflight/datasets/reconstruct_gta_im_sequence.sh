@@ -17,7 +17,7 @@ do
   then
     for percent_to_stop in 20 40 60 80 100
     do
-        GTA_IM_CLIENT_FLAGS="--percent_to_stop=$percent_to_stop" ./reconstruct_gta_im_scene_offline.sh "$1" gt_"$method_tag"_"$percent_to_stop" gt "$method_tag" --max_depth=20.0 --voxel_size=0.025
+        GTA_IM_CLIENT_FLAGS="--percent_to_stop=$percent_to_stop" ./reconstruct_gta_im_scene_offline.sh "$1" gt_"$method_tag"_"$percent_to_stop" gt "$method_tag" --max_depth=20.0 --voxel_size=0.05
     done
   else
     echo "Cannot reconstruct scenes for $1 ($method_tag)"
