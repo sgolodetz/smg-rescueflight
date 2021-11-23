@@ -118,6 +118,7 @@ def load_skeleton_results(sequence_names: List[str], root_dir: str) -> Optional[
     :param root_dir:        The root directory of the GTA-IM dataset.
     :return:                The tensor, if data for it exists, or None otherwise.
     """
+    available_sequence_names: List[str] = []
     da_sequences: List[xr.DataArray] = []
     for sequence in sequence_names:
         available_method_tags: List[str] = []
@@ -154,9 +155,10 @@ def load_skeleton_results(sequence_names: List[str], root_dir: str) -> Optional[
             da_sequence: xr.DataArray = xr.concat(da_methods, pd.Index(available_method_tags, name="Method"))
             da_sequence.name = sequence
             da_sequences.append(da_sequence)
+            available_sequence_names.append(sequence)
 
     if len(da_sequences) > 0:
-        da: xr.DataArray = xr.concat(da_sequences, pd.Index(sequence_names, name="Sequence"))
+        da: xr.DataArray = xr.concat(da_sequences, pd.Index(available_sequence_names, name="Sequence"))
         da.name = f"3D Skeleton Data"
         return da
     else:
