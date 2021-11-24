@@ -11,12 +11,12 @@ fi
 ./reconstruct_gta_im_sequence.sh "$1"
 
 # Evaluate the various different scene reconstructions.
-for method_tag in lcrnet maskrcnn xnect
+for method_tag in lcrnet maskrcnn nomask xnect
 do
     for percent_to_stop in 20 40 60 80 100
     do
-        ./evaluate_scene.sh gta-im "$1" gt_"$method_tag"_"$percent_to_stop" gt_gt_"$percent_to_stop" || true
-        ./evaluate_scene.sh gta-im "$1" gt_gt_"$percent_to_stop" gt_"$method_tag"_"$percent_to_stop" || true
+        ./evaluate_scene.sh gta-im "$1" gt_"$method_tag"_"$percent_to_stop" gt_gt_100 || true
+        ./evaluate_scene.sh gta-im "$1" gt_gt_100 gt_"$method_tag"_"$percent_to_stop" || true
     done
 done
 
