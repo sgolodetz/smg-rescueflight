@@ -21,33 +21,35 @@ def make_frame_processor(skeleton_detector: RemoteSkeletonDetector, people_mask_
             Tuple[List[Skeleton3D], Optional[np.ndarray]]
         ]:
     """
-    Make a frame processor for a skeleton detection service that uses an underlying skeleton detector and SMPL
-    to generate people masks.
+    Make a frame processor for a skeleton detection service that detects 3D skeletons using a remote skeleton
+    detector, and then renders silhouettes of SMPL bodies to generate a people mask for them.
 
-    :param skeleton_detector:       The underlying skeleton detector.
+    :param skeleton_detector:       The remote skeleton detector.
     :param people_mask_renderer:    The people mask renderer.
     :param smpl_body:               The SMPL body model.
     :param debug:                   Whether to print debug messages.
     :return:                        The frame processor.
     """
     # noinspection PyUnusedLocal
-    def generate_people_mask(frame_idx: int, colour_image: np.ndarray, depth_image: np.ndarray,
-                             world_from_camera: np.ndarray, intrinsics: Tuple[float, float, float, float]) \
+    def detect_skeletons(frame_idx: int, colour_image: np.ndarray, depth_image: np.ndarray,
+                         world_from_camera: np.ndarray, intrinsics: Tuple[float, float, float, float]) \
             -> Tuple[List[Skeleton3D], Optional[np.ndarray]]:
         """
-        Generate a people mask for an RGB image using an underlying skeleton detector and SMPL.
+        Detect 3D skeletons in an RGB image using a remote skeleton detector, and then render silhouettes of
+        SMPL bodies to generate a people mask for them.
 
-        :param frame_idx:           Passed in by the skeleton detection service, but ignored.
+        :param frame_idx:           The frame index.
         :param colour_image:        The RGB image.
         :param depth_image:         Passed in by the skeleton detection service, but ignored.
-        :param world_from_camera:   Passed in by the skeleton detection service, but ignored.
+        :param world_from_camera:   The camera pose.
         :param intrinsics:          The camera intrinsics, as an (fx, fy, cx, cy) tuple.
-        :return:                    An empty list of skeletons and a people mask for the RGB image.
+        :return:                    The detected 3D skeletons and a people mask for the RGB image.
         """
         if debug:
             start = timer()
 
-        # Detect the skeletons in the image using the underlying skeleton detector.
+        # Detect the skeletons in the image using the remote skeleton detector.
+        # FIXME: It would be good to avoid the need to repeatedly pass the calibration to the skeleton detector.
         height, width = colour_image.shape[:2]
         skeleton_detector.set_calibration((width, height), intrinsics)
         skeletons, _ = skeleton_detector.detect_skeletons(colour_image, world_from_camera, frame_idx=frame_idx)
@@ -67,20 +69,20 @@ def make_frame_processor(skeleton_detector: RemoteSkeletonDetector, people_mask_
             end = timer()
 
             # noinspection PyUnboundLocalVariable
-            print(f"People Mask Generation Time: {end - start}s")
+            print(f"Detection and Mask Generation Time: {end - start}s")
 
         return skeletons, people_mask
 
     def render_person_mask(skeleton: Skeleton3D) -> None:
         """
-        TODO
+        Render a person mask for a skeleton by fitting an SMPL body model to it and rendering the body's silhouette.
 
-        :param skeleton:    TODO
-        :return:            TODO
+        :param skeleton:    The skeleton.
+        :return:            The person mask.
         """
         smpl_body.render_from_skeleton(skeleton, colour=(1.0, 1.0, 1.0))
 
-    return generate_people_mask
+    return detect_skeletons
 
 
 def main() -> None:
