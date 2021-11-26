@@ -1,3 +1,4 @@
+import cv2
 import numpy as np
 import os
 
@@ -55,6 +56,12 @@ def make_frame_processor(skeleton_detector: RemoteSkeletonDetector, people_mask_
         people_mask: np.ndarray = people_mask_renderer.render_people_mask(
             render_person_mask, skeletons, world_from_camera, intrinsics, width, height
         )
+
+        # Dilate the people mask to mitigate the "halo effect", in which a halo around each person is fused into
+        # the scene representation. A rather large kernel size is needed for this in practice.
+        kernel_size: int = 41
+        kernel: np.ndarray = np.ones((kernel_size, kernel_size), np.uint8)
+        people_mask = cv2.dilate(people_mask, kernel)
 
         if debug:
             end = timer()
