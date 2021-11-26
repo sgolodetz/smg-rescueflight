@@ -28,9 +28,12 @@ done
 ./reconstruct_gta_im_scene_offline.sh "$1" "gt_skeleton_eval" gt gt --max_depth=20.0 --voxel_size=0.05
 
 # Reconstruct the people in the scene using the various different methods we want to compare.
-for method_tag in gt lcrnet maskrcnn xnect
+for method_tag in gt lcrnet lcrnet-smpl maskrcnn xnect
 do
-  if [ "$method_tag" == "gt" ] || [ "$method_tag" == "maskrcnn" ] || [ `./conda_env_exists.sh "$method_tag"` == "1" ]
+  if [ "$method_tag" == "gt" ] || \
+     ([ "$method_tag" == "lcrnet-smpl" ] && [ `./conda_env_exists.sh lcrnet` == "1" ]) || \
+     [ "$method_tag" == "maskrcnn" ] || \
+     [ `./conda_env_exists.sh "$method_tag"` == "1" ]
   then
     ./reconstruct_gta_im_people.sh "$1" "$method_tag" "$method_tag" gt --max_depth=10.0 --save_people_masks --save_skeletons
   else
