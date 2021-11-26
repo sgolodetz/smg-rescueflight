@@ -11,7 +11,7 @@ fi
 ./reconstruct_gta_im_sequence.sh "$1"
 
 # Evaluate the various different scene reconstructions.
-for method_tag in lcrnet maskrcnn xnect
+for method_tag in lcrnet lcrnet-smpl maskrcnn xnect xnect-smpl
 do
     for percent_to_stop in 20 40 60 80 100
     do
@@ -28,7 +28,7 @@ source "$CONDA_BASE\\etc\\profile.d\\conda.sh"
 sequence_dir=`./determine_sequence_dir.sh gta-im "$1" true`
 
 # Evaluate the people masks for each of the different methods in turn.
-for generator_tag in lcrnet maskrcnn xnect
+for generator_tag in lcrnet lcrnet-smpl maskrcnn xnect xnect-smpl
 do
   echo "Evaluating people masks for $1 ($generator_tag)"
   output_filename="people_mask_metrics-$generator_tag.txt"

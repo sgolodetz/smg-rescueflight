@@ -23,7 +23,7 @@ def load_inaccuracy_or_incompleteness_results(which: str, sequence_names: List[s
     for sequence in sequence_names:
         available_method_tags: List[str] = []
         da_methods: List[xr.DataArray] = []
-        method_tags: List[str] = ["lcrnet", "maskrcnn", "xnect"]
+        method_tags: List[str] = ["lcrnet", "lcrnet-smpl", "maskrcnn", "xnect", "xnect-smpl"]
         recon_dir: str = os.path.join(root_dir, sequence, "recon")
 
         for method in method_tags:
@@ -81,7 +81,7 @@ def load_people_mask_results(sequence_names: List[str], root_dir: str) -> Option
     for sequence in sequence_names:
         available_method_tags: List[str] = []
         da_methods: List[xr.DataArray] = []
-        method_tags: List[str] = ["lcrnet", "maskrcnn", "xnect"]
+        method_tags: List[str] = ["lcrnet", "lcrnet-smpl", "maskrcnn", "xnect", "xnect-smpl"]
         people_dir: str = os.path.join(root_dir, sequence, "people")
 
         for method in method_tags:

@@ -3,7 +3,7 @@
 # Check that the script is being used correctly.
 if [ $# -lt 1 ]
 then
-  echo "Usage: run_skeleton_detection_service.sh {lcrnet|lcrnet-smpl|maskrcnn|xnect} [args]"
+  echo "Usage: run_skeleton_detection_service.sh {lcrnet|lcrnet-smpl|maskrcnn|xnect|xnect-smpl} [args]"
   exit 1
 fi
 
@@ -45,5 +45,14 @@ elif [ "$1" == "xnect" ]
 then
   conda activate xnect
   python /c/smglib/smg-pyxnect/scripts/run_xnect_skeleton_detection_service.py "${@:2}"
+  conda deactivate
+elif [ "$1" == "xnect-smpl" ]
+then
+  conda activate xnect
+  python /c/smglib/smg-pyxnect/scripts/run_xnect_skeleton_detection_service.py -p 7854 &
+  conda deactivate
+  sleep 5
+  conda activate smglib
+  python ../smplx/run_smpl_skeleton_detection_service.py "${@:2}"
   conda deactivate
 fi
