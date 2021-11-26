@@ -11,11 +11,12 @@ fi
 ./obtain_gta_im_sequence.sh "$1"
 
 # Reconstruct the scene numerous times using different people masking approaches and stopping at different points.
-for method_tag in gt lcrnet lcrnet-smpl maskrcnn xnect xnect-smpl
+for method_tag in gt lcrnet lcrnet-smpl maskrcnn nomask xnect xnect-smpl
 do
   if [ "$method_tag" == "gt" ] || \
      ([ "$method_tag" == "lcrnet-smpl" ] && [ `./conda_env_exists.sh lcrnet` == "1" ]) || \
      [ "$method_tag" == "maskrcnn" ] || \
+     [ "$method_tag" == "nomask" ] || \
      ([ "$method_tag" == "xnect-smpl" ] && [ `./conda_env_exists.sh xnect` == "1" ]) || \
      [ `./conda_env_exists.sh "$method_tag"` == "1" ]
   then

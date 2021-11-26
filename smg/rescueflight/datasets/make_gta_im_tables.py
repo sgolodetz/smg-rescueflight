@@ -23,7 +23,7 @@ def load_inaccuracy_or_incompleteness_results(which: str, sequence_names: List[s
     for sequence in sequence_names:
         available_method_tags: List[str] = []
         da_methods: List[xr.DataArray] = []
-        method_tags: List[str] = ["lcrnet", "lcrnet-smpl", "maskrcnn", "xnect", "xnect-smpl"]
+        method_tags: List[str] = ["lcrnet", "lcrnet-smpl", "maskrcnn", "nomask", "xnect", "xnect-smpl"]
         recon_dir: str = os.path.join(root_dir, sequence, "recon")
 
         for method in method_tags:
@@ -33,11 +33,11 @@ def load_inaccuracy_or_incompleteness_results(which: str, sequence_names: List[s
             for percent_to_stop in percent_tags:
                 if which == "Inaccuracy":
                     filename: str = os.path.join(
-                        recon_dir, f"c2c_dist-gt_{method}_{percent_to_stop}-gt_gt_{percent_to_stop}.txt"
+                        recon_dir, f"c2c_dist-gt_{method}_{percent_to_stop}-gt_gt_100.txt"
                     )
                 else:
                     filename: str = os.path.join(
-                        recon_dir, f"c2c_dist-gt_gt_{percent_to_stop}-gt_{method}_{percent_to_stop}.txt"
+                        recon_dir, f"c2c_dist-gt_gt_100-gt_{method}_{percent_to_stop}.txt"
                     )
 
                 if os.path.exists(filename):
