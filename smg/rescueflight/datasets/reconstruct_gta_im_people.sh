@@ -3,7 +3,7 @@
 # Check that the script is being used correctly.
 if [ $# -lt 4 ]
 then
-  echo "Usage: reconstruct_gta_im_people.sh <sequence name> <method tag> {gt|lcrnet|maskrcnn|xnect} {gt|lcrnet|xnect} [args]"
+  echo "Usage: reconstruct_gta_im_people.sh <sequence name> <method tag> {gt|lcrnet|lcrnet-smpl|maskrcnn|xnect|xnect-smpl} {gt|lcrnet|xnect} [args]"
   exit 1
 fi
 
