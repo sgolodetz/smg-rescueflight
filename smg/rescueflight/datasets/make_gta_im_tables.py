@@ -246,9 +246,10 @@ def main() -> None:
     # Tell numpy to avoid using scientific notation for numbers.
     np.set_printoptions(suppress=True)
 
-    # Tell pandas to show whole tables.
+    # Tell pandas to show whole tables and avoid wrapping.
     pd.set_option("display.max_columns", None)
     pd.set_option("display.max_rows", None)
+    pd.set_option("display.width", None)
 
     # Parse any command-line arguments.
     parser = ArgumentParser()

@@ -7,6 +7,11 @@ from typing import List
 
 
 def main() -> None:
+    # Tell pandas to show whole tables and avoid wrapping.
+    pd.set_option("display.max_columns", None)
+    pd.set_option("display.max_rows", None)
+    pd.set_option("display.width", None)
+
     # Parse any command-line arguments.
     parser = ArgumentParser()
     parser.add_argument(
@@ -28,7 +33,7 @@ def main() -> None:
 
     # Specify the tags for the various different methods we want to consider.
     method_tags: List[str] = [
-        "dvmvs_4m_gt", "dvmvs_pp_4m_gt", "mvdepth_4m_gt", "mvdepth_pp_4m_gt"
+        "mvdepth_4m_gt", "mvdepth_pp_4m_gt", "dvmvs_4m_gt", "dvmvs_pp_4m_gt", "foo"
     ]
 
     # Load the results for all the sequences and methods into a big tensor.
