@@ -42,6 +42,7 @@ def main() -> None:
         da_methods: List[xr.DataArray] = []
         for method in method_tags:
             filename: str = os.path.join(root_dir, f"{sequence}/recon/c2c_dist-{method}-gt_gt.txt")
+            # filename: str = os.path.join(root_dir, f"{sequence}/recon/c2c_dist-gt_gt-{method}.txt")
             da_method: xr.DataArray = xr.DataArray(
                 pd.read_csv(filename, delimiter=' ').values[:, 0].astype(float),
                 name=method, dims="Metric", coords={"Metric": ["mean", "median", "std", "min", "max"]}
