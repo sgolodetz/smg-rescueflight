@@ -22,7 +22,7 @@ def load_inaccuracy_or_incompleteness_results(which: str, sequence_names: List[s
     for sequence in sequence_names:
         available_method_tags: List[str] = []
         da_methods: List[xr.DataArray] = []
-        method_tags: List[str] = ["mvdepth_4m_gt", "mvdepth_pp_4m_gt", "dvmvs_4m_gt", "dvmvs_pp_4m_gt"]
+        method_tags: List[str] = ["mvdepth_4m_gt", "mvdepth_pp_4m_gt", "mvdepth2_4m_gt", "mvdepth2_pp_4m_gt", "dvmvs_4m_gt", "dvmvs_pp_4m_gt"]
         recon_dir: str = os.path.join(root_dir, sequence, "recon")
 
         for method in method_tags:
