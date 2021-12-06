@@ -14,4 +14,5 @@ fi
 for method_tag in dvmvs_4m_gt dvmvs_pp_4m_gt mvdepth_4m_gt mvdepth_pp_4m_gt
 do
   ./evaluate_scene.sh scannet "$1" "$method_tag" gt_gt
+  ./evaluate_scene.sh scannet "$1" gt_gt "$method_tag"
 done
