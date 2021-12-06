@@ -15,8 +15,8 @@ def load_inaccuracy_or_incompleteness_results(which: str, sequence_names: List[s
     Try to load in the data we need for either the inaccuracy or the incompleteness tensor, and to make the tensor.
 
     :param which:           Which tensor to make ("Inaccuracy" or "Incompleteness").
-    :param sequence_names:  The names of the GTA-IM sequences whose data is to be included in the tensor.
-    :param root_dir:        The root directory of the GTA-IM dataset.
+    :param sequence_names:  The names of the sequences whose data is to be included in the tensor.
+    :param root_dir:        The root directory of the dataset.
     :return:                The tensor, if data for it exists, or None otherwise.
     """
     available_sequence_names: List[str] = []
@@ -171,8 +171,8 @@ def print_inaccuracy_and_incompleteness_tables(sequence_names: List[str], root_d
     """
     Try to print out the inaccuracy and incompleteness tables we need for the paper.
 
-    :param sequence_names:  The names of the GTA-IM sequences whose data is to be included in the tables.
-    :param root_dir:        The root directory of the GTA-IM dataset.
+    :param sequence_names:  The names of the sequences whose data is to be included in the tables.
+    :param root_dir:        The root directory of the dataset.
     """
     # Load the results into xarray tensors.
     da_inaccuracy: Optional[xr.DataArray] = load_inaccuracy_or_incompleteness_results(
@@ -248,9 +248,10 @@ def main() -> None:
     # Tell numpy to avoid using scientific notation for numbers.
     np.set_printoptions(suppress=True)
 
-    # Tell pandas to show whole tables.
+    # Tell pandas to show whole tables and avoid wrapping.
     pd.set_option("display.max_columns", None)
     pd.set_option("display.max_rows", None)
+    pd.set_option("display.width", None)
 
     # Parse any command-line arguments.
     parser = ArgumentParser()
