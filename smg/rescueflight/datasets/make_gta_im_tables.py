@@ -19,11 +19,12 @@ def load_inaccuracy_or_incompleteness_results(which: str, sequence_names: List[s
     :param root_dir:        The root directory of the GTA-IM dataset.
     :return:                The tensor, if data for it exists, or None otherwise.
     """
+    available_sequence_names: List[str] = []
     da_sequences: List[xr.DataArray] = []
     for sequence in sequence_names:
         available_method_tags: List[str] = []
         da_methods: List[xr.DataArray] = []
-        method_tags: List[str] = ["lcrnet", "lcrnet-smpl", "maskrcnn", "nomask", "xnect", "xnect-smpl"]
+        method_tags: List[str] = ["nomask", "xnect", "xnect-smpl", "lcrnet", "lcrnet-smpl", "maskrcnn"]
         recon_dir: str = os.path.join(root_dir, sequence, "recon")
 
         for method in method_tags:
@@ -60,9 +61,10 @@ def load_inaccuracy_or_incompleteness_results(which: str, sequence_names: List[s
             da_sequence: xr.DataArray = xr.concat(da_methods, pd.Index(available_method_tags, name="Method"))
             da_sequence.name = sequence
             da_sequences.append(da_sequence)
+            available_sequence_names.append(sequence)
 
     if len(da_sequences) > 0:
-        da: xr.DataArray = xr.concat(da_sequences, pd.Index(sequence_names, name="Sequence"))
+        da: xr.DataArray = xr.concat(da_sequences, pd.Index(available_sequence_names, name="Sequence"))
         da.name = f"{which} Data"
         return da
     else:
@@ -81,7 +83,7 @@ def load_people_mask_results(sequence_names: List[str], root_dir: str) -> Option
     for sequence in sequence_names:
         available_method_tags: List[str] = []
         da_methods: List[xr.DataArray] = []
-        method_tags: List[str] = ["lcrnet", "lcrnet-smpl", "maskrcnn", "xnect", "xnect-smpl"]
+        method_tags: List[str] = ["xnect", "xnect-smpl", "lcrnet", "lcrnet-smpl", "maskrcnn"]
         people_dir: str = os.path.join(root_dir, sequence, "people")
 
         for method in method_tags:
@@ -213,7 +215,7 @@ def print_people_mask_tables(sequence_names: List[str], root_dir: str) -> None:
     if da_people_masks is not None:
         print("People Mask Metrics (mean of all sequences)")
         print(
-            da_people_masks.sel(Metric=["Mean IoG", "Mean IoU", "Mean F1"]).mean(dim="Sequence").to_pandas().transpose()
+            da_people_masks.sel(Metric=["Mean IoU", "Mean F1", "Mean IoG"]).mean(dim="Sequence").to_pandas()
         )
     else:
         print("- Couldn't load people mask results (no data)")
