@@ -47,9 +47,9 @@ def main() -> None:
         raise RuntimeError(f"'{vicon_from_world_filename}' does not exist")
 
     # Load in the reconstructed scene mesh and transform it into Vicon space.
-    mesh_filename: str = os.path.join(sequence_dir, "reconstruction", "mesh.ply")
+    mesh_filename: str = os.path.join(sequence_dir, "reconstruction", "transformed_mesh.ply")
     scene_mesh_o3d: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(mesh_filename)
-    scene_mesh_o3d.transform(vicon_from_world)
+    # scene_mesh_o3d.transform(vicon_from_world)
     scene_mesh: OpenGLTriMesh = MeshUtil.convert_trimesh_to_opengl(scene_mesh_o3d)
 
     # Initialise PyGame and create the window.
