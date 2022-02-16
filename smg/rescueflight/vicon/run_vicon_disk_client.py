@@ -40,7 +40,7 @@ def main() -> None:
     use_vicon_scale: bool = args["use_vicon_scale"]
 
     # Construct the subject-from-source cache.
-    subject_from_source_cache: SubjectFromSourceCache = SubjectFromSourceCache(".")
+    subject_from_source_cache: SubjectFromSourceCache = SubjectFromSourceCache(sequence_dir)
 
     # Connect to the Vicon interface.
     with OfflineViconInterface(folder=sequence_dir) as vicon:

@@ -75,14 +75,7 @@ def main() -> None:
         target_from_world_filename = os.path.join(sequence_dir, "reconstruction", "vicon_from_world.txt")
 
         # Determine the transformation needed to transform the ground-truth mesh into Vicon space.
-        with OfflineViconInterface(folder=sequence_dir) as vicon:
-            if vicon.get_frame():
-                gt_marker_positions: Dict[str, np.ndarray] = FiducialUtil.load_fiducials(
-                    os.path.join(sequence_dir, "gt", "fiducials.txt")
-                )
-                target_from_gt = MarkerUtil.estimate_space_to_space_transform(
-                    gt_marker_positions, vicon.get_marker_positions("Registrar")
-                )
+        target_from_gt = PoseUtil.load_pose(target_from_world_filename)
 
         # Set the initial camera to point along the y axis (since that's the horizontal axis in Vicon space).
         initial_cam = SimpleCamera([0, 0, 0], [0, 1, 0], [0, 0, 1])
@@ -112,9 +105,7 @@ def main() -> None:
     # If we determined how to transform the ground-truth mesh, read it in and transform it into the target space.
     if target_from_gt is not None:
         gt_mesh: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(gt_filename)
-        # gt_mesh = gt_mesh.transform(target_from_gt)
-        target_from_world: np.ndarray = PoseUtil.load_pose(target_from_world_filename)
-        gt_mesh = gt_mesh.transform(target_from_world)
+        gt_mesh = gt_mesh.transform(target_from_gt)
 
     # Otherwise, raise an exception. This can happen if some of the necessary marker positions weren't available.
     else:

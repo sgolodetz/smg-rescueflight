@@ -37,7 +37,7 @@ def main() -> None:
     source_subject: str = args["source_subject"]
 
     # Construct the subject-from-source cache.
-    subject_from_source_cache: SubjectFromSourceCache = SubjectFromSourceCache(".")
+    subject_from_source_cache: SubjectFromSourceCache = SubjectFromSourceCache(sequence_dir)
 
     # Read in the trajectories.
     frame_numbers: List[int] = []
