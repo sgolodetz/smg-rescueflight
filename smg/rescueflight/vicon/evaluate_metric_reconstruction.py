@@ -68,7 +68,7 @@ def main() -> None:
     # If a sequence directory has been specified:
     if sequence_dir is not None:
         # Specify the relevant filenames based on the sequence directory, overriding those on the command line.
-        gt_filename = os.path.join(sequence_dir, "gt", "mesh.ply")
+        gt_filename = os.path.join(sequence_dir, "gt", "cc_mesh.ply")
         output_gt_filename = os.path.join(sequence_dir, "gt", "transformed_mesh.ply")
         output_reconstruction_filename = os.path.join(sequence_dir, "reconstruction", "transformed_mesh.ply")
         reconstruction_filename = os.path.join(sequence_dir, "reconstruction", "mesh.ply")
@@ -112,7 +112,9 @@ def main() -> None:
     # If we determined how to transform the ground-truth mesh, read it in and transform it into the target space.
     if target_from_gt is not None:
         gt_mesh: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(gt_filename)
-        gt_mesh = gt_mesh.transform(target_from_gt)
+        # gt_mesh = gt_mesh.transform(target_from_gt)
+        target_from_world: np.ndarray = PoseUtil.load_pose(target_from_world_filename)
+        gt_mesh = gt_mesh.transform(target_from_world)
 
     # Otherwise, raise an exception. This can happen if some of the necessary marker positions weren't available.
     else:
