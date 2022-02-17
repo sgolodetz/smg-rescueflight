@@ -17,7 +17,7 @@ from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter
 from smg.skeletons import Skeleton3D, SkeletonEvaluator, SkeletonRenderer, SkeletonUtil
-from smg.utility import MarkerUtil, PoseUtil
+from smg.utility import PoseUtil
 from smg.vicon import OfflineViconInterface, ViconSkeletonDetector, ViconUtil
 
 
@@ -31,12 +31,17 @@ def main() -> None:
         help="the skeleton detector whose (pre-saved) skeletons are to be evaluated"
     )
     parser.add_argument(
+        "--mesh_type", "-m", type=str, default="reconstruction", choices=("gt", "reconstruction"),
+        help="which mesh to show for the scene (the ground-truth or the reconstruction)"
+    )
+    parser.add_argument(
         "--sequence_dir", "-s", type=str, required=True,
         help="the name of the directory containing the ground-truth Vicon sequence"
     )
     args: dict = vars(parser.parse_args())
 
     detector_type: str = args["detector_type"]
+    mesh_type: str = args["mesh_type"]
     sequence_dir: str = args["sequence_dir"]
 
     # Try to load in the transformation from world space to Vicon space.
@@ -46,11 +51,9 @@ def main() -> None:
     else:
         raise RuntimeError(f"'{vicon_from_world_filename}' does not exist")
 
-    # Load in the reconstructed scene mesh and transform it into Vicon space.
-    mesh_filename: str = os.path.join(sequence_dir, "reconstruction", "transformed_mesh.ply")
-    scene_mesh_o3d: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(mesh_filename)
-    # scene_mesh_o3d.transform(vicon_from_world)
-    scene_mesh: OpenGLTriMesh = MeshUtil.convert_trimesh_to_opengl(scene_mesh_o3d)
+    # Load in the scene mesh (this will already be in Vicon space).
+    mesh_filename: str = os.path.join(sequence_dir, mesh_type, "transformed_mesh.ply")
+    scene_mesh: OpenGLTriMesh = MeshUtil.convert_trimesh_to_opengl(o3d.io.read_triangle_mesh(mesh_filename))
 
     # Initialise PyGame and create the window.
     pygame.init()
@@ -83,8 +86,6 @@ def main() -> None:
         evaluate: bool = False
         pause: bool = True
         process_next: bool = True
-        # scene_mesh: Optional[OpenGLTriMesh] = None
-        vicon_from_gt: Optional[np.ndarray] = None
 
         while True:
             # Process any PyGame events.
@@ -129,35 +130,6 @@ def main() -> None:
                 evaluate = True
             if os.path.exists(os.path.join(sequence_dir, "evalcontrol", f"{frame_number}-off.txt")):
                 evaluate = False
-
-            # # If the transformation from ground-truth space to Vicon space hasn't yet been calculated:
-            # if vicon_from_gt is None:
-            #     from smg.utility import FiducialUtil
-            #
-            #     # Try to calculate it now.
-            #     fiducials_filename: str = os.path.join(sequence_dir, "gt", "fiducials.txt")
-            #     gt_marker_positions: Dict[str, np.ndarray] = FiducialUtil.load_fiducials(fiducials_filename)
-            #
-            #     # Look up the Vicon coordinate system positions of the all of the Vicon markers that can currently
-            #     # be seen by the Vicon system, hopefully including ones for the ArUco marker corners.
-            #     vicon_marker_positions: Dict[str, np.ndarray] = vicon.get_marker_positions("Registrar")
-            #
-            #     vicon_from_gt = MarkerUtil.estimate_space_to_space_transform(
-            #         gt_marker_positions, vicon_marker_positions
-            #     )
-            #
-            #     # If this fails, raise an exception.
-            #     if vicon_from_gt is None:
-            #         raise RuntimeError("Couldn't calculate ground-truth to Vicon space transform - check the markers")
-            #
-            # ###
-            # # Load in the reconstructed scene mesh and transform it into Vicon space.
-            # if scene_mesh is None:
-            #     mesh_filename: str = os.path.join(sequence_dir, "gt", "mesh.ply")
-            #     scene_mesh_o3d: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(mesh_filename)
-            #     scene_mesh_o3d.transform(vicon_from_gt)
-            #     scene_mesh = MeshUtil.convert_trimesh_to_opengl(scene_mesh_o3d)
-            ###
 
             # Get the ground-truth and (previously) detected skeletons.
             gt_skeletons: Dict[str, Skeleton3D] = gt_skeleton_detector.detect_skeletons()
@@ -222,20 +194,8 @@ def main() -> None:
                     if scene_mesh is not None:
                         scene_mesh.render()
 
-                    # Render the ArUco marker (this will be at the origin in ArUco space).
-                    # with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(aruco_from_vicon)):
-                    # if all(key in vicon_marker_positions for key in ["0_0", "0_1", "0_2", "0_3"]):
-                    #     glBegin(GL_QUADS)
-                    #     glColor3f(0, 1, 0)
-                    #     glVertex3f(*vicon_marker_positions["0_0"])
-                    #     glVertex3f(*vicon_marker_positions["0_1"])
-                    #     glVertex3f(*vicon_marker_positions["0_2"])
-                    #     glVertex3f(*vicon_marker_positions["0_3"])
-                    #     glEnd()
-
                     # Render the 3D skeletons in their Vicon-space locations.
                     with SkeletonRenderer.default_lighting_context():
-                        # with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(aruco_from_vicon)):
                         for _, skeleton in gt_skeletons.items():
                             SkeletonRenderer.render_skeleton(skeleton)
 
