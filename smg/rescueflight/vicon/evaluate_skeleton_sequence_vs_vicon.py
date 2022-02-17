@@ -113,8 +113,7 @@ def main() -> None:
             # If we're ready to do so, process the next frame. Also record whether we processed a frame or not.
             processed_frame: bool = False
             if process_next:
-                vicon.get_frame()
-                processed_frame = True
+                processed_frame = vicon.get_frame()
                 process_next = not pause
 
             # Get the frame number of the current Vicon frame, and print it out.
@@ -217,8 +216,11 @@ def main() -> None:
 
                     # Render the 3D skeletons in their Vicon-space locations.
                     with SkeletonRenderer.default_lighting_context():
-                        for _, skeleton in gt_skeletons.items():
-                            SkeletonRenderer.render_skeleton(skeleton)
+                        for subject, skeleton in gt_skeletons.items():
+                            if subject in visible_subjects:
+                                SkeletonRenderer.render_skeleton(skeleton, uniform_colour=(0, 1, 0))
+                            else:
+                                SkeletonRenderer.render_skeleton(skeleton, uniform_colour=(0.5, 1, 1))
 
                         if detected_skeletons is not None:
                             for skeleton in detected_skeletons:
