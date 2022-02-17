@@ -9,7 +9,7 @@ import pygame
 from argparse import ArgumentParser
 from OpenGL.GL import *
 from timeit import default_timer as timer
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 from smg.meshing import MeshUtil
 from smg.opengl import OpenGLMatrixContext, OpenGLTriMesh, OpenGLUtil
@@ -31,34 +31,6 @@ def get_frame_index(filename: str) -> int:
     """
     frame_idx, _, _ = filename.split(".")
     return int(frame_idx)
-
-
-def print_metrics(matched_skeletons: List[List[Tuple[Skeleton3D, Optional[Skeleton3D]]]],
-                  skeleton_evaluator: SkeletonEvaluator) -> None:
-    """
-    Calculate the evaluation metrics for all the matches we've seen so far, and print them out.
-
-    :param matched_skeletons:   The list of matched skeletons.
-    :param skeleton_evaluator:  The skeleton evaluator.
-    """
-    mpjpes: Dict[str, float] = {}
-    pcks: Dict[str, float] = {}
-
-    # If we've previously established at least one skeleton match:
-    if len(matched_skeletons) > 0:
-        # Calculate the MPJPEs (in m).
-        per_joint_error_table: np.ndarray = skeleton_evaluator.make_per_joint_error_table(matched_skeletons)
-        mpjpes: Dict[str, float] = skeleton_evaluator.calculate_mpjpes(per_joint_error_table)
-
-        # Calculate the 3DPCKs, using the standard threshold of 15cm.
-        correct_keypoint_table: np.ndarray = SkeletonEvaluator.make_correct_keypoint_table(
-            per_joint_error_table, threshold=0.15
-        )
-        pcks: Dict[str, float] = skeleton_evaluator.calculate_pcks(correct_keypoint_table)
-
-    # Print out the metrics.
-    print(f"MPJPEs: {mpjpes}")
-    print(f"3DPCKs: {pcks}")
 
 
 def main() -> None:
@@ -208,7 +180,7 @@ def main() -> None:
             if debug:
                 print("===")
                 print(f"Frame {get_frame_index(skeleton_filenames[i])}")
-                print_metrics(matched_skeletons, skeleton_evaluator)
+                skeleton_evaluator.print_metrics(matched_skeletons)
 
             # Advance to the next frame.
             i += 1
@@ -255,7 +227,7 @@ def main() -> None:
         print()
 
     # Calculate and print out the summary metrics.
-    print_metrics(matched_skeletons, skeleton_evaluator)
+    skeleton_evaluator.print_metrics(matched_skeletons)
 
 
 if __name__ == "__main__":

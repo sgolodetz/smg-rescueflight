@@ -84,7 +84,6 @@ def main() -> None:
 
         # Initialise a few variables.
         all_subjects_visible: bool = False
-        evaluate: bool = False
         pause: bool = True
         process_next: bool = True
         visible_subjects: Set[str] = set()
@@ -141,7 +140,7 @@ def main() -> None:
                         elif onoff == "off" and subject in visible_subjects:
                             visible_subjects.remove(subject)
 
-            evaluate = all_subjects_visible or len(visible_subjects) != 0
+            evaluate: bool = all_subjects_visible or len(visible_subjects) != 0
             print(f"Visible Subjects: {visible_subjects}")
 
             # Get the ground-truth and (previously) detected skeletons.
@@ -177,19 +176,8 @@ def main() -> None:
                     # Add the matches to the overall list.
                     matched_skeletons.append(new_matches)
 
-                # If we've previously established at least one skeleton match:
-                if len(matched_skeletons) > 0:
-                    # Calculate the evaluation metrics for all the matches we've seen so far, and print them out.
-                    per_joint_error_table: np.ndarray = skeleton_evaluator.make_per_joint_error_table(matched_skeletons)
-                    print(per_joint_error_table)
-                    mpjpes: Dict[str, float] = skeleton_evaluator.calculate_mpjpes(per_joint_error_table)
-                    print(mpjpes)
-                    correct_keypoint_table: np.ndarray = SkeletonEvaluator.make_correct_keypoint_table(
-                        per_joint_error_table, threshold=0.15
-                    )
-                    print(correct_keypoint_table)
-                    pcks: Dict[str, float] = skeleton_evaluator.calculate_pcks(correct_keypoint_table)
-                    print(pcks)
+                # Calculate and print the evaluation metrics for all the matches we've seen so far.
+                skeleton_evaluator.print_metrics(matched_skeletons)
 
             # Allow the user to control the camera.
             camera_controller.update(pygame.key.get_pressed(), timer() * 1000)
