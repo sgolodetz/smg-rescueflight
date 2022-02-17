@@ -27,12 +27,16 @@ def main() -> None:
     # Parse any command-line arguments.
     parser = ArgumentParser()
     parser.add_argument(
+        "--batch", action="store_true",
+        help="whether to run in batch mode"
+    )
+    parser.add_argument(
         "--debug", action="store_true",
         help="whether to print out per-frame metrics for debugging purposes"
     )
     parser.add_argument(
-        "--detector_type", "-t", type=str, default="lcrnet", choices=("lcrnet", "xnect"),
-        help="the skeleton detector whose (pre-saved) skeletons are to be evaluated"
+        "--detector_tag", "-t", type=str, default="lcrnet", choices=("lcrnet", "xnect"),
+        help="the tag of the skeleton detector whose (pre-saved) skeletons are to be evaluated"
     )
     parser.add_argument(
         "--mesh_type", "-m", type=str, default="reconstruction", choices=("gt", "reconstruction"),
@@ -44,8 +48,9 @@ def main() -> None:
     )
     args: dict = vars(parser.parse_args())
 
+    batch: bool = args["batch"]
     debug: bool = args["debug"]
-    detector_type: str = args["detector_type"]
+    detector_tag: str = args["detector_tag"]
     mesh_type: str = args["mesh_type"]
     sequence_dir: str = args["sequence_dir"]
 
@@ -91,7 +96,7 @@ def main() -> None:
         all_subjects_visible: bool = False
         detected_skeletons: Optional[List[Skeleton3D]] = None
         gt_skeletons: Dict[str, Skeleton3D] = {}
-        pause: bool = True
+        pause: bool = not batch
         process_next: bool = True
         visible_subjects: Set[str] = set()
 
@@ -133,7 +138,7 @@ def main() -> None:
                 gt_skeletons = gt_skeleton_detector.detect_skeletons()
 
                 detected_skeletons = SkeletonUtil.try_load_skeletons(
-                    os.path.join(sequence_dir, detector_type, f"{frame_number}.skeletons.txt")
+                    os.path.join(sequence_dir, "people", detector_tag, f"{frame_number}.skeletons.txt")
                 )
 
                 # Transform the detected skeletons (if any) into Vicon space.
@@ -166,9 +171,9 @@ def main() -> None:
 
                 evaluate: bool = all_subjects_visible or len(visible_subjects) != 0
 
-                # If evaluation is enabled:
-                if evaluate:
-                    # Match any detected skeletons with the visible ground-truth ones.
+                # If evaluation is enabled and any skeletons have been detected:
+                if evaluate and detected_skeletons is not None:
+                    # Match the detected skeletons with the visible ground-truth ones.
                     new_matches: List[Tuple[Skeleton3D, Optional[Skeleton3D]]] = \
                         SkeletonUtil.match_detections_with_ground_truth(
                             detected_skeletons=detected_skeletons, gt_skeletons=list(visible_gt_skeletons.values())
