@@ -9,7 +9,7 @@ import pygame
 from argparse import ArgumentParser
 from OpenGL.GL import *
 from timeit import default_timer as timer
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 from smg.meshing import MeshUtil
 from smg.opengl import OpenGLMatrixContext, OpenGLTriMesh, OpenGLUtil
@@ -83,9 +83,11 @@ def main() -> None:
         )
 
         # Initialise a few variables.
+        all_subjects_visible: bool = False
         evaluate: bool = False
         pause: bool = True
         process_next: bool = True
+        visible_subjects: Set[str] = set()
 
         while True:
             # Process any PyGame events.
@@ -122,14 +124,26 @@ def main() -> None:
             print("===")
             print(f"Frame {frame_number}")
 
-            # Turn evaluation on or off based on the existence or absence of files in the evalcontrol sub-directory.
-            # This is used to avoid penalising missed detections when the person cannot be seen from the camera.
-            # FIXME: This works ok for single-person scenes, but for multi-person scenes we'll need to figure out
-            #        which people can be seen in a particular image and which can't.
+            # Turn evaluation on or off, either globally or for individual subjects. This is used to
+            # avoid penalising missed detections when a person cannot be seen from the camera.
             if os.path.exists(os.path.join(sequence_dir, "evalcontrol", f"{frame_number}-on.txt")):
-                evaluate = True
+                all_subjects_visible = True
             if os.path.exists(os.path.join(sequence_dir, "evalcontrol", f"{frame_number}-off.txt")):
-                evaluate = False
+                all_subjects_visible = False
+
+            filename: str = os.path.join(sequence_dir, "evalcontrol", f"{frame_number}.txt")
+            if os.path.exists(filename):
+                with open(filename) as f:
+                    lines: List[str] = [line.strip() for line in f.readlines() if line.strip() != ""]
+                    for line in lines:
+                        subject, onoff = line.split(" ")
+                        if onoff == "on" and subject not in visible_subjects:
+                            visible_subjects.add(subject)
+                        elif onoff == "off" and subject in visible_subjects:
+                            visible_subjects.remove(subject)
+
+            evaluate = all_subjects_visible or len(visible_subjects) != 0
+            print(f"Visible Subjects: {visible_subjects}")
 
             # Get the ground-truth and (previously) detected skeletons.
             gt_skeletons: Dict[str, Skeleton3D] = gt_skeleton_detector.detect_skeletons()
@@ -138,24 +152,31 @@ def main() -> None:
                 os.path.join(sequence_dir, detector_type, f"{frame_number}.skeletons.txt")
             )
 
+            # Transform the detected skeletons (if any) into Vicon space.
+            if detected_skeletons is not None:
+                detected_skeletons = [skeleton.transform(vicon_from_world) for skeleton in detected_skeletons]
+
+            # Filter out any ground-truth skeletons that cannot currently be seen from the camera.
+            visible_gt_skeletons: Dict[str, Skeleton3D] = {
+                subject: skeleton for subject, skeleton in gt_skeletons.items()
+                if all_subjects_visible or subject in visible_subjects
+            }
+
             # Print out the number of skeleton matches we've established, for debugging purposes.
             print(f"Matched Skeleton Count: {len(matched_skeletons)}")
 
             # If we've just processed a new Vicon frame:
             if processed_frame:
-                # If the frame only contains a single ground-truth skeleton, and evaluation is enabled:
-                if len(gt_skeletons) == 1 and evaluate:
-                    # Get the ground-truth skeleton.
-                    gt_skeleton: Skeleton3D = list(gt_skeletons.values())[0]
+                # If evaluation is enabled:
+                if evaluate:
+                    # Match any detected skeletons with the visible ground-truth ones.
+                    new_matches: List[Tuple[Skeleton3D, Optional[Skeleton3D]]] = \
+                        SkeletonUtil.match_detections_with_ground_truth(
+                            detected_skeletons=detected_skeletons, gt_skeletons=list(visible_gt_skeletons.values())
+                        )
 
-                    # If a single skeleton was detected in this frame, transform it into Vicon space and match it
-                    # with the ground-truth one. Otherwise, record that the ground-truth skeleton has no match.
-                    if detected_skeletons is not None and len(detected_skeletons) == 1:
-                        detected_skeleton: Skeleton3D = detected_skeletons[0]
-                        detected_skeleton = detected_skeleton.transform(vicon_from_world)
-                        matched_skeletons.append([(gt_skeleton, detected_skeleton)])
-                    else:
-                        matched_skeletons.append([(gt_skeleton, None)])
+                    # Add the matches to the overall list.
+                    matched_skeletons.append(new_matches)
 
                 # If we've previously established at least one skeleton match:
                 if len(matched_skeletons) > 0:
@@ -200,9 +221,8 @@ def main() -> None:
                             SkeletonRenderer.render_skeleton(skeleton)
 
                         if detected_skeletons is not None:
-                            with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(vicon_from_world)):
-                                for skeleton in detected_skeletons:
-                                    SkeletonRenderer.render_skeleton(skeleton)
+                            for skeleton in detected_skeletons:
+                                SkeletonRenderer.render_skeleton(skeleton)
 
             # Swap the front and back buffers.
             pygame.display.flip()
