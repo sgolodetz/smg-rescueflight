@@ -27,6 +27,10 @@ def main() -> None:
     # Parse any command-line arguments.
     parser = ArgumentParser()
     parser.add_argument(
+        "--debug", action="store_true",
+        help="whether to print out per-frame metrics for debugging purposes"
+    )
+    parser.add_argument(
         "--detector_type", "-t", type=str, default="lcrnet", choices=("lcrnet", "xnect"),
         help="the skeleton detector whose (pre-saved) skeletons are to be evaluated"
     )
@@ -40,6 +44,7 @@ def main() -> None:
     )
     args: dict = vars(parser.parse_args())
 
+    debug: bool = args["debug"]
     detector_type: str = args["detector_type"]
     mesh_type: str = args["mesh_type"]
     sequence_dir: str = args["sequence_dir"]
@@ -84,6 +89,8 @@ def main() -> None:
 
         # Initialise a few variables.
         all_subjects_visible: bool = False
+        detected_skeletons: Optional[List[Skeleton3D]] = None
+        gt_skeletons: Dict[str, Skeleton3D] = {}
         pause: bool = True
         process_next: bool = True
         visible_subjects: Set[str] = set()
@@ -109,62 +116,56 @@ def main() -> None:
                     # noinspection PyProtectedMember
                     os._exit(0)
 
-            # If we're ready to do so, process the next frame. Also record whether we processed a frame or not.
-            processed_frame: bool = False
+            # If we're ready to do so, process the next frame.
             if process_next:
-                processed_frame = vicon.get_frame()
+                # If we run out of frames to process, break out of the loop.
+                if not vicon.get_frame():
+                    break
+
+                # TODO: Move to the bottom.
                 process_next = not pause
 
-            # Get the frame number of the current Vicon frame, and print it out.
-            # FIXME: This can be None, and we should be checking for it.
-            frame_number: int = vicon.get_frame_number()
+                # Get the frame number of the current Vicon frame.
+                # FIXME: This can be None, and we should be checking for it.
+                frame_number: int = vicon.get_frame_number()
 
-            print("===")
-            print(f"Frame {frame_number}")
+                # Get the ground-truth and (previously) detected skeletons.
+                gt_skeletons = gt_skeleton_detector.detect_skeletons()
 
-            # Turn evaluation on or off, either globally or for individual subjects. This is used to
-            # avoid penalising missed detections when a person cannot be seen from the camera.
-            if os.path.exists(os.path.join(sequence_dir, "evalcontrol", f"{frame_number}-on.txt")):
-                all_subjects_visible = True
-            if os.path.exists(os.path.join(sequence_dir, "evalcontrol", f"{frame_number}-off.txt")):
-                all_subjects_visible = False
+                detected_skeletons = SkeletonUtil.try_load_skeletons(
+                    os.path.join(sequence_dir, detector_type, f"{frame_number}.skeletons.txt")
+                )
 
-            filename: str = os.path.join(sequence_dir, "evalcontrol", f"{frame_number}.txt")
-            if os.path.exists(filename):
-                with open(filename) as f:
-                    lines: List[str] = [line.strip() for line in f.readlines() if line.strip() != ""]
-                    for line in lines:
-                        subject, onoff = line.split(" ")
-                        if onoff == "on" and subject not in visible_subjects:
-                            visible_subjects.add(subject)
-                        elif onoff == "off" and subject in visible_subjects:
-                            visible_subjects.remove(subject)
+                # Transform the detected skeletons (if any) into Vicon space.
+                if detected_skeletons is not None:
+                    detected_skeletons = [skeleton.transform(vicon_from_world) for skeleton in detected_skeletons]
 
-            evaluate: bool = all_subjects_visible or len(visible_subjects) != 0
-            print(f"Visible Subjects: {visible_subjects}")
+                # Filter out any ground-truth skeletons that cannot currently be seen from the camera.
+                visible_gt_skeletons: Dict[str, Skeleton3D] = {
+                    subject: skeleton for subject, skeleton in gt_skeletons.items()
+                    if all_subjects_visible or subject in visible_subjects
+                }
 
-            # Get the ground-truth and (previously) detected skeletons.
-            gt_skeletons: Dict[str, Skeleton3D] = gt_skeleton_detector.detect_skeletons()
+                # Turn evaluation on or off, either globally or for individual subjects. This is used to
+                # avoid penalising missed detections when a person cannot be seen from the camera.
+                if os.path.exists(os.path.join(sequence_dir, "evalcontrol", f"{frame_number}-on.txt")):
+                    all_subjects_visible = True
+                if os.path.exists(os.path.join(sequence_dir, "evalcontrol", f"{frame_number}-off.txt")):
+                    all_subjects_visible = False
 
-            detected_skeletons: Optional[List[Skeleton3D]] = SkeletonUtil.try_load_skeletons(
-                os.path.join(sequence_dir, detector_type, f"{frame_number}.skeletons.txt")
-            )
+                filename: str = os.path.join(sequence_dir, "evalcontrol", f"{frame_number}.txt")
+                if os.path.exists(filename):
+                    with open(filename) as f:
+                        lines: List[str] = [line.strip() for line in f.readlines() if line.strip() != ""]
+                        for line in lines:
+                            subject, onoff = line.split(" ")
+                            if onoff == "on" and subject not in visible_subjects:
+                                visible_subjects.add(subject)
+                            elif onoff == "off" and subject in visible_subjects:
+                                visible_subjects.remove(subject)
 
-            # Transform the detected skeletons (if any) into Vicon space.
-            if detected_skeletons is not None:
-                detected_skeletons = [skeleton.transform(vicon_from_world) for skeleton in detected_skeletons]
+                evaluate: bool = all_subjects_visible or len(visible_subjects) != 0
 
-            # Filter out any ground-truth skeletons that cannot currently be seen from the camera.
-            visible_gt_skeletons: Dict[str, Skeleton3D] = {
-                subject: skeleton for subject, skeleton in gt_skeletons.items()
-                if all_subjects_visible or subject in visible_subjects
-            }
-
-            # Print out the number of skeleton matches we've established, for debugging purposes.
-            print(f"Matched Skeleton Count: {len(matched_skeletons)}")
-
-            # If we've just processed a new Vicon frame:
-            if processed_frame:
                 # If evaluation is enabled:
                 if evaluate:
                     # Match any detected skeletons with the visible ground-truth ones.
@@ -176,8 +177,13 @@ def main() -> None:
                     # Add the matches to the overall list.
                     matched_skeletons.append(new_matches)
 
-                # Calculate and print the evaluation metrics for all the matches we've seen so far.
-                skeleton_evaluator.print_metrics(matched_skeletons)
+                # If we're debugging, calculate and print the evaluation metrics for all the matches we've seen so far.
+                if debug:
+                    print("===")
+                    print(f"Frame {frame_number}")
+                    print("Visible Subjects:", ("All" if all_subjects_visible else visible_subjects))
+                    print(f"Evaluated Frames: {len(matched_skeletons)}")
+                    skeleton_evaluator.print_metrics(matched_skeletons)
 
             # Allow the user to control the camera.
             camera_controller.update(pygame.key.get_pressed(), timer() * 1000)
@@ -205,7 +211,7 @@ def main() -> None:
                     # Render the 3D skeletons in their Vicon-space locations.
                     with SkeletonRenderer.default_lighting_context():
                         for subject, skeleton in gt_skeletons.items():
-                            if subject in visible_subjects:
+                            if all_subjects_visible or subject in visible_subjects:
                                 SkeletonRenderer.render_skeleton(skeleton, uniform_colour=(0, 1, 0))
                             else:
                                 SkeletonRenderer.render_skeleton(skeleton, uniform_colour=(0.5, 1, 1))
@@ -216,6 +222,13 @@ def main() -> None:
 
             # Swap the front and back buffers.
             pygame.display.flip()
+
+    # If we're debugging, print a blank line before the summary metrics.
+    if debug:
+        print()
+
+    # Calculate and print out the summary metrics.
+    skeleton_evaluator.print_metrics(matched_skeletons)
 
 
 if __name__ == "__main__":

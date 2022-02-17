@@ -168,6 +168,7 @@ def main() -> None:
                             SkeletonUtil.calculate_distance_between_skeletons(gt_skeleton, detected_skeletons[j])
                         )
 
+                    # noinspection PyTypeChecker
                     detected_skeleton: Skeleton3D = detected_skeletons[np.argmin(distances)]
                     matched_skeletons.append([(gt_skeleton, detected_skeleton)])
                 else:
