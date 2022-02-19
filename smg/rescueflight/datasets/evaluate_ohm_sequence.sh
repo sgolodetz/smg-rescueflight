@@ -7,6 +7,9 @@ then
   exit 1
 fi
 
+# Reconstruct the scene and the people in it in various different ways.
+./reconstruct_ohm_sequence.sh "$1"
+
 # Enable the conda command.
 CONDA_BASE=$(conda info --base)
 source "$CONDA_BASE\\etc\\profile.d\\conda.sh"

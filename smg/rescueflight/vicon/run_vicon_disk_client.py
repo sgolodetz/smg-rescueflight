@@ -17,6 +17,10 @@ def main() -> None:
     # Parse any command-line arguments.
     parser = ArgumentParser()
     parser.add_argument(
+        "--batch", action="store_true",
+        help="whether to run in batch mode"
+    )
+    parser.add_argument(
         "--sequence_dir", "-s", type=str, required=True,
         help="the directory from which to load the sequence"
     )
@@ -34,6 +38,7 @@ def main() -> None:
     )
     args: dict = vars(parser.parse_args())
 
+    batch: bool = args["batch"]
     sequence_dir: str = args["sequence_dir"]
     source_subject: str = args["source_subject"]
     use_tracked_poses: bool = args["use_tracked_poses"]
@@ -63,7 +68,7 @@ def main() -> None:
             # Prepare the variables needed to process the sequence.
             colour_image: Optional[np.ndarray] = None
             initial_from_vicon: Optional[np.ndarray] = None
-            pause: bool = True
+            pause: bool = not batch
             shown_colour_image: bool = False
 
             # If we're using tracked poses and they're to be converted to Vicon scale, load in the scale factor.
@@ -118,6 +123,11 @@ def main() -> None:
                             print(f"Warning: Missing pose for frame {frame_number}")
                     else:
                         print(f"Warning: Missing colour image for frame {frame_number}")
+
+                # Otherwise, if we're in batch mode, exit.
+                elif batch:
+                    # noinspection PyProtectedMember
+                    os._exit(0)
 
                 # Show the most recent colour image (if any) so that the user can see what's going on.
                 if colour_image is not None:
