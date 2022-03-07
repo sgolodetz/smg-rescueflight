@@ -40,7 +40,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--mesh_type", "-m", type=str, default="reconstruction", choices=("gt", "reconstruction"),
-        help="which mesh to show for the scene (the ground-truth or the reconstruction)"
+        help="which mesh to show for the scene (the ground truth or the reconstruction)"
     )
     parser.add_argument(
         "--sequence_dir", "-s", type=str, required=True,
@@ -62,7 +62,9 @@ def main() -> None:
         raise RuntimeError(f"'{vicon_from_world_filename}' does not exist")
 
     # Load in the scene mesh (this will already be in Vicon space).
+    # FIXME: Rename transformed_mesh.ply to vicon_mesh.ply.
     mesh_filename: str = os.path.join(sequence_dir, mesh_type, "transformed_mesh.ply")
+    # noinspection PyUnresolvedReferences
     scene_mesh: OpenGLTriMesh = MeshUtil.convert_trimesh_to_opengl(o3d.io.read_triangle_mesh(mesh_filename))
 
     # Initialise PyGame and create the window.
@@ -77,8 +79,7 @@ def main() -> None:
 
     # Construct the camera controller.
     camera_controller: KeyboardCameraController = KeyboardCameraController(
-        SimpleCamera([0, 0, 0], [0, 1, 0], [0, 0, 1]), canonical_angular_speed=0.05,
-        canonical_linear_speed=0.1
+        SimpleCamera([0, 0, 0], [0, 1, 0], [0, 0, 1]), canonical_angular_speed=0.05, canonical_linear_speed=0.1
     )
 
     # Construct the skeleton evaluator and initialise the list of matched skeletons.
@@ -118,7 +119,7 @@ def main() -> None:
                     pygame.quit()
 
                     # Then forcibly terminate the whole process.
-                    # noinspection PyProtectedMember
+                    # noinspection PyProtectedMember, PyUnresolvedReferences
                     os._exit(0)
 
             # If we're ready to do so, process the next frame.
@@ -146,6 +147,7 @@ def main() -> None:
                     detected_skeletons = [skeleton.transform(vicon_from_world) for skeleton in detected_skeletons]
 
                 # Filter out any ground-truth skeletons that cannot currently be seen from the camera.
+                # FIXME: Do this *after* turning evaluation on/off.
                 visible_gt_skeletons: Dict[str, Skeleton3D] = {
                     subject: skeleton for subject, skeleton in gt_skeletons.items()
                     if all_subjects_visible or subject in visible_subjects
