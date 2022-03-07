@@ -9,7 +9,6 @@ from smg.open3d import VisualisationUtil
 from smg.rigging.cameras import SimpleCamera
 from smg.rigging.helpers import CameraPoseConverter
 from smg.utility import FiducialUtil, MarkerUtil, PoseUtil
-from smg.vicon import OfflineViconInterface
 
 
 # noinspection PyUnusedLocal
@@ -68,9 +67,13 @@ def main() -> None:
     # If a sequence directory has been specified:
     if sequence_dir is not None:
         # Specify the relevant filenames based on the sequence directory, overriding those on the command line.
+        # FIXME: Rename cc_mesh.ply to world_mesh.ply.
         gt_filename = os.path.join(sequence_dir, "gt", "cc_mesh.ply")
+        # FIXME: Rename transformed_mesh.ply to vicon_mesh.ply.
         output_gt_filename = os.path.join(sequence_dir, "gt", "transformed_mesh.ply")
+        # FIXME: Rename transformed_mesh.ply to vicon_mesh.ply.
         output_reconstruction_filename = os.path.join(sequence_dir, "reconstruction", "transformed_mesh.ply")
+        # FIXME: Rename mesh.ply to world_mesh.ply.
         reconstruction_filename = os.path.join(sequence_dir, "reconstruction", "mesh.ply")
         target_from_world_filename = os.path.join(sequence_dir, "reconstruction", "vicon_from_world.txt")
 
@@ -104,6 +107,7 @@ def main() -> None:
 
     # If we determined how to transform the ground-truth mesh, read it in and transform it into the target space.
     if target_from_gt is not None:
+        # noinspection PyUnresolvedReferences
         gt_mesh: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(gt_filename)
         gt_mesh = gt_mesh.transform(target_from_gt)
 
@@ -112,20 +116,22 @@ def main() -> None:
         raise RuntimeError("Couldn't estimate transformation from ground-truth space to target space")
 
     # Read in the (metric) mesh we want to evaluate, and likewise transform it into the target space.
+    # noinspection PyUnresolvedReferences
     reconstruction_mesh: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(reconstruction_filename)
     target_from_world: np.ndarray = PoseUtil.load_pose(target_from_world_filename)
     reconstruction_mesh.transform(target_from_world)
 
     # If requested, save the transformed meshes to disk for later use.
     if output_gt_filename is not None:
-        # noinspection PyTypeChecker
+        # noinspection PyTypeChecker, PyUnresolvedReferences
         o3d.io.write_triangle_mesh(output_gt_filename, gt_mesh)
 
     if output_reconstruction_filename is not None:
-        # noinspection PyTypeChecker
+        # noinspection PyTypeChecker, PyUnresolvedReferences
         o3d.io.write_triangle_mesh(output_reconstruction_filename, reconstruction_mesh)
 
     # Visualise the meshes to allow them to be compared.
+    # noinspection PyUnresolvedReferences
     geometries: List[o3d.geometry.Geometry] = [
         VisualisationUtil.make_axes(np.eye(4), size=0.25)
     ]
