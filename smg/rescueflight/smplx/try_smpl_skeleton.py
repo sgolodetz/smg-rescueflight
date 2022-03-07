@@ -66,6 +66,9 @@ def main() -> None:
             intrinsics: Tuple[float, float, float, float] = calib.get_intrinsics("colour")
             image_size: Tuple[int, int] = calib.get_image_size("colour")
 
+            # Pass the camera parameters to the skeleton detector.
+            skeleton_detector.set_calibration(image_size, intrinsics)
+
             # Initialise a few variables.
             colour_image: Optional[np.ndarray] = None
             frame_idx: int = 0
