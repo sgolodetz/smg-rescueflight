@@ -37,9 +37,9 @@ echo "- Running mapping server..."
 conda activate smglib
 if [ "$2" == "batch" ]
 then
-  python ../mapping/scripts/run_octomap_mapping_server.py --batch --detect_skeletons "${@:5}" > /dev/null 2>& 1 &
+  python ../mapping/scripts/run_octomap_mapping_server.py --batch --detect_skeletons "${@:5}" > /dev/null 2>&1 &
 else
-  python ../mapping/scripts/run_octomap_mapping_server.py --detect_skeletons "${@:5}" > /dev/null 2>& 1 &
+  python ../mapping/scripts/run_octomap_mapping_server.py --detect_skeletons "${@:5}" > /dev/null 2>&1 &
 fi
 server_pid="$!"
 conda deactivate
