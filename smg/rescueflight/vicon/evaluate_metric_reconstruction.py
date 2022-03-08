@@ -67,8 +67,7 @@ def main() -> None:
     # If a sequence directory has been specified:
     if sequence_dir is not None:
         # Specify the relevant filenames based on the sequence directory, overriding those on the command line.
-        # FIXME: Rename cc_mesh.ply to world_mesh.ply.
-        gt_filename = os.path.join(sequence_dir, "gt", "cc_mesh.ply")
+        gt_filename = os.path.join(sequence_dir, "gt", "world_mesh.ply")
         # FIXME: Rename transformed_mesh.ply to vicon_mesh.ply.
         output_gt_filename = os.path.join(sequence_dir, "gt", "transformed_mesh.ply")
         # FIXME: Rename transformed_mesh.ply to vicon_mesh.ply.
