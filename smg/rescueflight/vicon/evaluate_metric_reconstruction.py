@@ -70,8 +70,7 @@ def main() -> None:
         gt_filename = os.path.join(sequence_dir, "gt", "world_mesh.ply")
         output_gt_filename = os.path.join(sequence_dir, "gt", "vicon_mesh.ply")
         output_reconstruction_filename = os.path.join(sequence_dir, "reconstruction", "vicon_mesh.ply")
-        # FIXME: Rename mesh.ply to world_mesh.ply.
-        reconstruction_filename = os.path.join(sequence_dir, "reconstruction", "mesh.ply")
+        reconstruction_filename = os.path.join(sequence_dir, "reconstruction", "world_mesh.ply")
         target_from_world_filename = os.path.join(sequence_dir, "reconstruction", "vicon_from_world.txt")
 
         # Determine the transformation needed to transform the ground-truth mesh into Vicon space.
