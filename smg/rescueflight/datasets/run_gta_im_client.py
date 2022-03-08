@@ -128,7 +128,7 @@ def main() -> None:
     )
     args: dict = vars(parser.parse_args())
 
-    batch_mode: bool = args["batch"]
+    batch: bool = args["batch"]
     canonicalise_poses: bool = args["canonicalise_poses"]
     percent_to_stop: Optional[float] = args.get("percent_to_stop")
     sequence_dir: str = args["sequence_dir"]
@@ -172,7 +172,7 @@ def main() -> None:
             depth_image: Optional[np.ndarray] = None
             frame_idx: int = 0
             initial_from_world: Optional[np.ndarray] = None
-            pause: bool = not batch_mode
+            pause: bool = not batch
 
             # Until the user wants to quit:
             while True:
@@ -209,7 +209,7 @@ def main() -> None:
                     frame_idx += 1
 
                 # Otherwise, if we're in batch mode, exit.
-                elif batch_mode:
+                elif batch:
                     # noinspection PyProtectedMember
                     os._exit(0)
 
