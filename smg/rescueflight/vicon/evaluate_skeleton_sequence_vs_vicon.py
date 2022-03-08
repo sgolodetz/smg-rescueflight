@@ -62,8 +62,7 @@ def main() -> None:
         raise RuntimeError(f"'{vicon_from_world_filename}' does not exist")
 
     # Load in the scene mesh (this will already be in Vicon space).
-    # FIXME: Rename transformed_mesh.ply to vicon_mesh.ply.
-    mesh_filename: str = os.path.join(sequence_dir, mesh_type, "transformed_mesh.ply")
+    mesh_filename: str = os.path.join(sequence_dir, mesh_type, "vicon_mesh.ply")
     # noinspection PyUnresolvedReferences
     scene_mesh: OpenGLTriMesh = MeshUtil.convert_trimesh_to_opengl(o3d.io.read_triangle_mesh(mesh_filename))
 

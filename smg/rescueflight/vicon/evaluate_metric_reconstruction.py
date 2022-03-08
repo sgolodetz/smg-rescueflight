@@ -68,10 +68,8 @@ def main() -> None:
     if sequence_dir is not None:
         # Specify the relevant filenames based on the sequence directory, overriding those on the command line.
         gt_filename = os.path.join(sequence_dir, "gt", "world_mesh.ply")
-        # FIXME: Rename transformed_mesh.ply to vicon_mesh.ply.
-        output_gt_filename = os.path.join(sequence_dir, "gt", "transformed_mesh.ply")
-        # FIXME: Rename transformed_mesh.ply to vicon_mesh.ply.
-        output_reconstruction_filename = os.path.join(sequence_dir, "reconstruction", "transformed_mesh.ply")
+        output_gt_filename = os.path.join(sequence_dir, "gt", "vicon_mesh.ply")
+        output_reconstruction_filename = os.path.join(sequence_dir, "reconstruction", "vicon_mesh.ply")
         # FIXME: Rename mesh.ply to world_mesh.ply.
         reconstruction_filename = os.path.join(sequence_dir, "reconstruction", "mesh.ply")
         target_from_world_filename = os.path.join(sequence_dir, "reconstruction", "vicon_from_world.txt")
