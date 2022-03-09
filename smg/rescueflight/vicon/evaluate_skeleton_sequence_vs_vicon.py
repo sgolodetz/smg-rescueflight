@@ -9,7 +9,7 @@ import pygame
 from argparse import ArgumentParser
 from OpenGL.GL import *
 from timeit import default_timer as timer
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 from smg.meshing import MeshUtil
 from smg.opengl import OpenGLMatrixContext, OpenGLTriMesh, OpenGLUtil
@@ -17,7 +17,7 @@ from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter
 from smg.skeletons import Skeleton3D, SkeletonEvaluator, SkeletonRenderer, SkeletonUtil
-from smg.utility import MarkerUtil, PoseUtil
+from smg.utility import PoseUtil
 from smg.vicon import OfflineViconInterface, ViconSkeletonDetector, ViconUtil
 
 
@@ -27,8 +27,20 @@ def main() -> None:
     # Parse any command-line arguments.
     parser = ArgumentParser()
     parser.add_argument(
-        "--detector_type", "-t", type=str, default="lcrnet", choices=("lcrnet", "xnect"),
-        help="the skeleton detector whose (pre-saved) skeletons are to be evaluated"
+        "--batch", action="store_true",
+        help="whether to run in batch mode"
+    )
+    parser.add_argument(
+        "--debug", action="store_true",
+        help="whether to print out per-frame metrics for debugging purposes"
+    )
+    parser.add_argument(
+        "--detector_tag", "-t", type=str, default="lcrnet", choices=("lcrnet", "xnect"),
+        help="the tag of the skeleton detector whose (pre-saved) skeletons are to be evaluated"
+    )
+    parser.add_argument(
+        "--mesh_type", "-m", type=str, default="reconstruction", choices=("gt", "reconstruction"),
+        help="which mesh to show for the scene (the ground truth or the reconstruction)"
     )
     parser.add_argument(
         "--sequence_dir", "-s", type=str, required=True,
@@ -36,21 +48,26 @@ def main() -> None:
     )
     args: dict = vars(parser.parse_args())
 
-    detector_type: str = args["detector_type"]
+    batch: bool = args["batch"]
+    debug: bool = args["debug"]
+    detector_tag: str = args["detector_tag"]
+    mesh_type: str = args["mesh_type"]
     sequence_dir: str = args["sequence_dir"]
 
-    # Try to load in the transformation from world space to ArUco space.
-    aruco_filename: str = os.path.join(sequence_dir, "reconstruction", "aruco_from_world.txt")
-    if os.path.exists(aruco_filename):
-        aruco_from_world: np.ndarray = PoseUtil.load_pose(aruco_filename)
+    # Try to load in the transformation from world space to Vicon space.
+    vicon_from_world_filename: str = os.path.join(sequence_dir, "reconstruction", "vicon_from_world.txt")
+    if os.path.exists(vicon_from_world_filename):
+        vicon_from_world: np.ndarray = PoseUtil.load_pose(vicon_from_world_filename)
     else:
-        raise RuntimeError(f"'{aruco_filename}' does not exist")
+        raise RuntimeError(f"'{vicon_from_world_filename}' does not exist")
 
-    # Load in the reconstructed scene mesh and transform it into ArUco space.
-    mesh_filename: str = os.path.join(sequence_dir, "reconstruction", "mesh.ply")
-    scene_mesh_o3d: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(mesh_filename)
-    scene_mesh_o3d.transform(aruco_from_world)
-    scene_mesh: OpenGLTriMesh = MeshUtil.convert_trimesh_to_opengl(scene_mesh_o3d)
+    # Try to load in the scene mesh, transforming it into Vicon space in the process.
+    mesh_filename: str = os.path.join(sequence_dir, mesh_type, "world_mesh.ply")
+    scene_mesh: Optional[OpenGLTriMesh] = None
+    if os.path.exists(mesh_filename):
+        scene_mesh_o3d: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(mesh_filename)
+        scene_mesh_o3d.transform(vicon_from_world)
+        scene_mesh = MeshUtil.convert_trimesh_to_opengl(scene_mesh_o3d)
 
     # Initialise PyGame and create the window.
     pygame.init()
@@ -64,8 +81,7 @@ def main() -> None:
 
     # Construct the camera controller.
     camera_controller: KeyboardCameraController = KeyboardCameraController(
-        SimpleCamera([0, 0, 0], [0, 0, 1], [0, -1, 0]), canonical_angular_speed=0.05,
-        canonical_linear_speed=0.1
+        SimpleCamera([0, 0, 0], [0, 1, 0], [0, 0, 1]), canonical_angular_speed=0.05, canonical_linear_speed=0.1
     )
 
     # Construct the skeleton evaluator and initialise the list of matched skeletons.
@@ -80,10 +96,12 @@ def main() -> None:
         )
 
         # Initialise a few variables.
-        aruco_from_vicon: Optional[np.ndarray] = None
-        evaluate: bool = False
-        pause: bool = True
+        all_subjects_visible: bool = False
+        detected_skeletons: Optional[List[Skeleton3D]] = None
+        gt_skeletons: Dict[str, Skeleton3D] = {}
+        pause: bool = not batch
         process_next: bool = True
+        visible_subjects: Set[str] = set()
 
         while True:
             # Process any PyGame events.
@@ -103,85 +121,77 @@ def main() -> None:
                     pygame.quit()
 
                     # Then forcibly terminate the whole process.
-                    # noinspection PyProtectedMember
+                    # noinspection PyProtectedMember, PyUnresolvedReferences
                     os._exit(0)
 
-            # If we're ready to do so, process the next frame. Also record whether we processed a frame or not.
-            processed_frame: bool = False
+            # If we're ready to do so, process the next frame.
             if process_next:
-                vicon.get_frame()
-                processed_frame = True
+                # If we run out of frames to process, break out of the loop.
+                if not vicon.get_frame():
+                    break
+
+                # Get the frame number of the current Vicon frame.
+                # FIXME: This can be None, and we should be checking for it.
+                frame_number: int = vicon.get_frame_number()
+
+                # Get the ground-truth and (previously) detected skeletons.
+                gt_skeletons = gt_skeleton_detector.detect_skeletons()
+
+                detected_skeletons = SkeletonUtil.try_load_skeletons(
+                    os.path.join(sequence_dir, "people", detector_tag, f"{frame_number}.skeletons.txt")
+                )
+
+                # Transform the detected skeletons (if any) into Vicon space.
+                if detected_skeletons is not None:
+                    detected_skeletons = [skeleton.transform(vicon_from_world) for skeleton in detected_skeletons]
+
+                # Turn evaluation on or off, either globally or for individual subjects. This is used to
+                # avoid penalising missed detections when a person cannot be seen from the camera.
+                if os.path.exists(os.path.join(sequence_dir, "evalcontrol", f"{frame_number}-on.txt")):
+                    all_subjects_visible = True
+                if os.path.exists(os.path.join(sequence_dir, "evalcontrol", f"{frame_number}-off.txt")):
+                    all_subjects_visible = False
+
+                filename: str = os.path.join(sequence_dir, "evalcontrol", f"{frame_number}.txt")
+                if os.path.exists(filename):
+                    with open(filename) as f:
+                        lines: List[str] = [line.strip() for line in f.readlines() if line.strip() != ""]
+                        for line in lines:
+                            subject, onoff = line.split(" ")
+                            if onoff == "on" and subject not in visible_subjects:
+                                visible_subjects.add(subject)
+                            elif onoff == "off" and subject in visible_subjects:
+                                visible_subjects.remove(subject)
+
+                evaluate: bool = all_subjects_visible or len(visible_subjects) != 0
+
+                # Filter out any ground-truth skeletons that cannot currently be seen from the camera.
+                visible_gt_skeletons: Dict[str, Skeleton3D] = {
+                    subject: skeleton for subject, skeleton in gt_skeletons.items()
+                    if all_subjects_visible or subject in visible_subjects
+                }
+
+                # If evaluation is enabled and any skeletons have been detected:
+                if evaluate and detected_skeletons is not None:
+                    # Match the detected skeletons with the visible ground-truth ones.
+                    new_matches: List[Tuple[Skeleton3D, Optional[Skeleton3D]]] = \
+                        SkeletonUtil.match_detections_with_ground_truth(
+                            detected_skeletons=detected_skeletons, gt_skeletons=list(visible_gt_skeletons.values())
+                        )
+
+                    # Add the matches to the overall list.
+                    matched_skeletons.append(new_matches)
+
+                # If we're debugging, calculate and print the evaluation metrics for all the matches we've seen so far.
+                if debug:
+                    print("===")
+                    print(f"Frame {frame_number}")
+                    print("Visible Subjects:", ("All" if all_subjects_visible else visible_subjects))
+                    print(f"Evaluated Frames: {len(matched_skeletons)}")
+                    skeleton_evaluator.print_metrics(matched_skeletons)
+
+                # Advance to the next frame.
                 process_next = not pause
-
-            # Get the frame number of the current Vicon frame, and print it out.
-            # FIXME: This can be None, and we should be checking for it.
-            frame_number: int = vicon.get_frame_number()
-
-            print("===")
-            print(f"Frame {frame_number}")
-
-            # Turn evaluation on or off based on the existence or absence of files in the evalcontrol sub-directory.
-            # This is used to avoid penalising missed detections when the person cannot be seen from the camera.
-            # FIXME: This works ok for single-person scenes, but for multi-person scenes we'll need to figure out
-            #        which people can be seen in a particular image and which can't.
-            if os.path.exists(os.path.join(sequence_dir, "evalcontrol", f"{frame_number}-on.txt")):
-                evaluate = True
-            if os.path.exists(os.path.join(sequence_dir, "evalcontrol", f"{frame_number}-off.txt")):
-                evaluate = False
-
-            # Look up the Vicon coordinate system positions of the all of the Vicon markers that can currently be seen
-            # by the Vicon system, hopefully including ones for the ArUco marker corners.
-            vicon_marker_positions: Dict[str, np.ndarray] = vicon.get_marker_positions("Registrar")
-
-            # If the transformation from Vicon space to ArUco space hasn't yet been calculated:
-            if aruco_from_vicon is None:
-                # Try to calculate it now.
-                aruco_from_vicon = MarkerUtil.estimate_space_to_marker_transform(vicon_marker_positions)
-
-                # If this fails, raise an exception.
-                if aruco_from_vicon is None:
-                    raise RuntimeError("Couldn't calculate Vicon space to ArUco space transform - check the markers")
-
-            # Get the ground-truth and (previously) detected skeletons.
-            gt_skeletons: Dict[str, Skeleton3D] = gt_skeleton_detector.detect_skeletons()
-
-            detected_skeletons: Optional[List[Skeleton3D]] = SkeletonUtil.try_load_skeletons(
-                os.path.join(sequence_dir, detector_type, f"{frame_number}.skeletons.txt")
-            )
-
-            # Print out the number of skeleton matches we've established, for debugging purposes.
-            print(f"Matched Skeleton Count: {len(matched_skeletons)}")
-
-            # If we've just processed a new Vicon frame:
-            if processed_frame:
-                # If the frame only contains a single ground-truth skeleton, and evaluation is enabled:
-                if len(gt_skeletons) == 1 and evaluate:
-                    # Get the ground-truth skeleton, and transform it into ArUco space.
-                    gt_skeleton: Skeleton3D = list(gt_skeletons.values())[0]
-                    gt_skeleton = gt_skeleton.transform(aruco_from_vicon)
-
-                    # If a single skeleton was detected in this frame, transform it into ArUco space and match it
-                    # with the ground-truth one. Otherwise, record that the ground-truth skeleton has no match.
-                    if detected_skeletons is not None and len(detected_skeletons) == 1:
-                        detected_skeleton: Skeleton3D = detected_skeletons[0]
-                        detected_skeleton = detected_skeleton.transform(aruco_from_world)
-                        matched_skeletons.append([(gt_skeleton, detected_skeleton)])
-                    else:
-                        matched_skeletons.append([(gt_skeleton, None)])
-
-                # If we've previously established at least one skeleton match:
-                if len(matched_skeletons) > 0:
-                    # Calculate the evaluation metrics for all the matches we've seen so far, and print them out.
-                    per_joint_error_table: np.ndarray = skeleton_evaluator.make_per_joint_error_table(matched_skeletons)
-                    print(per_joint_error_table)
-                    mpjpes: Dict[str, float] = skeleton_evaluator.calculate_mpjpes(per_joint_error_table)
-                    print(mpjpes)
-                    correct_keypoint_table: np.ndarray = SkeletonEvaluator.make_correct_keypoint_table(
-                        per_joint_error_table, threshold=0.5
-                    )
-                    print(correct_keypoint_table)
-                    pcks: Dict[str, float] = skeleton_evaluator.calculate_pcks(correct_keypoint_table)
-                    print(pcks)
 
             # Allow the user to control the camera.
             camera_controller.update(pygame.key.get_pressed(), timer() * 1000)
@@ -200,35 +210,33 @@ def main() -> None:
                 )):
                     # Render a voxel grid.
                     glColor3f(0.0, 0.0, 0.0)
-                    OpenGLUtil.render_voxel_grid([-2, -2, -2], [2, 0, 2], [1, 1, 1], dotted=True)
+                    OpenGLUtil.render_voxel_grid([-3, -7, 0], [3, 7, 2], [1, 1, 1], dotted=True)
 
                     # Render the reconstructed scene.
-                    scene_mesh.render()
+                    if scene_mesh is not None:
+                        scene_mesh.render()
 
-                    # Render the ArUco marker (this will be at the origin in ArUco space).
-                    with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(aruco_from_vicon)):
-                        if all(key in vicon_marker_positions for key in ["0_0", "0_1", "0_2", "0_3"]):
-                            glBegin(GL_QUADS)
-                            glColor3f(0, 1, 0)
-                            glVertex3f(*vicon_marker_positions["0_0"])
-                            glVertex3f(*vicon_marker_positions["0_1"])
-                            glVertex3f(*vicon_marker_positions["0_2"])
-                            glVertex3f(*vicon_marker_positions["0_3"])
-                            glEnd()
-
-                    # Render the 3D skeletons in their ArUco space locations.
+                    # Render the 3D skeletons in their Vicon-space locations.
                     with SkeletonRenderer.default_lighting_context():
-                        with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(aruco_from_vicon)):
-                            for _, skeleton in gt_skeletons.items():
-                                SkeletonRenderer.render_skeleton(skeleton)
+                        for subject, skeleton in gt_skeletons.items():
+                            if all_subjects_visible or subject in visible_subjects:
+                                SkeletonRenderer.render_skeleton(skeleton, uniform_colour=(0, 1, 0))
+                            else:
+                                SkeletonRenderer.render_skeleton(skeleton, uniform_colour=(0.5, 1, 1))
 
                         if detected_skeletons is not None:
-                            with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(aruco_from_world)):
-                                for skeleton in detected_skeletons:
-                                    SkeletonRenderer.render_skeleton(skeleton)
+                            for skeleton in detected_skeletons:
+                                SkeletonRenderer.render_skeleton(skeleton)
 
             # Swap the front and back buffers.
             pygame.display.flip()
+
+    # If we're debugging, print a blank line before the summary metrics.
+    if debug:
+        print()
+
+    # Calculate and print out the summary metrics.
+    skeleton_evaluator.print_metrics(matched_skeletons)
 
 
 if __name__ == "__main__":

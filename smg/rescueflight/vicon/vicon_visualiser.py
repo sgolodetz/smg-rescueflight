@@ -145,7 +145,7 @@ class ViconVisualiser:
         self.__smpl_bodies["Aluna"] = self.__female_body
         self.__smpl_bodies["Madhu"] = self.__male_body
 
-        # If we're in input mode, load in the ground-truth scene mesh (if available).
+        # If we're in input mode, load in a ground-truth scene mesh (if available).
         if self.__persistence_mode == "input" and self.__vicon.get_frame():
             self.__scene_mesh = self.__try_load_scene_mesh(self.__vicon)
 
@@ -444,38 +444,46 @@ class ViconVisualiser:
 
     def __try_load_scene_mesh(self, vicon: ViconInterface) -> Optional[OpenGLTriMesh]:
         """
-        Try to load in the ground-truth scene mesh, transforming it into the Vicon coordinate system in the process.
+        Try to load in a ground-truth scene mesh, ensuring it is in the Vicon coordinate system in the process.
 
         :param vicon:   The Vicon interface.
         :return:        The ground-truth scene mesh.
         """
-        # Specify the file paths.
         gt_folder: str = os.path.join(self.__persistence_folder, "gt")
-        mesh_filename: str = os.path.join(gt_folder, "mesh.ply")
-        fiducials_filename: str = os.path.join(gt_folder, "fiducials.txt")
+        scene_mesh_o3d: Optional[o3d.geometry.TriangleMesh] = None
 
-        # If one or both of the required files are missing, early out.
-        if not os.path.exists(mesh_filename) or not os.path.exists(fiducials_filename):
-            return None
+        # If there's a copy of the ground-truth mesh that's already in Vicon space:
+        vicon_mesh_filename: str = os.path.join(gt_folder, "vicon_mesh.ply")
+        if os.path.exists(vicon_mesh_filename):
+            # Load that in and return it.
+            scene_mesh_o3d = o3d.io.read_triangle_mesh(vicon_mesh_filename)
 
-        # Load in the positions of the four ArUco marker corners as estimated during the ground-truth reconstruction.
-        gt_marker_positions: Dict[str, np.ndarray] = FiducialUtil.load_fiducials(fiducials_filename)
+        # Otherwise:
+        else:
+            # If the ground-truth mesh reconstructed by SemanticPaint and the required fiducials are available:
+            mesh_filename: str = os.path.join(gt_folder, "mesh.ply")
+            fiducials_filename: str = os.path.join(gt_folder, "fiducials.txt")
+            if os.path.exists(mesh_filename) and os.path.exists(fiducials_filename):
+                # Load in the positions of the four ArUco marker corners as estimated by SemanticPaint.
+                gt_marker_positions: Dict[str, np.ndarray] = FiducialUtil.load_fiducials(fiducials_filename)
 
-        # Look up the positions of all of the Vicon markers for the ArUco marker's Vicon subject that can currently
-        # be seen by the Vicon system, hopefully including all of the ones for the ArUco marker's corners.
-        vicon_marker_positions: Dict[str, np.ndarray] = vicon.get_marker_positions("Registrar")
+                # Look up the positions of all of the Vicon markers for the ArUco marker's Vicon subject
+                # that can currently be seen by the Vicon system, hopefully including all of the ones
+                # for the ArUco marker's corners.
+                vicon_marker_positions: Dict[str, np.ndarray] = vicon.get_marker_positions("Registrar")
 
-        # Estimate the rigid transformation from ground-truth space to Vicon space.
-        vicon_from_gt: np.ndarray = MarkerUtil.estimate_space_to_space_transform(
-            gt_marker_positions, vicon_marker_positions
-        )
+                # Try to estimate the rigid transformation from ground-truth space to Vicon space.
+                vicon_from_gt: Optional[np.ndarray] = MarkerUtil.estimate_space_to_space_transform(
+                    gt_marker_positions, vicon_marker_positions
+                )
 
-        # Load in the ground-truth scene mesh and transform it into the Vicon coordinate system.
-        scene_mesh_o3d: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(mesh_filename)
-        scene_mesh_o3d.transform(vicon_from_gt)
+                # If that succeeds, load in the ground-truth scene mesh and transform it into Vicon space.
+                if vicon_from_gt is not None:
+                    scene_mesh_o3d = o3d.io.read_triangle_mesh(mesh_filename)
+                    scene_mesh_o3d.transform(vicon_from_gt)
 
-        # Convert the scene mesh to OpenGL format and return it.
-        return MeshUtil.convert_trimesh_to_opengl(scene_mesh_o3d)
+        # If a scene mesh was loaded, convert it to OpenGL format and return it; otherwise, return None.
+        return MeshUtil.convert_trimesh_to_opengl(scene_mesh_o3d) if scene_mesh_o3d is not None else None
 
     # PRIVATE STATIC METHODS
 
