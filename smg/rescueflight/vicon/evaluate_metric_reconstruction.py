@@ -9,7 +9,6 @@ from smg.open3d import VisualisationUtil
 from smg.rigging.cameras import SimpleCamera
 from smg.rigging.helpers import CameraPoseConverter
 from smg.utility import FiducialUtil, MarkerUtil, PoseUtil
-from smg.vicon import OfflineViconInterface
 
 
 # noinspection PyUnusedLocal
@@ -68,21 +67,14 @@ def main() -> None:
     # If a sequence directory has been specified:
     if sequence_dir is not None:
         # Specify the relevant filenames based on the sequence directory, overriding those on the command line.
-        gt_filename = os.path.join(sequence_dir, "gt", "mesh.ply")
-        output_gt_filename = os.path.join(sequence_dir, "gt", "transformed_mesh.ply")
-        output_reconstruction_filename = os.path.join(sequence_dir, "reconstruction", "transformed_mesh.ply")
-        reconstruction_filename = os.path.join(sequence_dir, "reconstruction", "mesh.ply")
+        gt_filename = os.path.join(sequence_dir, "gt", "world_mesh.ply")
+        output_gt_filename = os.path.join(sequence_dir, "gt", "vicon_mesh.ply")
+        output_reconstruction_filename = os.path.join(sequence_dir, "reconstruction", "vicon_mesh.ply")
+        reconstruction_filename = os.path.join(sequence_dir, "reconstruction", "world_mesh.ply")
         target_from_world_filename = os.path.join(sequence_dir, "reconstruction", "vicon_from_world.txt")
 
         # Determine the transformation needed to transform the ground-truth mesh into Vicon space.
-        with OfflineViconInterface(folder=sequence_dir) as vicon:
-            if vicon.get_frame():
-                gt_marker_positions: Dict[str, np.ndarray] = FiducialUtil.load_fiducials(
-                    os.path.join(sequence_dir, "gt", "fiducials.txt")
-                )
-                target_from_gt = MarkerUtil.estimate_space_to_space_transform(
-                    gt_marker_positions, vicon.get_marker_positions("Registrar")
-                )
+        target_from_gt = PoseUtil.load_pose(target_from_world_filename)
 
         # Set the initial camera to point along the y axis (since that's the horizontal axis in Vicon space).
         initial_cam = SimpleCamera([0, 0, 0], [0, 1, 0], [0, 0, 1])
@@ -111,6 +103,7 @@ def main() -> None:
 
     # If we determined how to transform the ground-truth mesh, read it in and transform it into the target space.
     if target_from_gt is not None:
+        # noinspection PyUnresolvedReferences
         gt_mesh: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(gt_filename)
         gt_mesh = gt_mesh.transform(target_from_gt)
 
@@ -119,20 +112,22 @@ def main() -> None:
         raise RuntimeError("Couldn't estimate transformation from ground-truth space to target space")
 
     # Read in the (metric) mesh we want to evaluate, and likewise transform it into the target space.
+    # noinspection PyUnresolvedReferences
     reconstruction_mesh: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(reconstruction_filename)
     target_from_world: np.ndarray = PoseUtil.load_pose(target_from_world_filename)
     reconstruction_mesh.transform(target_from_world)
 
     # If requested, save the transformed meshes to disk for later use.
     if output_gt_filename is not None:
-        # noinspection PyTypeChecker
+        # noinspection PyTypeChecker, PyUnresolvedReferences
         o3d.io.write_triangle_mesh(output_gt_filename, gt_mesh)
 
     if output_reconstruction_filename is not None:
-        # noinspection PyTypeChecker
+        # noinspection PyTypeChecker, PyUnresolvedReferences
         o3d.io.write_triangle_mesh(output_reconstruction_filename, reconstruction_mesh)
 
     # Visualise the meshes to allow them to be compared.
+    # noinspection PyUnresolvedReferences
     geometries: List[o3d.geometry.Geometry] = [
         VisualisationUtil.make_axes(np.eye(4), size=0.25)
     ]

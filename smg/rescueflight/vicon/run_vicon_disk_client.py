@@ -17,6 +17,10 @@ def main() -> None:
     # Parse any command-line arguments.
     parser = ArgumentParser()
     parser.add_argument(
+        "--batch", action="store_true",
+        help="whether to run in batch mode"
+    )
+    parser.add_argument(
         "--sequence_dir", "-s", type=str, required=True,
         help="the directory from which to load the sequence"
     )
@@ -28,14 +32,20 @@ def main() -> None:
         "--use_tracked_poses", action="store_true",
         help="whether to use the tracked camera poses stored with the sequence instead of the Vicon-based poses"
     )
+    parser.add_argument(
+        "--use_vicon_scale", action="store_true",
+        help="whether to convert the tracked poses to Vicon scale using a pre-calculated scale factor"
+    )
     args: dict = vars(parser.parse_args())
 
+    batch: bool = args["batch"]
     sequence_dir: str = args["sequence_dir"]
     source_subject: str = args["source_subject"]
     use_tracked_poses: bool = args["use_tracked_poses"]
+    use_vicon_scale: bool = args["use_vicon_scale"]
 
     # Construct the subject-from-source cache.
-    subject_from_source_cache: SubjectFromSourceCache = SubjectFromSourceCache(".")
+    subject_from_source_cache: SubjectFromSourceCache = SubjectFromSourceCache(sequence_dir)
 
     # Connect to the Vicon interface.
     with OfflineViconInterface(folder=sequence_dir) as vicon:
@@ -58,8 +68,15 @@ def main() -> None:
             # Prepare the variables needed to process the sequence.
             colour_image: Optional[np.ndarray] = None
             initial_from_vicon: Optional[np.ndarray] = None
-            pause: bool = True
+            pause: bool = not batch
             shown_colour_image: bool = False
+
+            # If we're using tracked poses and they're to be converted to Vicon scale, load in the scale factor.
+            scale_factor: float = 1.0
+            if use_tracked_poses and use_vicon_scale:
+                scale_filename: str = os.path.join(sequence_dir, "reconstruction", "vicon_from_world_scale_factor.txt")
+                with open(scale_filename, "r") as file:
+                    scale_factor = float(file.readline())
 
             # Until the user wants to quit:
             while True:
@@ -80,6 +97,8 @@ def main() -> None:
                         if use_tracked_poses:
                             pose_filename: str = os.path.join(sequence_dir, f"{frame_number}.pose.txt")
                             pose = PoseUtil.load_pose(pose_filename)
+                            if use_vicon_scale:
+                                pose[0:3, 3] *= scale_factor
                         else:
                             vicon_from_source: Optional[np.ndarray] = vicon.get_image_source_pose(
                                 source_subject, subject_from_source_cache
@@ -104,6 +123,11 @@ def main() -> None:
                             print(f"Warning: Missing pose for frame {frame_number}")
                     else:
                         print(f"Warning: Missing colour image for frame {frame_number}")
+
+                # Otherwise, if we're in batch mode, exit.
+                elif batch:
+                    # noinspection PyProtectedMember
+                    os._exit(0)
 
                 # Show the most recent colour image (if any) so that the user can see what's going on.
                 if colour_image is not None:
