@@ -26,7 +26,7 @@ else
   echo "- Written vTw to vicon_from_world.txt"
 fi
 
-# Reconstruct a version of the scene to show when performing the skeleton evaluation.
+# Reconstruct the scene.
 ./reconstruct_ohm_scene_offline.sh "$1" world_mesh dvmvs maskrcnn --max_depth=4.0 --voxel_size=0.025
 
 # Reconstruct the people in the scene using the various different methods we want to compare.
