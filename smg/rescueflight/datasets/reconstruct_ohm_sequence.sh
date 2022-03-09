@@ -14,10 +14,17 @@ source "$CONDA_BASE\\etc\\profile.d\\conda.sh"
 # Determine the sequence directory.
 sequence_dir=`./determine_sequence_dir.sh ohm "$1" true`
 
-# Calculate the transformation from world space to Vicon space for the sequence.
+# If not already done, calculate the transformation from world space to Vicon space for the sequence.
 echo "Calculating vTw for $1"
-conda activate smglib
-python ../vicon/calculate_vicon_from_world.py -s "$sequence_dir" --save > /dev/null 2>&1
+if [ -e "$sequence_dir/reconstruction/vicon_from_world.txt" ]
+then
+  echo "- Found vicon_from_world.txt: skipping"
+else
+  conda activate smglib
+  python ../vicon/calculate_vicon_from_world.py -s "$sequence_dir" --save > /dev/null 2>&1
+  conda deactivate
+  echo "- Written vTw to vicon_from_world.txt"
+fi
 
 # Reconstruct a version of the scene to show when performing the skeleton evaluation.
 ./reconstruct_ohm_scene_offline.sh "$1" world_mesh dvmvs maskrcnn --max_depth=4.0 --voxel_size=0.025

@@ -61,10 +61,12 @@ def main() -> None:
     else:
         raise RuntimeError(f"'{vicon_from_world_filename}' does not exist")
 
-    # Load in the scene mesh (this will already be in Vicon space).
+    # Try to load in the scene mesh (if this exists, it will already be in Vicon space).
     mesh_filename: str = os.path.join(sequence_dir, mesh_type, "vicon_mesh.ply")
     # noinspection PyUnresolvedReferences
-    scene_mesh: OpenGLTriMesh = MeshUtil.convert_trimesh_to_opengl(o3d.io.read_triangle_mesh(mesh_filename))
+    scene_mesh: Optional[OpenGLTriMesh] = \
+        MeshUtil.convert_trimesh_to_opengl(o3d.io.read_triangle_mesh(mesh_filename)) \
+        if os.path.exists(mesh_filename) else None
 
     # Initialise PyGame and create the window.
     pygame.init()
