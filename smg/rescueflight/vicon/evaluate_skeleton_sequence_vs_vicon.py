@@ -130,9 +130,6 @@ def main() -> None:
                 if not vicon.get_frame():
                     break
 
-                # TODO: Move to the bottom.
-                process_next = not pause
-
                 # Get the frame number of the current Vicon frame.
                 # FIXME: This can be None, and we should be checking for it.
                 frame_number: int = vicon.get_frame_number()
@@ -147,13 +144,6 @@ def main() -> None:
                 # Transform the detected skeletons (if any) into Vicon space.
                 if detected_skeletons is not None:
                     detected_skeletons = [skeleton.transform(vicon_from_world) for skeleton in detected_skeletons]
-
-                # Filter out any ground-truth skeletons that cannot currently be seen from the camera.
-                # FIXME: Do this *after* turning evaluation on/off.
-                visible_gt_skeletons: Dict[str, Skeleton3D] = {
-                    subject: skeleton for subject, skeleton in gt_skeletons.items()
-                    if all_subjects_visible or subject in visible_subjects
-                }
 
                 # Turn evaluation on or off, either globally or for individual subjects. This is used to
                 # avoid penalising missed detections when a person cannot be seen from the camera.
@@ -175,6 +165,12 @@ def main() -> None:
 
                 evaluate: bool = all_subjects_visible or len(visible_subjects) != 0
 
+                # Filter out any ground-truth skeletons that cannot currently be seen from the camera.
+                visible_gt_skeletons: Dict[str, Skeleton3D] = {
+                    subject: skeleton for subject, skeleton in gt_skeletons.items()
+                    if all_subjects_visible or subject in visible_subjects
+                }
+
                 # If evaluation is enabled and any skeletons have been detected:
                 if evaluate and detected_skeletons is not None:
                     # Match the detected skeletons with the visible ground-truth ones.
@@ -193,6 +189,9 @@ def main() -> None:
                     print("Visible Subjects:", ("All" if all_subjects_visible else visible_subjects))
                     print(f"Evaluated Frames: {len(matched_skeletons)}")
                     skeleton_evaluator.print_metrics(matched_skeletons)
+
+                # Advance to the next frame.
+                process_next = not pause
 
             # Allow the user to control the camera.
             camera_controller.update(pygame.key.get_pressed(), timer() * 1000)
