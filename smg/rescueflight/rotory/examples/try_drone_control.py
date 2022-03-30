@@ -9,21 +9,38 @@ from OpenGL.GL import *
 from timeit import default_timer as timer
 from typing import List, Tuple
 
+from smg.joysticks import FutabaT6K
 from smg.opengl import CameraRenderer, OpenGLMatrixContext, OpenGLUtil
 from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
-from smg.rotory.controllers import KeyboardDroneController
+from smg.rotory.controllers import FutabaT6KDroneController, KeyboardDroneController
 from smg.rotory.drones import SimulatedDrone
 from smg.skeletons import SkeletonRenderer
 
 
 def main() -> None:
-    # Initialise PyGame and create the window.
+    # Initialise PyGame and its joystick module.
     pygame.init()
+    pygame.joystick.init()
+
+    # Try to determine the joystick index of the Futaba T6K. If no joystick is plugged in, early out.
+    joystick_count = pygame.joystick.get_count()
+    joystick_idx = 0
+    if joystick_count == 0:
+        exit(0)
+    elif joystick_count != 1:
+        # TODO: Prompt the user for the joystick to use.
+        pass
+
+    # Construct and calibrate the Futaba T6K.
+    joystick = FutabaT6K(joystick_idx)
+    joystick.calibrate()
+
+    # Create the window.
     window_size: Tuple[int, int] = (640, 480)
     pygame.display.set_mode(window_size, pygame.DOUBLEBUF | pygame.OPENGL)
-    pygame.display.set_caption("Keyboard Drone Controller Demo")
+    pygame.display.set_caption("Drone Control Demo")
 
     # Enable the z-buffer.
     glEnable(GL_DEPTH_TEST)
@@ -40,7 +57,8 @@ def main() -> None:
     # Construct the drone.
     with SimulatedDrone() as drone:
         # Construct the drone controller.
-        drone_controller: KeyboardDroneController = KeyboardDroneController(drone)
+        # drone_controller: KeyboardDroneController = KeyboardDroneController(drone)
+        drone_controller: FutabaT6KDroneController = FutabaT6KDroneController(drone, joystick)
 
         while True:
             # Process any PyGame events.
