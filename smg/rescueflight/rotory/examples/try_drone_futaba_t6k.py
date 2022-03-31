@@ -8,7 +8,6 @@ import pygame
 from argparse import ArgumentParser
 from typing import Dict, List
 
-from smg.joysticks import FutabaT6K
 from smg.rotory import DroneFactory
 from smg.rotory.controllers import DroneController, FutabaT6KDroneController
 
@@ -26,19 +25,6 @@ def main():
     pygame.init()
     pygame.joystick.init()
 
-    # Try to determine the joystick index of the Futaba T6K. If no joystick is plugged in, early out.
-    joystick_count = pygame.joystick.get_count()
-    joystick_idx = 0
-    if joystick_count == 0:
-        exit(0)
-    elif joystick_count != 1:
-        # TODO: Prompt the user for the joystick to use.
-        pass
-
-    # Construct and calibrate the Futaba T6K.
-    joystick = FutabaT6K(joystick_idx)
-    joystick.calibrate()
-
     # Construct the drone.
     kwargs: Dict[str, dict] = {
         "ardrone2": dict(print_commands=True, print_control_messages=True, print_navdata_messages=False),
@@ -50,7 +36,7 @@ def main():
 
     with DroneFactory.make_drone(drone_type, **kwargs[drone_type]) as drone:
         # Construct the drone controller.
-        drone_controller: DroneController = FutabaT6KDroneController(drone, joystick)
+        drone_controller: DroneController = FutabaT6KDroneController(drone=drone)
 
         # Stop when the drone controller asks us to quit.
         while not drone_controller.should_quit():

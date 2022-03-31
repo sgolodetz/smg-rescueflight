@@ -24,19 +24,6 @@ def main() -> None:
     pygame.init()
     pygame.joystick.init()
 
-    # Try to determine the joystick index of the Futaba T6K. If no joystick is plugged in, early out.
-    joystick_count = pygame.joystick.get_count()
-    joystick_idx = 0
-    if joystick_count == 0:
-        exit(0)
-    elif joystick_count != 1:
-        # TODO: Prompt the user for the joystick to use.
-        pass
-
-    # Construct and calibrate the Futaba T6K.
-    joystick = FutabaT6K(joystick_idx)
-    joystick.calibrate()
-
     # Create the window.
     window_size: Tuple[int, int] = (640, 480)
     pygame.display.set_mode(window_size, pygame.DOUBLEBUF | pygame.OPENGL)
@@ -57,10 +44,11 @@ def main() -> None:
     # Construct the drone.
     with SimulatedDrone() as drone:
         # Construct the drone controller.
-        # drone_controller: KeyboardDroneController = KeyboardDroneController(drone)
-        drone_controller: FutabaT6KDroneController = FutabaT6KDroneController(drone, joystick)
+        # drone_controller: KeyboardDroneController = KeyboardDroneController(drone=drone)
+        drone_controller: FutabaT6KDroneController = FutabaT6KDroneController(drone=drone)
 
-        while True:
+        # TODO
+        while not drone_controller.should_quit():
             # Process any PyGame events.
             events: List[pygame.event.Event] = []
             for event in pygame.event.get():
