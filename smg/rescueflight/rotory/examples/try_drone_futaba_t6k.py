@@ -51,7 +51,7 @@ def main():
             cv2.waitKey(1)
 
             # Allow the user to control the drone.
-            drone_controller.update(events=events, image=drone_image, intrinsics=drone.get_intrinsics())
+            drone_controller.iterate(events=events, image=drone_image, intrinsics=drone.get_intrinsics())
 
             # FIXME: Delete these before merging.
             # from smg.rotory.drones import SimulatedDrone

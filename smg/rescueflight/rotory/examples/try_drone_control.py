@@ -70,7 +70,7 @@ def main() -> None:
             camera_controller.update(pygame.key.get_pressed(), timer() * 1000)
 
             # Allow the user to control the drone.
-            drone_controller.update(events=events, image=drone_image, intrinsics=drone.get_intrinsics())
+            drone_controller.iterate(events=events, image=drone_image, intrinsics=drone.get_intrinsics())
 
             # Clear the colour and depth buffers.
             glClearColor(1.0, 1.0, 1.0, 1.0)
