@@ -1,4 +1,3 @@
-import numpy as np
 import os
 
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
@@ -9,12 +8,11 @@ from OpenGL.GL import *
 from timeit import default_timer as timer
 from typing import List, Tuple
 
-from smg.joysticks import FutabaT6K
 from smg.opengl import CameraRenderer, OpenGLMatrixContext, OpenGLUtil
 from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
-from smg.rotory.controllers import FutabaT6KDroneController, KeyboardDroneController
+from smg.rotorcontrol.controllers import FutabaT6KDroneController, KeyboardDroneController
 from smg.rotory.drones import SimulatedDrone
 from smg.skeletons import SkeletonRenderer
 

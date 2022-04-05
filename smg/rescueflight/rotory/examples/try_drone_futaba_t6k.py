@@ -9,7 +9,7 @@ from argparse import ArgumentParser
 from typing import Dict, List
 
 from smg.rotory import DroneFactory
-from smg.rotory.controllers import DroneController, FutabaT6KDroneController
+from smg.rotorcontrol.controllers import DroneController, FutabaT6KDroneController
 
 
 def main():
