@@ -1,23 +1,43 @@
+import numpy as np
 import os
 
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame
 import time
 
+from argparse import ArgumentParser
 from OpenGL.GL import *
 from timeit import default_timer as timer
-from typing import List, Tuple
+from typing import cast, Dict, List, Optional, Tuple
 
 from smg.opengl import CameraRenderer, OpenGLMatrixContext, OpenGLUtil
+from smg.pyoctomap import OcTree
 from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
-from smg.rotorcontrol.controllers import FutabaT6KDroneController, KeyboardDroneController
+from smg.rotorcontrol import DroneControllerFactory
+from smg.rotorcontrol.controllers import DroneController, FollowWaypointsDroneController
 from smg.rotory.drones import SimulatedDrone
 from smg.skeletons import SkeletonRenderer
 
 
 def main() -> None:
+    # Parse any command-line arguments.
+    parser = ArgumentParser()
+    parser.add_argument(
+        "--drone_controller_type", type=str, default="keyboard",
+        choices=("follow_waypoints", "futaba_t6k", "keyboard"),
+        help="the type of drone controller to use"
+    )
+    parser.add_argument(
+        "--planning_octree", type=str,
+        help="the name of the planning octree file (if any)"
+    )
+    args: dict = vars(parser.parse_args())
+
+    drone_controller_type: str = args.get("drone_controller_type")
+    planning_octree_filename: str = args.get("planning_octree")
+
     # Initialise PyGame and its joystick module.
     pygame.init()
     pygame.joystick.init()
@@ -41,9 +61,32 @@ def main() -> None:
 
     # Construct the drone.
     with SimulatedDrone() as drone:
+        # Load the planning octree (if specified).
+        planning_octree: Optional[OcTree] = None
+        if drone_controller_type == "follow_waypoints":
+            if planning_octree_filename is not None:
+                voxel_size: float = 0.1
+                planning_octree = OcTree(voxel_size)
+                planning_octree.read_binary(planning_octree_filename)
+            else:
+                raise RuntimeError("A planning octree must be provided for 'follow waypoints' control to be used")
+
         # Construct the drone controller.
-        # drone_controller: KeyboardDroneController = KeyboardDroneController(drone=drone)
-        drone_controller: FutabaT6KDroneController = FutabaT6KDroneController(drone=drone)
+        kwargs: Dict[str, dict] = {
+            "follow_waypoints": dict(drone=drone, planning_octree=planning_octree),
+            "futaba_t6k": dict(drone=drone),
+            "keyboard": dict(drone=drone)
+        }
+
+        drone_controller: DroneController = DroneControllerFactory.make_drone_controller(
+            drone_controller_type, **kwargs[drone_controller_type]
+        )
+
+        # If we're using 'follow waypoints' control, set some dummy waypoints.
+        if drone_controller_type == "follow_waypoints":
+            cast(FollowWaypointsDroneController, drone_controller).set_waypoints([
+                np.array([30.5, 5.5, 5.5]) * 0.05
+            ])
 
         # TODO
         while not drone_controller.should_quit():
