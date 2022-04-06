@@ -10,8 +10,9 @@ from OpenGL.GL import *
 from timeit import default_timer as timer
 from typing import cast, Dict, List, Optional, Tuple
 
-from smg.opengl import CameraRenderer, OpenGLMatrixContext, OpenGLUtil
-from smg.pyoctomap import OcTree
+from smg.meshing import MeshUtil
+from smg.opengl import CameraRenderer, OpenGLMatrixContext, OpenGLTriMesh, OpenGLUtil
+from smg.pyoctomap import CM_COLOR_HEIGHT, OctomapUtil, OcTree, OcTreeDrawer
 from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
@@ -59,17 +60,23 @@ def main() -> None:
     # Specify the camera intrinsics.
     intrinsics: Tuple[float, float, float, float] = (532.5694641250893, 531.5410880910171, 320.0, 240.0)
 
+    # Load in the drone mesh.
+    drone_mesh: OpenGLTriMesh = MeshUtil.convert_trimesh_to_opengl(MeshUtil.load_tello_mesh())
+
     # Construct the drone.
     with SimulatedDrone() as drone:
         # Load the planning octree (if specified).
         planning_octree: Optional[OcTree] = None
-        if drone_controller_type == "follow_waypoints":
-            if planning_octree_filename is not None:
-                voxel_size: float = 0.1
-                planning_octree = OcTree(voxel_size)
-                planning_octree.read_binary(planning_octree_filename)
-            else:
-                raise RuntimeError("A planning octree must be provided for 'follow waypoints' control to be used")
+        if planning_octree_filename is not None:
+            voxel_size: float = 0.1
+            planning_octree = OcTree(voxel_size)
+            planning_octree.read_binary(planning_octree_filename)
+        elif drone_controller_type == "follow_waypoints":
+            raise RuntimeError("A planning octree must be provided for 'follow waypoints' control to be used")
+
+        # Set up the octree drawer.
+        drawer: OcTreeDrawer = OcTreeDrawer()
+        drawer.set_color_mode(CM_COLOR_HEIGHT)
 
         # Construct the drone controller.
         kwargs: Dict[str, dict] = {
@@ -82,8 +89,10 @@ def main() -> None:
             drone_controller_type, **kwargs[drone_controller_type]
         )
 
-        # If we're using 'follow waypoints' control, set some dummy waypoints.
+        # If we're using 'follow waypoints' control, tell the drone to take off and set some dummy waypoints.
         if drone_controller_type == "follow_waypoints":
+            drone.takeoff()
+
             cast(FollowWaypointsDroneController, drone_controller).set_waypoints([
                 np.array([30.5, 5.5, 5.5]) * 0.05
             ])
@@ -105,7 +114,7 @@ def main() -> None:
                     # noinspection PyProtectedMember
                     os._exit(0)
 
-            drone_image, drone_w_t_c, _ = drone.get_image_and_poses()
+            drone_image, camera_w_t_c, chassis_w_t_c = drone.get_image_and_poses()
 
             # Allow the user to control the camera.
             camera_controller.update(pygame.key.get_pressed(), timer() * 1000)
@@ -134,10 +143,14 @@ def main() -> None:
                         CameraUtil.make_default_camera(), body_colour=(1.0, 1.0, 0.0), body_scale=0.1
                     )
 
+                    # If we're using a planning octree, draw it.
+                    if planning_octree is not None:
+                        OctomapUtil.draw_octree(planning_octree, drawer)
+
                     with SkeletonRenderer.default_lighting_context():
-                        # TODO
-                        glColor3f(0.0, 1.0, 0.0)
-                        OpenGLUtil.render_sphere(drone_w_t_c[0:3, 3], 0.1, slices=10, stacks=10)
+                        # Render the mesh for the drone (at its current pose).
+                        with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(chassis_w_t_c)):
+                            drone_mesh.render()
 
             # Swap the front and back buffers.
             pygame.display.flip()
