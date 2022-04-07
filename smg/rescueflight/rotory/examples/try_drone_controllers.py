@@ -70,7 +70,15 @@ def main() -> None:
     drone_mesh: OpenGLTriMesh = MeshUtil.convert_trimesh_to_opengl(MeshUtil.load_tello_mesh())
 
     # Construct the drone.
-    with SimulatedDrone() as drone:
+    with SimulatedDrone(angular_gain=0.04) as drone:
+        # Set the drone origin.
+        drone_origin: SimpleCamera = SimpleCamera(
+            np.array([1.5, 8.5, 12.5]) * 0.1, [0, 0, 1], [0, -1, 0]
+            # np.array([-10.5, 0.5, 0.5]) * 0.1, [0, 0, 1], [0, -1, 0]
+        )
+        drone.set_drone_origin(drone_origin)
+        time.sleep(0.1)
+
         # Load the planning octree (if specified).
         planning_octree: Optional[OcTree] = None
         if planning_octree_filename is not None:
@@ -166,6 +174,7 @@ def main() -> None:
                     # If we're using a scene octree, draw it.
                     if scene_octree is not None:
                         OctomapUtil.draw_octree(scene_octree, drawer)
+                        # OctomapUtil.draw_octree_understandable(scene_octree, drawer, render_filled_cubes=False)
 
                     # TODO
                     if drone_controller_type == "traverse_waypoints":
@@ -185,7 +194,7 @@ def main() -> None:
                     # TODO
                     with SkeletonRenderer.default_lighting_context():
                         # Render the mesh for the drone (at its current pose).
-                        with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(chassis_w_t_c)):
+                        with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(camera_w_t_c)):
                             drone_mesh.render()
 
             # Swap the front and back buffers.
