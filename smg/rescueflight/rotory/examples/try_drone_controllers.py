@@ -84,7 +84,7 @@ def main() -> None:
         # FIXME: This code duplicates the above - fix this before merging.
         scene_octree: Optional[OcTree] = None
         if scene_octree_filename is not None:
-            scene_voxel_size: float = 0.05
+            scene_voxel_size: float = 0.1
             scene_octree = OcTree(scene_voxel_size)
             scene_octree.read_binary(scene_octree_filename)
         elif drone_controller_type == "traverse_waypoints":
