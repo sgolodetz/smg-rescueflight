@@ -34,10 +34,15 @@ def main() -> None:
         "--planning_octree", type=str,
         help="the name of the planning octree file (if any)"
     )
+    parser.add_argument(
+        "--scene_octree", type=str,
+        help="the name of the scene octree file (if any)"
+    )
     args: dict = vars(parser.parse_args())
 
     drone_controller_type: str = args.get("drone_controller_type")
     planning_octree_filename: str = args.get("planning_octree")
+    scene_octree_filename: str = args.get("scene_octree")
 
     # Initialise PyGame and its joystick module.
     pygame.init()
@@ -68,11 +73,21 @@ def main() -> None:
         # Load the planning octree (if specified).
         planning_octree: Optional[OcTree] = None
         if planning_octree_filename is not None:
-            voxel_size: float = 0.1
-            planning_octree = OcTree(voxel_size)
+            planning_voxel_size: float = 0.1
+            planning_octree = OcTree(planning_voxel_size)
             planning_octree.read_binary(planning_octree_filename)
         elif drone_controller_type == "traverse_waypoints":
             raise RuntimeError("A planning octree must be provided for 'traverse waypoints' control to be used")
+
+        # Load the scene octree (if specified).
+        # FIXME: This code duplicates the above - fix this before merging.
+        scene_octree: Optional[OcTree] = None
+        if scene_octree_filename is not None:
+            scene_voxel_size: float = 0.05
+            scene_octree = OcTree(scene_voxel_size)
+            scene_octree.read_binary(scene_octree_filename)
+        elif drone_controller_type == "traverse_waypoints":
+            raise RuntimeError("A scene octree must be provided for 'traverse waypoints' control to be used")
 
         # Set up the octree drawer.
         drawer: OcTreeDrawer = OcTreeDrawer()
@@ -143,9 +158,9 @@ def main() -> None:
                         CameraUtil.make_default_camera(), body_colour=(1.0, 1.0, 0.0), body_scale=0.1
                     )
 
-                    # If we're using a planning octree, draw it.
-                    if planning_octree is not None:
-                        OctomapUtil.draw_octree(planning_octree, drawer)
+                    # If we're using a scene octree, draw it.
+                    if scene_octree is not None:
+                        OctomapUtil.draw_octree(scene_octree, drawer)
 
                     with SkeletonRenderer.default_lighting_context():
                         # Render the mesh for the drone (at its current pose).
