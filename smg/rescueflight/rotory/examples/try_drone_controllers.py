@@ -98,7 +98,7 @@ def main() -> None:
         kwargs: Dict[str, dict] = {
             "futaba_t6k": dict(drone=drone),
             "keyboard": dict(drone=drone),
-            "traverse_waypoints": dict(debug=True, drone=drone, planning_octree=planning_octree)
+            "traverse_waypoints": dict(drone=drone, planning_octree=planning_octree)
         }
 
         drone_controller: DroneController = DroneControllerFactory.make_drone_controller(
