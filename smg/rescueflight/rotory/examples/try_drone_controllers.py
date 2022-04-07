@@ -76,7 +76,7 @@ def main() -> None:
             np.array([1.5, 8.5, 12.5]) * 0.1, [0, 0, 1], [0, -1, 0]
             # np.array([-10.5, 0.5, 0.5]) * 0.1, [0, 0, 1], [0, -1, 0]
         )
-        drone.set_drone_origin(drone_origin)
+        # drone.set_drone_origin(drone_origin)
         time.sleep(0.1)
 
         # Load the planning octree (if specified).
@@ -144,7 +144,7 @@ def main() -> None:
             camera_controller.update(pygame.key.get_pressed(), timer() * 1000)
 
             # Allow the user to control the drone.
-            if drone_controller_type != "traverse_waypoints" or drone.get_state() == SimulatedDrone.FLYING:
+            if True:  # drone_controller_type != "traverse_waypoints" or drone.get_state() == SimulatedDrone.FLYING:
                 drone_controller.iterate(
                     events=events, image=drone_image, intrinsics=drone.get_intrinsics(),
                     tracker_c_t_i=np.linalg.inv(camera_w_t_c)
