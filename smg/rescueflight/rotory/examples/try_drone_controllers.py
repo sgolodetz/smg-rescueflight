@@ -17,7 +17,7 @@ from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
 from smg.rotorcontrol import DroneControllerFactory
-from smg.rotorcontrol.controllers import DroneController, FollowWaypointsDroneController
+from smg.rotorcontrol.controllers import DroneController, TraverseWaypointsDroneController
 from smg.rotory.drones import SimulatedDrone
 from smg.skeletons import SkeletonRenderer
 
@@ -27,7 +27,7 @@ def main() -> None:
     parser = ArgumentParser()
     parser.add_argument(
         "--drone_controller_type", type=str, default="keyboard",
-        choices=("follow_waypoints", "futaba_t6k", "keyboard"),
+        choices=("futaba_t6k", "keyboard", "traverse_waypoints"),
         help="the type of drone controller to use"
     )
     parser.add_argument(
@@ -71,8 +71,8 @@ def main() -> None:
             voxel_size: float = 0.1
             planning_octree = OcTree(voxel_size)
             planning_octree.read_binary(planning_octree_filename)
-        elif drone_controller_type == "follow_waypoints":
-            raise RuntimeError("A planning octree must be provided for 'follow waypoints' control to be used")
+        elif drone_controller_type == "traverse_waypoints":
+            raise RuntimeError("A planning octree must be provided for 'traverse waypoints' control to be used")
 
         # Set up the octree drawer.
         drawer: OcTreeDrawer = OcTreeDrawer()
@@ -80,20 +80,20 @@ def main() -> None:
 
         # Construct the drone controller.
         kwargs: Dict[str, dict] = {
-            "follow_waypoints": dict(drone=drone, planning_octree=planning_octree),
             "futaba_t6k": dict(drone=drone),
-            "keyboard": dict(drone=drone)
+            "keyboard": dict(drone=drone),
+            "traverse_waypoints": dict(drone=drone, planning_octree=planning_octree)
         }
 
         drone_controller: DroneController = DroneControllerFactory.make_drone_controller(
             drone_controller_type, **kwargs[drone_controller_type]
         )
 
-        # If we're using 'follow waypoints' control, tell the drone to take off and set some dummy waypoints.
-        if drone_controller_type == "follow_waypoints":
+        # If we're using 'traverse waypoints' control, tell the drone to take off and set some dummy waypoints.
+        if drone_controller_type == "traverse_waypoints":
             drone.takeoff()
 
-            cast(FollowWaypointsDroneController, drone_controller).set_waypoints([
+            cast(TraverseWaypointsDroneController, drone_controller).set_waypoints([
                 np.array([30.5, 5.5, 5.5]) * 0.05
             ])
 
