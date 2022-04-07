@@ -11,6 +11,7 @@ from timeit import default_timer as timer
 from typing import cast, Dict, List, Optional, Tuple
 
 from smg.meshing import MeshUtil
+from smg.navigation import Path
 from smg.opengl import CameraRenderer, OpenGLMatrixContext, OpenGLTriMesh, OpenGLUtil
 from smg.pyoctomap import CM_COLOR_HEIGHT, OctomapUtil, OcTree, OcTreeDrawer
 from smg.rigging.cameras import SimpleCamera
@@ -97,7 +98,7 @@ def main() -> None:
         kwargs: Dict[str, dict] = {
             "futaba_t6k": dict(drone=drone),
             "keyboard": dict(drone=drone),
-            "traverse_waypoints": dict(drone=drone, planning_octree=planning_octree)
+            "traverse_waypoints": dict(debug=True, drone=drone, planning_octree=planning_octree)
         }
 
         drone_controller: DroneController = DroneControllerFactory.make_drone_controller(
@@ -135,7 +136,10 @@ def main() -> None:
             camera_controller.update(pygame.key.get_pressed(), timer() * 1000)
 
             # Allow the user to control the drone.
-            drone_controller.iterate(events=events, image=drone_image, intrinsics=drone.get_intrinsics())
+            drone_controller.iterate(
+                events=events, image=drone_image, intrinsics=drone.get_intrinsics(),
+                tracker_c_t_i=np.linalg.inv(camera_w_t_c)
+            )
 
             # Clear the colour and depth buffers.
             glClearColor(1.0, 1.0, 1.0, 1.0)
@@ -162,6 +166,22 @@ def main() -> None:
                     if scene_octree is not None:
                         OctomapUtil.draw_octree(scene_octree, drawer)
 
+                    # TODO
+                    if drone_controller_type == "traverse_waypoints":
+                        traverse_waypoints_drone_controller = cast(TraverseWaypointsDroneController, drone_controller)
+                        interpolated_path: Optional[Path] = traverse_waypoints_drone_controller.get_interpolated_path()
+                        path: Optional[Path] = traverse_waypoints_drone_controller.get_path()
+                        if path is not None:
+                            path.render(
+                                start_colour=(0, 1, 1), end_colour=(0, 1, 1), width=5,
+                                waypoint_colourer=traverse_waypoints_drone_controller.get_occupancy_colourer()
+                            )
+                            # interpolated_path.render(
+                            #     start_colour=(1, 1, 0), end_colour=(1, 0, 1), width=5,
+                            #     waypoint_colourer=None
+                            # )
+
+                    # TODO
                     with SkeletonRenderer.default_lighting_context():
                         # Render the mesh for the drone (at its current pose).
                         with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(chassis_w_t_c)):
