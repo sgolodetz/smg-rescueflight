@@ -136,10 +136,11 @@ def main() -> None:
             camera_controller.update(pygame.key.get_pressed(), timer() * 1000)
 
             # Allow the user to control the drone.
-            drone_controller.iterate(
-                events=events, image=drone_image, intrinsics=drone.get_intrinsics(),
-                tracker_c_t_i=np.linalg.inv(camera_w_t_c)
-            )
+            if drone_controller_type != "traverse_waypoints" or drone.get_state() == SimulatedDrone.FLYING:
+                drone_controller.iterate(
+                    events=events, image=drone_image, intrinsics=drone.get_intrinsics(),
+                    tracker_c_t_i=np.linalg.inv(camera_w_t_c)
+                )
 
             # Clear the colour and depth buffers.
             glClearColor(1.0, 1.0, 1.0, 1.0)
