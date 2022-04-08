@@ -76,13 +76,13 @@ def main() -> None:
             np.array([1.5, 8.5, 12.5]) * 0.1, [-1, 0, 1], [0, -1, 0]
             # np.array([-10.5, 0.5, 0.5]) * 0.1, [0, 0, 1], [0, -1, 0]
         )
-        drone.set_drone_origin(drone_origin)
+        # drone.set_drone_origin(drone_origin)
         time.sleep(0.1)
 
         # Load the planning octree (if specified).
         planning_octree: Optional[OcTree] = None
         if planning_octree_filename is not None:
-            planning_voxel_size: float = 0.1
+            planning_voxel_size: float = 0.2
             planning_octree = OcTree(planning_voxel_size)
             planning_octree.read_binary(planning_octree_filename)
         elif drone_controller_type == "traverse_waypoints":
@@ -92,7 +92,7 @@ def main() -> None:
         # FIXME: This code duplicates the above - fix this before merging.
         scene_octree: Optional[OcTree] = None
         if scene_octree_filename is not None:
-            scene_voxel_size: float = 0.05
+            scene_voxel_size: float = 0.1
             scene_octree = OcTree(scene_voxel_size)
             scene_octree.read_binary(scene_octree_filename)
         elif drone_controller_type == "traverse_waypoints":
@@ -122,9 +122,9 @@ def main() -> None:
         if drone_controller_type == "traverse_waypoints":
             drone.takeoff()
 
-            cast(TraverseWaypointsDroneController, drone_controller).set_waypoints([
-                np.array([30.5, 5.5, 5.5]) * 0.05
-            ])
+            # cast(TraverseWaypointsDroneController, drone_controller).set_waypoints([
+            #     np.array([30.5, 5.5, 5.5]) * 0.05
+            # ])
 
         picker_pos: Optional[np.ndarray] = None
 
