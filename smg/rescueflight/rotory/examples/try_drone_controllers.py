@@ -218,7 +218,7 @@ def main() -> None:
                         if picking_mask[y, x] != 0:
                             picker_pos = picking_image[y, x] + np.array([0, -0.5, 0])
 
-                            glColor3f(1, 0, 1)
+                            glColor3f(0, 1, 0)
                             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
                             OpenGLUtil.render_sphere(picker_pos, 0.1, slices=10, stacks=10)
                             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
