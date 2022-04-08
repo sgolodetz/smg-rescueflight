@@ -13,7 +13,7 @@ from typing import cast, Dict, List, Optional, Tuple
 from smg.meshing import MeshUtil
 from smg.navigation import Path
 from smg.opengl import CameraRenderer, OpenGLMatrixContext, OpenGLTriMesh, OpenGLUtil
-from smg.pyoctomap import CM_COLOR_HEIGHT, OctomapUtil, OcTree, OcTreeDrawer
+from smg.pyoctomap import CM_COLOR_HEIGHT, OctomapPicker, OctomapUtil, OcTree, OcTreeDrawer
 from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
@@ -92,11 +92,16 @@ def main() -> None:
         # FIXME: This code duplicates the above - fix this before merging.
         scene_octree: Optional[OcTree] = None
         if scene_octree_filename is not None:
-            scene_voxel_size: float = 0.1
+            scene_voxel_size: float = 0.05
             scene_octree = OcTree(scene_voxel_size)
             scene_octree.read_binary(scene_octree_filename)
         elif drone_controller_type == "traverse_waypoints":
             raise RuntimeError("A scene octree must be provided for 'traverse waypoints' control to be used")
+
+        # Set up the picker (if a scene octree is available).
+        # noinspection PyTypeChecker
+        picker: Optional[OctomapPicker] = OctomapPicker(scene_octree, *window_size, intrinsics) \
+            if scene_octree is not None else None
 
         # Set up the octree drawer.
         drawer: OcTreeDrawer = OcTreeDrawer()
@@ -121,6 +126,8 @@ def main() -> None:
                 np.array([30.5, 5.5, 5.5]) * 0.05
             ])
 
+        picker_pos: Optional[np.ndarray] = None
+
         # TODO
         while not drone_controller.should_quit():
             # Process any PyGame events.
@@ -128,6 +135,9 @@ def main() -> None:
             for event in pygame.event.get():
                 # Record the event for later use by the drone controller.
                 events.append(event)
+
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and drone_controller_type == "traverse_waypoints":
+                    cast(TraverseWaypointsDroneController, drone_controller).set_waypoints([picker_pos])
 
                 # If the user wants us to quit:
                 if event.type == pygame.QUIT:
@@ -149,6 +159,11 @@ def main() -> None:
                     events=events, image=drone_image, intrinsics=drone.get_intrinsics(),
                     tracker_c_t_i=np.linalg.inv(camera_w_t_c)
                 )
+
+            # If there's a picker, pick from the viewing pose.
+            picking_image, picking_mask = None, None
+            if picker is not None:
+                picking_image, picking_mask = picker.pick(np.linalg.inv(camera_controller.get_pose()))
 
             # Clear the colour and depth buffers.
             glClearColor(1.0, 1.0, 1.0, 1.0)
@@ -196,6 +211,17 @@ def main() -> None:
                         # Render the mesh for the drone (at its current pose).
                         with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(camera_w_t_c)):
                             drone_mesh.render()
+
+                    if picker is not None:
+                        # Show the 3D cursor.
+                        x, y = pygame.mouse.get_pos()
+                        if picking_mask[y, x] != 0:
+                            picker_pos = picking_image[y, x] + np.array([0, -0.5, 0])
+
+                            glColor3f(1, 0, 1)
+                            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
+                            OpenGLUtil.render_sphere(picker_pos, 0.1, slices=10, stacks=10)
+                            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
 
             # Swap the front and back buffers.
             pygame.display.flip()
