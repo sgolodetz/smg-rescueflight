@@ -8,6 +8,14 @@ from smg.utility import DualQuaternion, GeometryUtil
 
 
 class TestGeometryUtil(unittest.TestCase):
+    def test_distance_to_line_segment(self):
+        self.assertAlmostEqual(GeometryUtil.distance_to_line_segment(
+            [0, 0, 0], [1, 1, 0], [1, 2, 0]
+        ), np.sqrt(2))
+        self.assertAlmostEqual(GeometryUtil.distance_to_line_segment(
+            [0, 0, 0], [1, 0, 0], [0, 1, 0]
+        ), 1 / np.sqrt(2))
+
     def test_find_closest_point_on_half_ray(self):
         tolerance: float = 1e-4
         self.assertTrue(np.linalg.norm(GeometryUtil.find_closest_point_on_half_ray(
@@ -22,15 +30,24 @@ class TestGeometryUtil(unittest.TestCase):
 
     def test_find_closest_point_on_line_segment(self):
         tolerance: float = 1e-4
-        print(GeometryUtil.find_closest_point_on_line_segment(
+        self.assertTrue(np.linalg.norm(GeometryUtil.find_closest_point_on_line_segment(
             [0, 0, 0], [1, 1, 0], [1, 2, 0]
-        ))
-        print(GeometryUtil.find_closest_point_on_line_segment(
+        ) - np.array([1, 1, 0])) <= tolerance)
+        self.assertTrue(np.linalg.norm(GeometryUtil.find_closest_point_on_line_segment(
             [0, 0, 0], [1, -2, 0], [1, -1, 0]
-        ))
-        print(GeometryUtil.find_closest_point_on_line_segment(
+        ) - np.array([1, -1, 0])) <= tolerance)
+        self.assertTrue(np.linalg.norm(GeometryUtil.find_closest_point_on_line_segment(
             [0, 0, 0], [1, -1, 0], [1, 1, 0]
-        ))
+        ) - np.array([1, 0, 0])) <= tolerance)
+        self.assertTrue(np.linalg.norm(GeometryUtil.find_closest_point_on_line_segment(
+            [0, 0, 0], [1, 0, 0], [0, 1, 0]
+        ) - np.array([0.5, 0.5, 0])) <= tolerance)
+        self.assertTrue(np.linalg.norm(GeometryUtil.find_closest_point_on_line_segment(
+            [0.9, 0, 0], [1, 0, 0], [0, 1, 0]
+        ) - np.array([0.95, 0.05, 0])) <= tolerance)
+        self.assertTrue(np.linalg.norm(GeometryUtil.find_closest_point_on_line_segment(
+            [0.9, -0.1, 0], [1, 0, 0], [0, 1, 0]
+        ) - np.array([1, 0, 0])) <= tolerance)
 
     def test_find_largest_cluster(self):
         # Generate increasingly large clusters of transforms that rotate around the z axis by different angles.
