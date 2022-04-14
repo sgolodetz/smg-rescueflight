@@ -8,7 +8,7 @@ import time
 from argparse import ArgumentParser
 from OpenGL.GL import *
 from timeit import default_timer as timer
-from typing import cast, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 from smg.meshing import MeshUtil
 from smg.navigation import Path
