@@ -8,7 +8,7 @@ import time
 from argparse import ArgumentParser
 from OpenGL.GL import *
 from timeit import default_timer as timer
-from typing import cast, Dict, List, Optional, Tuple
+from typing import cast, List, Optional, Tuple
 
 from smg.meshing import MeshUtil
 from smg.navigation import Path
@@ -17,8 +17,7 @@ from smg.pyoctomap import CM_COLOR_HEIGHT, OctomapPicker, OctomapUtil, OcTree, O
 from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
-from smg.rotorcontrol import DroneControllerFactory
-from smg.rotorcontrol.controllers import DroneController, TraverseWaypointsDroneController
+from smg.rotorcontrol.controllers import TraverseWaypointsDroneController
 from smg.rotory.drones import SimulatedDrone
 from smg.skeletons import SkeletonRenderer
 
@@ -27,21 +26,15 @@ def main() -> None:
     # Parse any command-line arguments.
     parser = ArgumentParser()
     parser.add_argument(
-        "--drone_controller_type", type=str, default="keyboard",
-        choices=("futaba_t6k", "keyboard", "traverse_waypoints"),
-        help="the type of drone controller to use"
+        "--planning_octree", type=str, required=True,
+        help="the name of the planning octree file"
     )
     parser.add_argument(
-        "--planning_octree", type=str,
-        help="the name of the planning octree file (if any)"
-    )
-    parser.add_argument(
-        "--scene_octree", type=str,
-        help="the name of the scene octree file (if any)"
+        "--scene_octree", type=str, required=True,
+        help="the name of the scene octree file"
     )
     args: dict = vars(parser.parse_args())
 
-    drone_controller_type: str = args.get("drone_controller_type")
     planning_octree_filename: str = args.get("planning_octree")
     scene_octree_filename: str = args.get("scene_octree")
 
@@ -71,61 +64,33 @@ def main() -> None:
 
     # Construct the drone.
     with SimulatedDrone(angular_gain=0.08) as drone:
-        # Set the drone origin.
-        drone_origin: SimpleCamera = SimpleCamera(
-            np.array([1.5, 8.5, 12.5]) * 0.1, [-1, 0, 1], [0, -1, 0]
-            # np.array([-10.5, 0.5, 0.5]) * 0.1, [0, 0, 1], [0, -1, 0]
-        )
-        # drone.set_drone_origin(drone_origin)
-        time.sleep(0.1)
+        # Load the planning octree.
+        planning_voxel_size: float = 0.1
+        planning_octree: OcTree = OcTree(planning_voxel_size)
+        planning_octree.read_binary(planning_octree_filename)
 
-        # Load the planning octree (if specified).
-        planning_octree: Optional[OcTree] = None
-        if planning_octree_filename is not None:
-            planning_voxel_size: float = 0.1
-            planning_octree = OcTree(planning_voxel_size)
-            planning_octree.read_binary(planning_octree_filename)
-        elif drone_controller_type == "traverse_waypoints":
-            raise RuntimeError("A planning octree must be provided for 'traverse waypoints' control to be used")
+        # Load the scene octree.
+        scene_voxel_size: float = 0.1
+        scene_octree: OcTree = OcTree(scene_voxel_size)
+        scene_octree.read_binary(scene_octree_filename)
 
-        # Load the scene octree (if specified).
-        # FIXME: This code duplicates the above - fix this before merging.
-        scene_octree: Optional[OcTree] = None
-        if scene_octree_filename is not None:
-            scene_voxel_size: float = 0.1
-            scene_octree = OcTree(scene_voxel_size)
-            scene_octree.read_binary(scene_octree_filename)
-        elif drone_controller_type == "traverse_waypoints":
-            raise RuntimeError("A scene octree must be provided for 'traverse waypoints' control to be used")
-
-        # Set up the picker (if a scene octree is available).
+        # Set up the picker.
         # noinspection PyTypeChecker
-        picker: Optional[OctomapPicker] = OctomapPicker(scene_octree, *window_size, intrinsics) \
-            if scene_octree is not None else None
+        picker: OctomapPicker = OctomapPicker(scene_octree, *window_size, intrinsics)
 
         # Set up the octree drawer.
         drawer: OcTreeDrawer = OcTreeDrawer()
         drawer.set_color_mode(CM_COLOR_HEIGHT)
 
         # Construct the drone controller.
-        kwargs: Dict[str, dict] = {
-            "futaba_t6k": dict(drone=drone),
-            "keyboard": dict(drone=drone),
-            "traverse_waypoints": dict(drone=drone, planning_octree=planning_octree)
-        }
-
-        drone_controller: DroneController = DroneControllerFactory.make_drone_controller(
-            drone_controller_type, **kwargs[drone_controller_type]
+        drone_controller: TraverseWaypointsDroneController = TraverseWaypointsDroneController(
+            drone=drone, planning_octree=planning_octree
         )
 
-        # If we're using 'traverse waypoints' control, tell the drone to take off and set some dummy waypoints.
-        if drone_controller_type == "traverse_waypoints":
-            drone.takeoff()
+        # Tell the drone to take off.
+        drone.takeoff()
 
-            # cast(TraverseWaypointsDroneController, drone_controller).set_waypoints([
-            #     np.array([30.5, 5.5, 5.5]) * 0.05
-            # ])
-
+        # TODO
         picker_pos: Optional[np.ndarray] = None
 
         # TODO
@@ -136,8 +101,9 @@ def main() -> None:
                 # Record the event for later use by the drone controller.
                 events.append(event)
 
-                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and drone_controller_type == "traverse_waypoints":
-                    cast(TraverseWaypointsDroneController, drone_controller).set_waypoints([picker_pos])
+                # TODO
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    drone_controller.set_waypoints([picker_pos])
 
                 # If the user wants us to quit:
                 if event.type == pygame.QUIT:
@@ -154,7 +120,7 @@ def main() -> None:
             camera_controller.update(pygame.key.get_pressed(), timer() * 1000)
 
             # Allow the user to control the drone.
-            if drone_controller_type != "traverse_waypoints" or drone.get_state() == SimulatedDrone.FLYING:
+            if drone.get_state() == SimulatedDrone.FLYING:
                 drone_controller.iterate(
                     events=events, image=drone_image, intrinsics=drone.get_intrinsics(),
                     tracker_c_t_i=np.linalg.inv(camera_w_t_c)
@@ -192,19 +158,17 @@ def main() -> None:
                         # OctomapUtil.draw_octree_understandable(scene_octree, drawer, render_filled_cubes=False)
 
                     # TODO
-                    if drone_controller_type == "traverse_waypoints":
-                        traverse_waypoints_drone_controller = cast(TraverseWaypointsDroneController, drone_controller)
-                        interpolated_path: Optional[Path] = traverse_waypoints_drone_controller.get_interpolated_path()
-                        path: Optional[Path] = traverse_waypoints_drone_controller.get_path()
-                        if path is not None:
-                            path.render(
-                                start_colour=(0, 1, 1), end_colour=(0, 1, 1), width=5,
-                                waypoint_colourer=traverse_waypoints_drone_controller.get_occupancy_colourer()
-                            )
-                            # interpolated_path.render(
-                            #     start_colour=(1, 1, 0), end_colour=(1, 0, 1), width=5,
-                            #     waypoint_colourer=None
-                            # )
+                    interpolated_path: Optional[Path] = drone_controller.get_interpolated_path()
+                    path: Optional[Path] = drone_controller.get_path()
+                    if path is not None:
+                        path.render(
+                            start_colour=(0, 1, 1), end_colour=(0, 1, 1), width=5,
+                            waypoint_colourer=drone_controller.get_occupancy_colourer()
+                        )
+                        # interpolated_path.render(
+                        #     start_colour=(1, 1, 0), end_colour=(1, 0, 1), width=5,
+                        #     waypoint_colourer=None
+                        # )
 
                     # TODO
                     with SkeletonRenderer.default_lighting_context():
