@@ -82,7 +82,7 @@ def main() -> None:
         # Load the planning octree (if specified).
         planning_octree: Optional[OcTree] = None
         if planning_octree_filename is not None:
-            planning_voxel_size: float = 0.2
+            planning_voxel_size: float = 0.1
             planning_octree = OcTree(planning_voxel_size)
             planning_octree.read_binary(planning_octree_filename)
         elif drone_controller_type == "traverse_waypoints":
@@ -92,7 +92,7 @@ def main() -> None:
         # FIXME: This code duplicates the above - fix this before merging.
         scene_octree: Optional[OcTree] = None
         if scene_octree_filename is not None:
-            scene_voxel_size: float = 0.2
+            scene_voxel_size: float = 0.1
             scene_octree = OcTree(scene_voxel_size)
             scene_octree.read_binary(scene_octree_filename)
         elif drone_controller_type == "traverse_waypoints":
