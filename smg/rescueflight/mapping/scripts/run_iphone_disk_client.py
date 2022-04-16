@@ -8,6 +8,7 @@ from typing import Any, Dict, Optional, Tuple
 
 from smg.comms.base import RGBDFrameMessageUtil
 from smg.comms.mapping import MappingClient
+from smg.rigging.helpers import CameraPoseConverter
 from smg.utility import CameraParameters, GeometryUtil, ImageUtil, PooledQueue
 
 
@@ -56,13 +57,14 @@ def try_load_frame(frame_idx: int, sequence_dir: str) -> Optional[Dict[str, Any]
 
     # world_from_camera: np.ndarray = np.eye(4)
     # world_from_camera[0:3, 3] = np.array([0, 0, -5])
+    world_from_camera = np.linalg.inv(CameraPoseConverter.modelview_to_pose(np.linalg.inv(world_from_camera)))
 
     # TODO
     return {
         "colour_image": colour_image,
         "depth_image": depth_image,
         # "projection_matrix": projection_matrix,
-        "world_from_camera": np.linalg.inv(world_from_camera)  # np.eye(4)  # transform_to_world_map  #  @ np.linalg.inv(world_from_camera)
+        "world_from_camera": world_from_camera  # np.eye(4)  # transform_to_world_map  #  @ np.linalg.inv(world_from_camera)
     }
 
 

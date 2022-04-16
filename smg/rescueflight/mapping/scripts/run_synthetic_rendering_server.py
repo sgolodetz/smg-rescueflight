@@ -98,15 +98,6 @@ def main() -> None:
 
             # Once at least one frame has been received:
             if image_size is not None:
-                pressed_keys = pygame.key.get_pressed()
-                pose: np.ndarray = tracker_w_t_c.copy()
-                tweaked_pose: np.ndarray = pose.copy()
-                from scipy.spatial.transform import Rotation as R
-                if pressed_keys[pygame.K_x]:
-                    m: np.ndarray = np.eye(4)
-                    m[0:3, 0:3] = R.from_rotvec(np.array([1, 0, 0]) * np.pi).as_matrix()
-                    tweaked_pose = m @ pose
-
                 # Set the projection matrix.
                 with OpenGLMatrixContext(GL_PROJECTION, lambda: OpenGLUtil.set_projection_matrix(
                     GeometryUtil.rescale_intrinsics(intrinsics, image_size, window_size), *window_size
@@ -114,7 +105,8 @@ def main() -> None:
                     # Set the model-view matrix.
                     with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.load_matrix(
                         # CameraPoseConverter.pose_to_modelview(camera_controller.get_pose())
-                        tweaked_pose
+                        # tracker_w_t_c
+                        CameraPoseConverter.pose_to_modelview(np.linalg.inv(tracker_w_t_c))
                     )):
                         # Render a voxel grid.
                         glColor3f(0.0, 0.0, 0.0)
