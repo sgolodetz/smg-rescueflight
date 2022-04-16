@@ -46,11 +46,23 @@ def try_load_frame(frame_idx: int, sequence_dir: str) -> Optional[Dict[str, Any]
     #     [0, 0, 0, 1]
     # ]) @ world_from_camera
 
+    # projection_matrix: np.ndarray = np.array(data["projectionMatrix"]).reshape(4, 4)
+    transform_to_world_map: np.ndarray = np.array([
+        [0.99452191591262817, 0, -0.10452836751937866, -1.9408578872680664],
+        [0, 1, 0, -0.97300004959106445],
+        [0.10452836751937866, 0, 0.99452191591262817, -0.41681873798370361],
+        [0, 0, 0, 1]
+    ])
+
+    # world_from_camera: np.ndarray = np.eye(4)
+    # world_from_camera[0:3, 3] = np.array([0, 0, -5])
+
     # TODO
     return {
         "colour_image": colour_image,
         "depth_image": depth_image,
-        "world_from_camera": world_from_camera
+        # "projection_matrix": projection_matrix,
+        "world_from_camera": np.linalg.inv(world_from_camera)  # np.eye(4)  # transform_to_world_map  #  @ np.linalg.inv(world_from_camera)
     }
 
 
