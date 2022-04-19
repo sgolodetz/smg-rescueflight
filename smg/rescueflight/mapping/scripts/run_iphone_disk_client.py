@@ -58,6 +58,10 @@ def try_load_frame(frame_idx: int, sequence_dir: str) -> Optional[Dict[str, Any]
     # world_from_camera: np.ndarray = np.eye(4)
     # world_from_camera[0:3, 3] = np.array([0, 0, -5])
     world_from_camera = np.linalg.inv(CameraPoseConverter.modelview_to_pose(np.linalg.inv(world_from_camera)))
+    from scipy.spatial.transform import Rotation as R
+    m = np.eye(4)
+    m[0:3, 0:3] = R.from_rotvec(np.array([1, 0, 0]) * np.pi).as_matrix()
+    world_from_camera = m @ world_from_camera
 
     # TODO
     return {
