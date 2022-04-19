@@ -100,7 +100,7 @@ def main() -> None:
                     pygame.quit()
 
                     # Forcibly terminate the whole process.
-                    # noinspection PyProtectedMember
+                    # noinspection PyProtectedMember, PyUnresolvedReferences
                     os._exit(0)
 
             drone_image, camera_w_t_c, chassis_w_t_c = drone.get_image_and_poses()
