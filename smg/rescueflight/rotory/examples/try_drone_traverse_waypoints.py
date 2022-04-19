@@ -65,12 +65,12 @@ def main() -> None:
     # Construct the drone.
     with SimulatedDrone(angular_gain=0.08) as drone:
         # Load the planning octree.
-        planning_voxel_size: float = 0.1
+        planning_voxel_size: float = 0.2
         planning_octree: OcTree = OcTree(planning_voxel_size)
         planning_octree.read_binary(planning_octree_filename)
 
         # Load the scene octree.
-        scene_voxel_size: float = 0.1
+        scene_voxel_size: float = 0.2
         scene_octree: OcTree = OcTree(scene_voxel_size)
         scene_octree.read_binary(scene_octree_filename)
 
