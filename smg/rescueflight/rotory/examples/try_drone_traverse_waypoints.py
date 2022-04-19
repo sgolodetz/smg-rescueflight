@@ -93,8 +93,8 @@ def main() -> None:
         # TODO
         picker_pos: Optional[np.ndarray] = None
 
-        # TODO
-        while not drone_controller.should_quit():
+        # Until the drone controller has finished:
+        while not drone_controller.has_finished():
             # Process any PyGame events.
             events: List[pygame.event.Event] = []
             for event in pygame.event.get():

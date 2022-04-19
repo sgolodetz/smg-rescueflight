@@ -38,8 +38,8 @@ def main():
         # Construct the drone controller.
         drone_controller: DroneController = FutabaT6KDroneController(drone=drone)
 
-        # Stop when the drone controller asks us to quit.
-        while not drone_controller.should_quit():
+        # Until the drone controller has finished:
+        while not drone_controller.has_finished():
             # Record any PyGame events for later use by the drone controller.
             events: List[pygame.event.Event] = []
             for event in pygame.event.get():
