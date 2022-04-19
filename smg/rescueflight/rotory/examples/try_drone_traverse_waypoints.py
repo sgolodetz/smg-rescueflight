@@ -8,16 +8,15 @@ import time
 from argparse import ArgumentParser
 from OpenGL.GL import *
 from timeit import default_timer as timer
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 from smg.meshing import MeshUtil
-from smg.navigation import Path
 from smg.opengl import CameraRenderer, OpenGLMatrixContext, OpenGLTriMesh, OpenGLUtil
-from smg.pyoctomap import CM_COLOR_HEIGHT, OctomapPicker, OctomapUtil, OcTree, OcTreeDrawer
+from smg.pyoctomap import CM_COLOR_HEIGHT, OctomapUtil, OcTree, OcTreeDrawer
 from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
-from smg.rotorcontrol.controllers import TraverseWaypointsDroneController
+from smg.rotorcontrol.controllers import DroneController, RTSStyleDroneController
 from smg.rotory.drones import SimulatedDrone
 from smg.skeletons import SkeletonRenderer
 
@@ -74,24 +73,18 @@ def main() -> None:
         scene_octree: OcTree = OcTree(scene_voxel_size)
         scene_octree.read_binary(scene_octree_filename)
 
-        # Set up the picker.
-        # noinspection PyTypeChecker
-        picker: OctomapPicker = OctomapPicker(scene_octree, *window_size, intrinsics)
-
         # Set up the octree drawer.
         drawer: OcTreeDrawer = OcTreeDrawer()
         drawer.set_color_mode(CM_COLOR_HEIGHT)
 
         # Construct the drone controller.
-        drone_controller: TraverseWaypointsDroneController = TraverseWaypointsDroneController(
-            drone=drone, planning_octree=planning_octree
+        drone_controller: DroneController = RTSStyleDroneController(
+            drone=drone, intrinsics=intrinsics, planning_octree=planning_octree, scene_octree=scene_octree,
+            viewing_camera=camera_controller.get_camera(), window_size=window_size
         )
 
         # Tell the drone to take off.
         drone.takeoff()
-
-        # TODO
-        picker_pos: Optional[np.ndarray] = None
 
         # Until the drone controller has finished:
         while not drone_controller.has_finished():
@@ -100,10 +93,6 @@ def main() -> None:
             for event in pygame.event.get():
                 # Record the event for later use by the drone controller.
                 events.append(event)
-
-                # TODO
-                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    drone_controller.set_waypoints([picker_pos])
 
                 # If the user wants us to quit:
                 if event.type == pygame.QUIT:
@@ -125,11 +114,6 @@ def main() -> None:
                     events=events, image=drone_image, intrinsics=drone.get_intrinsics(),
                     tracker_c_t_i=np.linalg.inv(camera_w_t_c)
                 )
-
-            # If there's a picker, pick from the viewing pose.
-            picking_image, picking_mask = None, None
-            if picker is not None:
-                picking_image, picking_mask = picker.pick(np.linalg.inv(camera_controller.get_pose()))
 
             # Clear the colour and depth buffers.
             glClearColor(1.0, 1.0, 1.0, 1.0)
@@ -158,34 +142,13 @@ def main() -> None:
                         # OctomapUtil.draw_octree_understandable(scene_octree, drawer, render_filled_cubes=False)
 
                     # TODO
-                    interpolated_path: Optional[Path] = drone_controller.get_interpolated_path()
-                    path: Optional[Path] = drone_controller.get_path()
-                    if path is not None:
-                        path.render(
-                            start_colour=(0, 1, 1), end_colour=(0, 1, 1), width=5,
-                            waypoint_colourer=drone_controller.get_occupancy_colourer()
-                        )
-                        # interpolated_path.render(
-                        #     start_colour=(1, 1, 0), end_colour=(1, 0, 1), width=5,
-                        #     waypoint_colourer=None
-                        # )
-
-                    # TODO
                     with SkeletonRenderer.default_lighting_context():
                         # Render the mesh for the drone (at its current pose).
                         with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(camera_w_t_c)):
                             drone_mesh.render()
 
-                    if picker is not None:
-                        # Show the 3D cursor.
-                        x, y = pygame.mouse.get_pos()
-                        if picking_mask[y, x] != 0:
-                            picker_pos = picking_image[y, x] + np.array([0, -0.5, 0])
-
-                            glColor3f(0, 1, 0)
-                            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
-                            OpenGLUtil.render_sphere(picker_pos, 0.1, slices=10, stacks=10)
-                            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
+                    # TODO
+                    drone_controller.render_ui()
 
             # Swap the front and back buffers.
             pygame.display.flip()
