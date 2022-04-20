@@ -79,7 +79,7 @@ def main() -> None:
 
         # Construct the drone controller.
         drone_controller: DroneController = RTSStyleDroneController(
-            drone=drone, intrinsics=intrinsics, planning_octree=planning_octree, scene_octree=scene_octree,
+            debug=True, drone=drone, intrinsics=intrinsics, planning_octree=planning_octree, scene_octree=scene_octree,
             viewing_camera=camera_controller.get_camera(), window_size=window_size
         )
 
