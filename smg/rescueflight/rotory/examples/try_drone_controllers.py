@@ -8,7 +8,7 @@ import time
 from argparse import ArgumentParser
 from OpenGL.GL import *
 from timeit import default_timer as timer
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 
 from smg.meshing import MeshUtil
 from smg.opengl import CameraRenderer, OpenGLMatrixContext, OpenGLTriMesh, OpenGLUtil
@@ -16,7 +16,8 @@ from smg.pyoctomap import CM_COLOR_HEIGHT, OctomapUtil, OcTree, OcTreeDrawer
 from smg.rigging.cameras import SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
-from smg.rotorcontrol.controllers import DroneController, RTSStyleDroneController
+from smg.rotorcontrol import DroneControllerFactory
+from smg.rotorcontrol.controllers import DroneController
 from smg.rotory.drones import SimulatedDrone
 from smg.skeletons import SkeletonRenderer
 
@@ -24,6 +25,11 @@ from smg.skeletons import SkeletonRenderer
 def main() -> None:
     # Parse any command-line arguments.
     parser = ArgumentParser()
+    parser.add_argument(
+        "--drone_controller_type", "-t", type=str, default="rts",
+        choices=("futaba_t6k", "keyboard", "rts"),
+        help="the type of drone controller to use"
+    )
     parser.add_argument(
         "--planning_octree", type=str, required=True,
         help="the name of the planning octree file"
@@ -34,6 +40,7 @@ def main() -> None:
     )
     args: dict = vars(parser.parse_args())
 
+    drone_controller_type: str = args.get("drone_controller_type")
     planning_octree_filename: str = args.get("planning_octree")
     scene_octree_filename: str = args.get("scene_octree")
 
@@ -44,7 +51,7 @@ def main() -> None:
     # Create the window.
     window_size: Tuple[int, int] = (640, 480)
     pygame.display.set_mode(window_size, pygame.DOUBLEBUF | pygame.OPENGL)
-    pygame.display.set_caption("Traverse Waypoints Demo")
+    pygame.display.set_caption("Drone Controller Demo")
 
     # Enable the z-buffer.
     glEnable(GL_DEPTH_TEST)
@@ -78,9 +85,17 @@ def main() -> None:
         drawer.set_color_mode(CM_COLOR_HEIGHT)
 
         # Construct the drone controller.
-        drone_controller: DroneController = RTSStyleDroneController(
-            debug=True, drone=drone, intrinsics=intrinsics, planning_octree=planning_octree, scene_octree=scene_octree,
-            viewing_camera=camera_controller.get_camera(), window_size=window_size
+        kwargs: Dict[str, dict] = {
+            "futaba_t6k": dict(drone=drone),
+            "keyboard": dict(drone=drone),
+            "rts": dict(
+                debug=True, drone=drone, intrinsics=intrinsics, planning_octree=planning_octree,
+                scene_octree=scene_octree, viewing_camera=camera_controller.get_camera(), window_size=window_size
+            )
+        }
+
+        drone_controller: DroneController = DroneControllerFactory.make_drone_controller(
+            drone_controller_type, **kwargs[drone_controller_type]
         )
 
         # Tell the drone to take off.
@@ -109,11 +124,10 @@ def main() -> None:
             camera_controller.update(pygame.key.get_pressed(), timer() * 1000)
 
             # Allow the user to control the drone.
-            if drone.get_state() == SimulatedDrone.FLYING:
-                drone_controller.iterate(
-                    events=events, image=drone_image, intrinsics=drone.get_intrinsics(),
-                    tracker_c_t_i=np.linalg.inv(camera_w_t_c)
-                )
+            drone_controller.iterate(
+                events=events, image=drone_image, intrinsics=drone.get_intrinsics(),
+                tracker_c_t_i=np.linalg.inv(camera_w_t_c)
+            )
 
             # Clear the colour and depth buffers.
             glClearColor(1.0, 1.0, 1.0, 1.0)
