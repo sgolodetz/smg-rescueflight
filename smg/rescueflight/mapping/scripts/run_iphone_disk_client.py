@@ -4,10 +4,12 @@ import numpy as np
 import os
 
 from argparse import ArgumentParser
+from scipy.spatial.transform import Rotation as R
 from typing import Any, Dict, Optional, Tuple
 
 from smg.comms.base import RGBDFrameMessageUtil
 from smg.comms.mapping import MappingClient
+from smg.rigging.cameras import SimpleCamera
 from smg.rigging.helpers import CameraPoseConverter
 from smg.utility import CameraParameters, GeometryUtil, ImageUtil, PooledQueue
 
@@ -40,25 +42,8 @@ def try_load_frame(frame_idx: int, sequence_dir: str) -> Optional[Dict[str, Any]
         data: Dict[str, Any] = json.load(f)
 
     world_from_camera: np.ndarray = np.array(data["cameraPoseARFrame"]).reshape(4, 4)
-    # world_from_camera = np.array([
-    #     [-1, 0, 0, 0],
-    #     [0, -1, 0, 0],
-    #     [0, 0, 1, 0],
-    #     [0, 0, 0, 1]
-    # ]) @ world_from_camera
-
-    # projection_matrix: np.ndarray = np.array(data["projectionMatrix"]).reshape(4, 4)
-    transform_to_world_map: np.ndarray = np.array([
-        [0.99452191591262817, 0, -0.10452836751937866, -1.9408578872680664],
-        [0, 1, 0, -0.97300004959106445],
-        [0.10452836751937866, 0, 0.99452191591262817, -0.41681873798370361],
-        [0, 0, 0, 1]
-    ])
-
-    # world_from_camera: np.ndarray = np.eye(4)
-    # world_from_camera[0:3, 3] = np.array([0, 0, -5])
     world_from_camera = np.linalg.inv(CameraPoseConverter.modelview_to_pose(np.linalg.inv(world_from_camera)))
-    from scipy.spatial.transform import Rotation as R
+
     m = np.eye(4)
     m[0:3, 0:3] = R.from_rotvec(np.array([1, 0, 0]) * np.pi).as_matrix()
     world_from_camera = m @ world_from_camera
@@ -67,8 +52,7 @@ def try_load_frame(frame_idx: int, sequence_dir: str) -> Optional[Dict[str, Any]
     return {
         "colour_image": colour_image,
         "depth_image": depth_image,
-        # "projection_matrix": projection_matrix,
-        "world_from_camera": world_from_camera  # np.eye(4)  # transform_to_world_map  #  @ np.linalg.inv(world_from_camera)
+        "world_from_camera": world_from_camera
     }
 
 
@@ -89,10 +73,6 @@ def main() -> None:
 
     batch: bool = args["batch"]
     sequence_dir: str = args["sequence_dir"]
-
-    # FIXME: Delete.
-    from typing import List
-    trajectory: List[Tuple[float, np.ndarray]] = []
 
     try:
         with MappingClient(
@@ -119,6 +99,9 @@ def main() -> None:
             colour_image: Optional[np.ndarray] = None
             depth_image: Optional[np.ndarray] = None
             frame_idx: int = 0
+            # initial_cam: Optional[SimpleCamera] = None
+            # initial_from_world: Optional[np.ndarray] = None
+            initial_pos: Optional[np.ndarray] = None
             pause: bool = not batch
 
             while True:
@@ -127,6 +110,26 @@ def main() -> None:
 
                 # If the frame was successfully loaded.
                 if frame is not None:
+                    # TODO
+                    world_from_camera: np.ndarray = frame["world_from_camera"]
+
+                    # TODO
+                    # if initial_from_world is None:
+                    #     initial_from_world = np.linalg.inv(world_from_camera)
+                    # initial_from_camera: np.ndarray = initial_from_world @ world_from_camera
+
+                    # TODO
+                    if initial_pos is None:
+                        initial_pos = world_from_camera[0:3, 3].copy()
+                    # if initial_cam is None:
+                    #     initial_cam = CameraPoseConverter.pose_to_camera(np.linalg.inv(world_from_camera))
+                    #     print(initial_cam.p(), initial_cam.n(), initial_cam.u(), initial_cam.v())
+
+                    # TODO
+                    # print(world_from_camera)
+                    world_from_camera[0:3, 3] -= initial_pos
+                    # print(world_from_camera)
+
                     # TODO
                     if frame["colour_image"] is not None:
                         # TODO
@@ -138,12 +141,9 @@ def main() -> None:
                             frame_idx,
                             colour_image,
                             ImageUtil.to_short_depth(depth_image),
-                            frame["world_from_camera"],
+                            world_from_camera,
                             msg
                         ))
-
-                        # FIXME: Delete.
-                        trajectory.append((frame_idx, frame["world_from_camera"]))
 
                     # Increment the frame index.
                     frame_idx += 1
@@ -161,26 +161,13 @@ def main() -> None:
                     if pause and frame is not None and frame["colour_image"] is not None:
                         c = cv2.waitKey()
                     else:
-                        c = cv2.waitKey(1)  # 50)
+                        c = cv2.waitKey(1)
 
                     if c == ord('b'):
                         pause = False
                     elif c == ord('n'):
                         pause = True
                     elif c == ord('q'):
-                        # FIXME: Delete.
-                        # import open3d as o3d
-                        # from smg.open3d import VisualisationUtil
-                        # grid: o3d.geometry.LineSet = VisualisationUtil.make_voxel_grid(
-                        #     [-2, -2, -2], [2, 0, 2], [1, 1, 1]
-                        # )
-                        # segments: o3d.geometry.LineSet = VisualisationUtil.make_trajectory_segments(
-                        #     trajectory, colour=(0.0, 1.0, 0.0)
-                        # )
-                        #
-                        # # Visualise the geometries.
-                        # VisualisationUtil.visualise_geometries([segments])
-
                         # noinspection PyProtectedMember
                         os._exit(0)
     except RuntimeError as e:
