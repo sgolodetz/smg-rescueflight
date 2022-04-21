@@ -9,7 +9,6 @@ from typing import Any, Dict, Optional, Tuple
 
 from smg.comms.base import RGBDFrameMessageUtil
 from smg.comms.mapping import MappingClient
-from smg.rigging.cameras import SimpleCamera
 from smg.rigging.helpers import CameraPoseConverter
 from smg.utility import CameraParameters, GeometryUtil, ImageUtil, PooledQueue
 
@@ -56,6 +55,23 @@ def try_load_frame(frame_idx: int, sequence_dir: str) -> Optional[Dict[str, Any]
     }
 
 
+def try_load_obb(sequence_dir: str) -> Optional[np.ndarray]:
+    """
+    TODO
+
+    :param sequence_dir:    TODO
+    :return:                TODO
+    """
+    json_filename: str = os.path.join(sequence_dir, "info.json")
+
+    try:
+        with open(json_filename) as f:
+            data: Dict[str, Any] = json.load(f)
+            return np.array(data["userOBB"]["points"])
+    except FileNotFoundError:
+        return None
+
+
 def main() -> None:
     np.set_printoptions(suppress=True)
 
@@ -74,6 +90,10 @@ def main() -> None:
     batch: bool = args["batch"]
     sequence_dir: str = args["sequence_dir"]
 
+    # TODO
+    obb: Optional[np.ndarray] = try_load_obb(sequence_dir)
+
+    # TODO
     try:
         with MappingClient(
             frame_compressor=RGBDFrameMessageUtil.compress_frame_message,
@@ -99,8 +119,6 @@ def main() -> None:
             colour_image: Optional[np.ndarray] = None
             depth_image: Optional[np.ndarray] = None
             frame_idx: int = 0
-            # initial_cam: Optional[SimpleCamera] = None
-            # initial_from_world: Optional[np.ndarray] = None
             initial_pos: Optional[np.ndarray] = None
             pause: bool = not batch
 
@@ -114,21 +132,11 @@ def main() -> None:
                     world_from_camera: np.ndarray = frame["world_from_camera"]
 
                     # TODO
-                    # if initial_from_world is None:
-                    #     initial_from_world = np.linalg.inv(world_from_camera)
-                    # initial_from_camera: np.ndarray = initial_from_world @ world_from_camera
-
-                    # TODO
                     if initial_pos is None:
                         initial_pos = world_from_camera[0:3, 3].copy()
-                    # if initial_cam is None:
-                    #     initial_cam = CameraPoseConverter.pose_to_camera(np.linalg.inv(world_from_camera))
-                    #     print(initial_cam.p(), initial_cam.n(), initial_cam.u(), initial_cam.v())
 
                     # TODO
-                    # print(world_from_camera)
                     world_from_camera[0:3, 3] -= initial_pos
-                    # print(world_from_camera)
 
                     # TODO
                     if frame["colour_image"] is not None:
