@@ -31,6 +31,9 @@ class TestGeometryUtil(unittest.TestCase):
     def test_find_closest_point_on_line_segment(self):
         tolerance: float = 1e-4
         self.assertTrue(np.linalg.norm(GeometryUtil.find_closest_point_on_line_segment(
+            [0, 0, 0], [1, 1, 0], [1, 1, 0]
+        ) - np.array([1, 1, 0])) <= tolerance)
+        self.assertTrue(np.linalg.norm(GeometryUtil.find_closest_point_on_line_segment(
             [0, 0, 0], [1, 1, 0], [1, 2, 0]
         ) - np.array([1, 1, 0])) <= tolerance)
         self.assertTrue(np.linalg.norm(GeometryUtil.find_closest_point_on_line_segment(
