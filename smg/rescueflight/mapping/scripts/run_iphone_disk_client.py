@@ -15,19 +15,20 @@ from smg.utility import CameraParameters, GeometryUtil, ImageUtil, PooledQueue
 
 def try_load_frame(frame_idx: int, sequence_dir: str) -> Optional[Dict[str, Any]]:
     """
-    TODO
+    Try to load a frame from an iPhone RGB-D sequence.
 
-    :param frame_idx:       TODO
-    :param sequence_dir:    TODO
-    :return:                TODO
+    :param frame_idx:       The frame index.
+    :param sequence_dir:    The sequence directory.
+    :return:                The RGB-D frame, if possible, or None otherwise.
     """
     # Determine the names of the files.
     colour_filename: str = os.path.join(sequence_dir, f"frame_{frame_idx:05d}.jpg")
+    conf_filename: str = os.path.join(sequence_dir, f"conf_{frame_idx:05d}.png")
     depth_filename: str = os.path.join(sequence_dir, f"depth_{frame_idx:05d}.png")
     json_filename: str = os.path.join(sequence_dir, f"frame_{frame_idx:05d}.json")
 
     # If one of the essential files doesn't exist, early out.
-    if not os.path.exists(depth_filename) or not os.path.exists(json_filename):
+    if not os.path.exists(conf_filename) or not os.path.exists(depth_filename) or not os.path.exists(json_filename):
         return None
 
     # Load whatever components of the frame exist.
@@ -35,6 +36,7 @@ def try_load_frame(frame_idx: int, sequence_dir: str) -> Optional[Dict[str, Any]
     if os.path.exists(colour_filename):
         colour_image = cv2.imread(colour_filename)
 
+    conf_image: np.ndarray = cv2.imread(conf_filename, cv2.IMREAD_UNCHANGED)
     depth_image: np.ndarray = ImageUtil.from_short_depth(cv2.imread(depth_filename, cv2.IMREAD_UNCHANGED))
 
     with open(json_filename) as f:
@@ -43,11 +45,14 @@ def try_load_frame(frame_idx: int, sequence_dir: str) -> Optional[Dict[str, Any]
     world_from_camera: np.ndarray = np.array(data["cameraPoseARFrame"]).reshape(4, 4)
     world_from_camera = np.linalg.inv(CameraPoseConverter.modelview_to_pose(np.linalg.inv(world_from_camera)))
 
-    m = np.eye(4)
+    # Filter out low-confidence pixels from the depth image.
+    depth_image[conf_image < 2] = 0.0
+
+    # Rotate the pose by 180 degrees about the x-axis (so that the model will be the right way up by default).
+    m: np.ndarray = np.eye(4)
     m[0:3, 0:3] = R.from_rotvec(np.array([1, 0, 0]) * np.pi).as_matrix()
     world_from_camera = m @ world_from_camera
 
-    # TODO
     return {
         "colour_image": colour_image,
         "depth_image": depth_image,
@@ -57,11 +62,12 @@ def try_load_frame(frame_idx: int, sequence_dir: str) -> Optional[Dict[str, Any]
 
 def try_load_obb(sequence_dir: str) -> Optional[np.ndarray]:
     """
-    TODO
+    Try to load in the oriented bounding box for an iPhone RGB-D sequence.
 
-    :param sequence_dir:    TODO
-    :return:                TODO
+    :param sequence_dir:    The sequence directory.
+    :return:                The oriented bounding box for the sequence, if possible, or None otherwise.
     """
+    # Note: This is currently unused, but may ultimately be useful for aligning the model, so I'm keeping it for now.
     json_filename: str = os.path.join(sequence_dir, "info.json")
 
     try:
@@ -90,16 +96,13 @@ def main() -> None:
     batch: bool = args["batch"]
     sequence_dir: str = args["sequence_dir"]
 
-    # TODO
-    obb: Optional[np.ndarray] = try_load_obb(sequence_dir)
-
-    # TODO
     try:
         with MappingClient(
             frame_compressor=RGBDFrameMessageUtil.compress_frame_message,
             pool_empty_strategy=PooledQueue.PES_WAIT
         ) as client:
             # Send a calibration message to tell the server the camera parameters.
+            # FIXME: These should ultimately be loaded in rather than hard-coded.
             calib: CameraParameters = CameraParameters()
             colour_intrinsics: Tuple[float, float, float, float] = (
                 1439.68017578125, 1439.68017578125, 961.381103515625, 727.34173583984375
@@ -123,25 +126,28 @@ def main() -> None:
             pause: bool = not batch
 
             while True:
-                # TODO
+                # Try to load an RGB-D frame from disk.
                 frame: Optional[Dict[str, Any]] = try_load_frame(frame_idx, sequence_dir)
 
-                # If the frame was successfully loaded.
+                # If the frame was successfully loaded:
                 if frame is not None:
-                    # TODO
+                    # Get the frame's pose.
                     world_from_camera: np.ndarray = frame["world_from_camera"]
 
-                    # TODO
+                    # If the initial camera position hasn't yet been recorded, record it now.
                     if initial_pos is None:
                         initial_pos = world_from_camera[0:3, 3].copy()
 
-                    # TODO
+                    # Subtract the initial camera position from the current camera position (this has the effect
+                    # of centring the reconstruction on the initial camera position).
                     world_from_camera[0:3, 3] -= initial_pos
 
-                    # TODO
+                    # If this frame has a valid colour image:
                     if frame["colour_image"] is not None:
-                        # TODO
+                        # Make a resized version of the colour image that is the same size as the depth image.
                         colour_image = cv2.resize(frame["colour_image"], (256, 192))
+
+                        # Make a note of the depth image so that it can be shown later.
                         depth_image = frame["depth_image"]
 
                         # Send the frame across to the server.
