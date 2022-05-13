@@ -6,6 +6,7 @@ import os
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame
 
+from argparse import ArgumentParser
 from OpenGL.GL import *
 from timeit import default_timer as timer
 from typing import Optional, Tuple
@@ -22,6 +23,16 @@ from smg.utility import GeometryUtil, PooledQueue
 
 def main() -> None:
     np.set_printoptions(suppress=True)
+
+    # Parse any command-line arguments.
+    parser = ArgumentParser()
+    parser.add_argument(
+        "--scene_mesh_filename", type=str, required=True,
+        help="the name of the file containing the scene mesh"
+    )
+    args: dict = vars(parser.parse_args())
+
+    scene_mesh_filename: str = args["scene_mesh_filename"]
 
     # Initialise PyGame and create the window.
     pygame.init()
@@ -44,10 +55,9 @@ def main() -> None:
 
     # Load in the scene mesh.
     scene_mesh: Optional[OpenGLTriMesh] = None
-    mesh_filename: str = "D:/Apple/2022_03_20_10_54_36-smg/untextured_output.ply"
-    if os.path.exists(mesh_filename):
+    if os.path.exists(scene_mesh_filename):
         # noinspection PyUnresolvedReferences
-        scene_mesh_o3d: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(mesh_filename)
+        scene_mesh_o3d: o3d.geometry.TriangleMesh = o3d.io.read_triangle_mesh(scene_mesh_filename)
         scene_mesh = MeshUtil.convert_trimesh_to_opengl(scene_mesh_o3d)
 
     # Construct the mapping server.
@@ -84,9 +94,8 @@ def main() -> None:
                 image_size = (width, height)
                 intrinsics = server.get_intrinsics(client_id)[0]
 
-                # Get the newest frame from the server.
+                # Get the pose of the newest frame from the server.
                 server.peek_newest_frame(client_id, receiver)
-                # colour_image: np.ndarray = receiver.get_rgb_image()
                 tracker_w_t_c = receiver.get_pose()
 
             # Allow the user to control the camera.
@@ -104,8 +113,6 @@ def main() -> None:
                 )):
                     # Set the model-view matrix.
                     with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.load_matrix(
-                        # CameraPoseConverter.pose_to_modelview(camera_controller.get_pose())
-                        # tracker_w_t_c
                         CameraPoseConverter.pose_to_modelview(np.linalg.inv(tracker_w_t_c))
                     )):
                         # Render a voxel grid.

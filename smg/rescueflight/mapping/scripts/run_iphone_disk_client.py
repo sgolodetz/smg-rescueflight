@@ -48,7 +48,8 @@ def try_load_frame(frame_idx: int, sequence_dir: str) -> Optional[Dict[str, Any]
     # Filter out low-confidence pixels from the depth image.
     depth_image[conf_image < 2] = 0.0
 
-    # Rotate the pose by 180 degrees about the x-axis (so that the model will be the right way up by default).
+    # Rotate the pose by 180 degrees about the x axis (so that the model will be the right way up, with the y axis
+    # pointing downwards as per our convention).
     m: np.ndarray = np.eye(4)
     m[0:3, 0:3] = R.from_rotvec(np.array([1, 0, 0]) * np.pi).as_matrix()
     world_from_camera = m @ world_from_camera
