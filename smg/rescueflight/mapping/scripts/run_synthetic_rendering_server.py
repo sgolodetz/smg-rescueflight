@@ -15,7 +15,7 @@ from smg.comms.mapping import MappingServer
 from smg.meshing import MeshUtil
 from smg.opengl import OpenGLDepthTestingContext, OpenGLFrameBuffer, OpenGLMatrixContext, OpenGLTriMesh, OpenGLUtil
 from smg.rigging.helpers import CameraPoseConverter
-from smg.utility import CameraParameters, PooledQueue
+from smg.utility import CameraParameters, PooledQueue, SequenceUtil
 
 
 def main() -> None:
@@ -23,6 +23,10 @@ def main() -> None:
 
     # Parse any command-line arguments.
     parser = ArgumentParser()
+    parser.add_argument(
+        "--batch", action="store_true",
+        help="whether to run in batch mode"
+    )
     parser.add_argument(
         "--calibration_filename", type=str, required=True,
         help="the name of the file containing the camera calibration parameters"
@@ -32,14 +36,25 @@ def main() -> None:
         help="the maximum depth values (in m) to keep"
     )
     parser.add_argument(
+        "--output_dir", "-o", type=str,
+        help="an optional directory into which to save output files"
+    )
+    parser.add_argument(
+        "--save_sequence", action="store_true",
+        help="whether to save the sequence of synthetic frames that have been rendered"
+    )
+    parser.add_argument(
         "--scene_mesh_filename", type=str, required=True,
         help="the name of the file containing the scene mesh"
     )
     args: dict = vars(parser.parse_args())
 
-    calibration_filename: str = args["calibration_filename"]
-    max_depth: float = args["max_depth"]
-    scene_mesh_filename: str = args["scene_mesh_filename"]
+    batch: bool = args.get("batch")
+    calibration_filename: str = args.get("calibration_filename")
+    max_depth: float = args.get("max_depth")
+    output_dir: Optional[str] = args.get("output_dir")
+    save_sequence: bool = args.get("save_sequence")
+    scene_mesh_filename: str = args.get("scene_mesh_filename")
 
     # Try to load in the camera calibration parameters.
     calib: Optional[CameraParameters] = CameraParameters.try_load(calibration_filename)
@@ -81,21 +96,23 @@ def main() -> None:
         pool_empty_strategy=PooledQueue.PES_WAIT
     ) as server:
         client_id: int = 0
+        colour_image: Optional[np.ndarray] = None
+        depth_image: Optional[np.ndarray] = None
+        frame_idx: int = 0
         receiver: RGBDFrameReceiver = RGBDFrameReceiver()
         tracker_w_t_c: Optional[np.ndarray] = None
 
         # Start the server.
         server.start()
 
-        while True:
+        # Repeatedly, unless we're in batch mode and no more frames will be arriving from the client:
+        while not (batch and server.has_finished(client_id)):
             # If the server has a frame from the client that has not yet been processed:
             if server.has_frames_now(client_id):
                 # Get the oldest frame from the server and extract its pose.
                 server.get_frame(client_id, receiver)
                 tracker_w_t_c = receiver.get_pose()
 
-            # Once at least one frame has been received:
-            if tracker_w_t_c is not None:
                 # Enable the frame-buffer.
                 with framebuffer:
                     # Enable depth testing.
@@ -116,10 +133,22 @@ def main() -> None:
                                 scene_mesh.render()
 
                         # Read the synthetic colour and depth images from the frame-buffer.
-                        colour_image: np.ndarray = OpenGLUtil.read_bgr_image(*image_size)
-                        depth_image: np.ndarray = OpenGLUtil.read_depth_image(*image_size)
+                        colour_image = OpenGLUtil.read_bgr_image(*image_size)
+                        depth_image = OpenGLUtil.read_depth_image(*image_size)
                         depth_image[depth_image > max_depth] = 0.0
 
+                # If requested, save the synthetic colour and depth images to disk.
+                if output_dir is not None and save_sequence:
+                    SequenceUtil.save_rgbd_frame(
+                        frame_idx, output_dir, colour_image, depth_image, tracker_w_t_c,
+                        colour_intrinsics=intrinsics, depth_intrinsics=intrinsics
+                    )
+
+                # Increment the frame index.
+                frame_idx += 1
+
+            # Once at least one frame has been received:
+            if colour_image is not None:
                 # Show the synthetic colour and depth images.
                 cv2.imshow("Colour Image", colour_image)
                 cv2.imshow("Depth Image", depth_image / 5)
