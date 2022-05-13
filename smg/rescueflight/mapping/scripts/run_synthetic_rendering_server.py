@@ -57,7 +57,7 @@ def main() -> None:
     # Set up an off-screen frame-buffer.
     framebuffer: OpenGLFrameBuffer = OpenGLFrameBuffer(*image_size)
     with framebuffer:
-        # Set the viewport to encompass the whole framebuffer.
+        # Set the viewport to encompass the whole frame-buffer.
         OpenGLUtil.set_viewport((0.0, 0.0), (1.0, 1.0), image_size)
 
         # Enable back-face culling.
@@ -96,7 +96,7 @@ def main() -> None:
 
             # Once at least one frame has been received:
             if tracker_w_t_c is not None:
-                # Enable the framebuffer.
+                # Enable the frame-buffer.
                 with framebuffer:
                     # Enable depth testing.
                     with OpenGLDepthTestingContext(GL_LEQUAL):
@@ -115,7 +115,7 @@ def main() -> None:
                                 # Render the scene mesh.
                                 scene_mesh.render()
 
-                        # Read the synthetic colour and depth images from the framebuffer.
+                        # Read the synthetic colour and depth images from the frame-buffer.
                         colour_image: np.ndarray = OpenGLUtil.read_bgr_image(*image_size)
                         depth_image: np.ndarray = OpenGLUtil.read_depth_image(*image_size)
                         depth_image[depth_image > max_depth] = 0.0
