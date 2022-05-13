@@ -41,7 +41,7 @@ def main() -> None:
     max_depth: float = args["max_depth"]
     scene_mesh_filename: str = args["scene_mesh_filename"]
 
-    # Load in the camera calibration parameters.
+    # Try to load in the camera calibration parameters.
     calib: Optional[CameraParameters] = CameraParameters.try_load(calibration_filename)
     if calib is None:
         raise RuntimeError(f"Error: Could not load camera parameters from {calibration_filename}")
@@ -64,7 +64,7 @@ def main() -> None:
         glFrontFace(GL_CCW)
         glEnable(GL_CULL_FACE)
 
-    # Load in the scene mesh.
+    # Try to load in the scene mesh.
     # noinspection PyUnusedLocal
     scene_mesh: Optional[OpenGLTriMesh] = None
     if os.path.exists(scene_mesh_filename):
@@ -78,7 +78,7 @@ def main() -> None:
     # Construct the mapping server.
     with MappingServer(
         frame_decompressor=RGBDFrameMessageUtil.decompress_frame_message,
-        pool_empty_strategy=PooledQueue.PES_REPLACE_RANDOM
+        pool_empty_strategy=PooledQueue.PES_WAIT
     ) as server:
         client_id: int = 0
         receiver: RGBDFrameReceiver = RGBDFrameReceiver()
@@ -90,8 +90,8 @@ def main() -> None:
         while True:
             # If the server has a frame from the client that has not yet been processed:
             if server.has_frames_now(client_id):
-                # Get the pose of the newest frame from the server.
-                server.peek_newest_frame(client_id, receiver)
+                # Get the oldest frame from the server and extract its pose.
+                server.get_frame(client_id, receiver)
                 tracker_w_t_c = receiver.get_pose()
 
             # Once at least one frame has been received:
@@ -125,7 +125,7 @@ def main() -> None:
                 cv2.imshow("Depth Image", depth_image / 5)
                 c: int = cv2.waitKey(1)
 
-                # If the user presses 'q', quit.
+                # If the user presses 'q':
                 if c == ord('q'):
                     # Shut down pygame, and destroy any OpenCV windows.
                     pygame.quit()
