@@ -17,6 +17,9 @@ def try_load_frame(frame_idx: int, sequence_dir: str) -> Optional[Dict[str, Any]
     """
     Try to load a frame from an iPhone RGB-D sequence.
 
+    .. note::
+        The iPhone app that produces the sequences we consume is "3d Scanner App", by Laan Labs.
+
     :param frame_idx:       The frame index.
     :param sequence_dir:    The sequence directory.
     :return:                The RGB-D frame, if possible, or None otherwise.
@@ -45,14 +48,14 @@ def try_load_frame(frame_idx: int, sequence_dir: str) -> Optional[Dict[str, Any]
     world_from_camera: np.ndarray = np.array(data["cameraPoseARFrame"]).reshape(4, 4)
     world_from_camera = np.linalg.inv(CameraPoseConverter.modelview_to_pose(np.linalg.inv(world_from_camera)))
 
-    # Filter out low-confidence pixels from the depth image.
-    depth_image[conf_image < 2] = 0.0
-
     # Rotate the pose by 180 degrees about the x axis (so that the model will be the right way up, with the y axis
     # pointing downwards as per our convention).
     m: np.ndarray = np.eye(4)
     m[0:3, 0:3] = R.from_rotvec(np.array([1, 0, 0]) * np.pi).as_matrix()
     world_from_camera = m @ world_from_camera
+
+    # Filter out low-confidence pixels from the depth image.
+    depth_image[conf_image < 2] = 0.0
 
     return {
         "colour_image": colour_image,
