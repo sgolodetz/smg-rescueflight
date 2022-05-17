@@ -146,7 +146,8 @@ class ViconVisualiser:
         self.__smpl_bodies["Madhu"] = self.__male_body
 
         # If we're in input mode, load in a ground-truth scene mesh (if available).
-        if self.__persistence_mode == "input" and self.__vicon.get_frame():
+        # if self.__persistence_mode == "input" and self.__vicon.get_frame():
+        if self.__vicon.get_frame():
             self.__scene_mesh = self.__try_load_scene_mesh(self.__vicon)
 
         # Until the visualiser should terminate:

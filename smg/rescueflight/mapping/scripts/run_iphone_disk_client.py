@@ -146,6 +146,14 @@ def main() -> None:
                     # of centring the reconstruction on the initial camera position).
                     world_from_camera[0:3, 3] -= initial_pos
 
+                    m = np.array([
+                        [0.809, 0, 0.5878, 0],
+                        [0, 1, 0, -1.4],
+                        [-0.5878, 0, 0.809, 0.1],
+                        [0, 0, 0, 1]
+                    ])
+                    world_from_camera = m @ world_from_camera
+
                     # If this frame has a valid colour image:
                     if frame["colour_image"] is not None:
                         # Make a resized version of the colour image that is the same size as the depth image.
