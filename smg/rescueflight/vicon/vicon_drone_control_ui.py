@@ -25,8 +25,8 @@ from smg.utility import ImageUtil
 from smg.vicon import LiveViconInterface
 
 
-class ViconDroneUI:
-    """TODO"""
+class ViconDroneControlUI:
+    """A user interface (UI) for controlling a drone that uses a Vicon system to track the drone."""
 
     # CONSTRUCTOR
 
@@ -98,7 +98,7 @@ class ViconDroneUI:
 
         # Create the window.
         pygame.display.set_mode(self.__window_size, pygame.DOUBLEBUF | pygame.OPENGL)
-        pygame.display.set_caption("Vicon Drone UI")
+        pygame.display.set_caption("Vicon Drone Control UI")
 
         # Construct the OpenGL image renderer.
         self.__gl_image_renderer = OpenGLImageRenderer()
@@ -202,6 +202,8 @@ class ViconDroneUI:
                     events=events, image=drone_image, intrinsics=self.__drone.get_intrinsics(),
                     tracker_c_t_i=np.linalg.inv(drone_w_t_c)
                 )
+            else:
+                self.__drone.stop()
 
             # Get the keys that are currently being pressed by the user.
             pressed_keys: Sequence[bool] = pygame.key.get_pressed()

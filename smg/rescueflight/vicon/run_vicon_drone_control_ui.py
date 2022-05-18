@@ -2,7 +2,7 @@ from argparse import ArgumentParser
 from typing import Tuple
 
 from smg.meshing import MeshUtil
-from smg.rescueflight.vicon.vicon_drone_ui import ViconDroneUI
+from smg.rescueflight.vicon.vicon_drone_control_ui import ViconDroneControlUI
 from smg.rotory.drones import Tello
 
 
@@ -27,16 +27,13 @@ def main() -> None:
     )
     args: dict = vars(parser.parse_args())
 
-    # Construct the drone.
-    # TODO
-
     # Specify the camera intrinsics.
     intrinsics: Tuple[float, float, float, float] = (532.5694641250893, 531.5410880910171, 320.0, 240.0)
 
     # Construct the drone.
     with Tello(print_commands=False, print_responses=False, print_state_messages=False) as drone:
-        # Construct the Vicon drone UI.
-        with ViconDroneUI(
+        # Construct the drone control UI.
+        with ViconDroneControlUI(
             debug=False,
             drone=drone,
             drone_controller_type=args.get("drone_controller_type"),
@@ -45,9 +42,9 @@ def main() -> None:
             planning_octree_filename=args.get("planning_octree"),
             scene_mesh_filename=args.get("scene_mesh"),
             scene_octree_filename=args.get("scene_octree")
-        ) as drone_ui:
-            # Run the Vicon drone UI.
-            drone_ui.run()
+        ) as drone_control_ui:
+            # Run the drone control UI.
+            drone_control_ui.run()
 
 
 if __name__ == "__main__":
