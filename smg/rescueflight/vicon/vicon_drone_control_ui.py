@@ -172,7 +172,12 @@ class ViconDroneControlUI:
                         # Toggle the third-person view.
                         self.__third_person = not self.__third_person
                 elif event.type == pygame.QUIT:
-                    # If the user wants us to quit, do so.
+                    # If the user wants us to quit, first try to make sure the drone has landed, then exit.
+                    drone_state: Optional[Drone.EState] = self.__drone.get_state()
+                    if drone_state is not None and drone_state != Drone.IDLE:
+                        self.__drone.stop()
+                        self.__drone.land()
+
                     return
 
             # Also quit if the drone controller has finished.
@@ -197,13 +202,10 @@ class ViconDroneControlUI:
                     drone_w_t_c = m @ drone_w_t_c
 
             # Allow the user to control the drone.
-            if drone_w_t_c is not None:
-                self.__drone_controller.iterate(
-                    events=events, image=drone_image, intrinsics=self.__drone.get_intrinsics(),
-                    tracker_c_t_i=np.linalg.inv(drone_w_t_c)
-                )
-            else:
-                self.__drone.stop()
+            self.__drone_controller.iterate(
+                events=events, image=drone_image, intrinsics=self.__drone.get_intrinsics(),
+                tracker_c_t_i=np.linalg.inv(drone_w_t_c) if drone_w_t_c is not None else None
+            )
 
             # Get the keys that are currently being pressed by the user.
             pressed_keys: Sequence[bool] = pygame.key.get_pressed()
