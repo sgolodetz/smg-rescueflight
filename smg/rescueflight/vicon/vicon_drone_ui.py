@@ -195,7 +195,6 @@ class ViconDroneUI:
                         [0, 0, 0, 1]
                     ])
                     drone_w_t_c = m @ drone_w_t_c
-                    print(drone_w_t_c)
 
             # Allow the user to control the drone.
             if drone_w_t_c is not None:

@@ -34,7 +34,7 @@ def main() -> None:
     intrinsics: Tuple[float, float, float, float] = (532.5694641250893, 531.5410880910171, 320.0, 240.0)
 
     # Construct the drone.
-    with Tello(print_commands=True, print_responses=True) as drone:
+    with Tello(print_commands=False, print_responses=False, print_state_messages=False) as drone:
         # Construct the Vicon drone UI.
         with ViconDroneUI(
             debug=False,
