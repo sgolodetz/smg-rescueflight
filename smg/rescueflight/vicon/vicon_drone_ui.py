@@ -22,6 +22,7 @@ from smg.rotorcontrol import DroneControllerFactory
 from smg.rotorcontrol.controllers import DroneController
 from smg.rotory.drones import Drone, SimulatedDrone
 from smg.utility import ImageUtil
+from smg.vicon import LiveViconInterface
 
 
 class ViconDroneUI:
@@ -67,6 +68,7 @@ class ViconDroneUI:
         self.__scene_octree_picker: Optional[OctomapPicker] = None
         self.__scene_renderer: Optional[SceneRenderer] = None
         self.__third_person: bool = False
+        self.__vicon: LiveViconInterface = LiveViconInterface()
         self.__window_size: Tuple[int, int] = window_size
 
         self.__alive = True
@@ -136,10 +138,6 @@ class ViconDroneUI:
             if self.__scene_octree is not None:
                 self.__scene_octree_picker = OctomapPicker(self.__scene_octree, width // 2, height, self.__intrinsics)
 
-        # Load in the "drone flying" sound, and note that the music isn't initially playing.
-        pygame.mixer.music.load("C:/smglib/sounds/drone_flying.mp3")
-        music_playing: bool = False
-
         # Construct the simulated drone.
         # FIXME: Get rid of this in due course.
         self.__drone = SimulatedDrone()
@@ -184,24 +182,30 @@ class ViconDroneUI:
             if self.__drone_controller.has_finished():
                 return
 
-            # Get the drone's image and poses.
-            drone_image, drone_camera_w_t_c, drone_chassis_w_t_c = self.__drone.get_image_and_poses()
+            # Get the most recent image from the drone.
+            drone_image: np.ndarray = self.__drone.get_image()
+
+            # Get the drone's pose from the Vicon system.
+            drone_w_t_c: Optional[np.ndarray] = None
+            if self.__vicon.get_frame():
+                drone_c_t_w: Optional[np.ndarray] = self.__vicon.get_segment_global_pose("Tello", "Tello")
+                if drone_c_t_w is not None:
+                    drone_w_t_c = np.linalg.inv(drone_c_t_w)
+                    m: np.ndarray = np.array([
+                        [1, 0, 0, 0],
+                        [0, 0, -1, 0],
+                        [0, 1, 0, 0],
+                        [0, 0, 0, 1]
+                    ])
+                    drone_w_t_c = m @ drone_w_t_c
+                    print(drone_w_t_c)
 
             # Allow the user to control the drone.
-            self.__drone_controller.iterate(
-                events=events, image=drone_image, intrinsics=self.__drone.get_intrinsics(),
-                tracker_c_t_i=np.linalg.inv(drone_camera_w_t_c)
-            )
-
-            # If the drone is not in the idle state, and the "drone flying" sound is not playing, start it.
-            if self.__drone.get_state() != Drone.IDLE and not music_playing:
-                pygame.mixer.music.play(loops=-1)
-                music_playing = True
-
-            # If the drone is in the idle state and the "drone flying" sound is playing, stop it.
-            if self.__drone.get_state() == Drone.IDLE and music_playing:
-                pygame.mixer.music.stop()
-                music_playing = False
+            if drone_w_t_c is not None:
+                self.__drone_controller.iterate(
+                    events=events, image=drone_image, intrinsics=self.__drone.get_intrinsics(),
+                    tracker_c_t_i=np.linalg.inv(drone_w_t_c)
+                )
 
             # Get the keys that are currently being pressed by the user.
             pressed_keys: Sequence[bool] = pygame.key.get_pressed()
@@ -209,14 +213,10 @@ class ViconDroneUI:
             # Move the free-view camera based on the keys that are being pressed.
             camera_controller.update(pressed_keys, timer() * 1000)
 
-            # If the user presses the 'g' key, set the drone's origin to the current location of the free-view camera.
-            if pressed_keys[pygame.K_g]:
-                self.__drone.set_drone_origin(camera_controller.get_camera())
-
             # Render the contents of the window.
             self.__render_window(
-                drone_chassis_w_t_c=drone_chassis_w_t_c,
                 drone_image=drone_image,
+                drone_w_t_c=drone_w_t_c,
                 viewing_pose=camera_controller.get_pose()
             )
 
@@ -244,6 +244,10 @@ class ViconDroneUI:
             if self.__gl_image_renderer is not None:
                 self.__gl_image_renderer.terminate()
 
+            # If the Vicon interface is running, terminate it.
+            if self.__vicon is not None:
+                self.__vicon.terminate()
+
             # Shut down pygame and close any remaining OpenCV windows.
             pygame.quit()
             cv2.destroyAllWindows()
@@ -252,14 +256,14 @@ class ViconDroneUI:
 
     # PRIVATE METHODS
 
-    def __render_window(self, *, drone_chassis_w_t_c: np.ndarray, drone_image: np.ndarray, viewing_pose: np.ndarray) \
-            -> None:
+    def __render_window(self, *, drone_image: np.ndarray, drone_w_t_c: Optional[np.ndarray],
+                        viewing_pose: np.ndarray) -> None:
         """
         Render the contents of the window.
 
-        :param drone_chassis_w_t_c: The pose of the drone's chassis.
-        :param drone_image:         A synthetic image rendered from the pose of the drone's camera.
-        :param viewing_pose:        The pose of the free-view camera.
+        :param drone_image:     A synthetic image rendered from the pose of the drone's camera.
+        :param drone_w_t_c:     The pose of the drone (if known).
+        :param viewing_pose:    The pose of the free-view camera.
         """
         # Clear the window.
         OpenGLUtil.set_viewport((0.0, 0.0), (1.0, 1.0), self.__window_size)
@@ -287,17 +291,18 @@ class ViconDroneUI:
                 # Render coordinate axes.
                 CameraRenderer.render_camera(CameraUtil.make_default_camera())
 
+                # Render the mesh for the drone (at its current pose).
+                if drone_w_t_c is not None:
+                    with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(drone_w_t_c)):
+                        SceneRenderer.render(lambda: self.__drone_mesh.render(), use_backface_culling=True)
+
                 # Render the scene itself.
                 if self.__scene_octree is not None:
                     SceneRenderer.render(
-                        lambda: OctomapUtil.draw_octree(self.__scene_octree, self.__octree_drawer)
+                        lambda: OctomapUtil.draw_octree_octovis(self.__scene_octree, self.__octree_drawer)
                     )
                 elif self.__scene_mesh is not None:
                     SceneRenderer.render(self.__scene_mesh.render)
-
-                # Render the mesh for the drone (at its current pose).
-                with OpenGLMatrixContext(GL_MODELVIEW, lambda: OpenGLUtil.mult_matrix(drone_chassis_w_t_c)):
-                    SceneRenderer.render(lambda: self.__drone_mesh.render(), use_backface_culling=True)
 
                 # Render the UI for the drone controller.
                 self.__drone_controller.render_ui()
