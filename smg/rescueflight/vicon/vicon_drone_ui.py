@@ -20,7 +20,7 @@ from smg.rigging.controllers import KeyboardCameraController
 from smg.rigging.helpers import CameraPoseConverter, CameraUtil
 from smg.rotorcontrol import DroneControllerFactory
 from smg.rotorcontrol.controllers import DroneController
-from smg.rotory.drones import Drone, SimulatedDrone
+from smg.rotory.drones import Drone
 from smg.utility import ImageUtil
 from smg.vicon import LiveViconInterface
 
@@ -30,14 +30,15 @@ class ViconDroneUI:
 
     # CONSTRUCTOR
 
-    def __init__(self, *, debug: bool = False, drone_controller_type: str, drone_mesh: o3d.geometry.TriangleMesh,
-                 intrinsics: Tuple[float, float, float, float], planning_octree_filename: Optional[str],
-                 scene_mesh_filename: Optional[str], scene_octree_filename: Optional[str],
-                 window_size: Tuple[int, int] = (1280, 480)):
+    def __init__(self, *, debug: bool = False, drone: Drone, drone_controller_type: str,
+                 drone_mesh: o3d.geometry.TriangleMesh, intrinsics: Tuple[float, float, float, float],
+                 planning_octree_filename: Optional[str], scene_mesh_filename: Optional[str],
+                 scene_octree_filename: Optional[str], window_size: Tuple[int, int] = (1280, 480)):
         """
-        Construct a drone simulator.
+        Construct a drone UI that uses a Vicon system to track the drone.
 
         :param debug:                       Whether to print out debugging messages.
+        :param drone:                       The drone.
         :param drone_controller_type:       The type of drone controller to use.
         :param drone_mesh:                  An Open3D mesh for the drone.
         :param intrinsics:                  The camera intrinsics.
@@ -49,7 +50,7 @@ class ViconDroneUI:
         self.__alive: bool = False
 
         self.__debug: bool = debug
-        self.__drone: Optional[Drone] = None
+        self.__drone: Drone = drone
         self.__drone_controller: Optional[DroneController] = None
         self.__drone_controller_type: str = drone_controller_type
         self.__drone_mesh: Optional[OpenGLTriMesh] = None
@@ -137,10 +138,6 @@ class ViconDroneUI:
             self.__scene_octree = OctomapUtil.load_octree(self.__scene_octree_filename)
             if self.__scene_octree is not None:
                 self.__scene_octree_picker = OctomapPicker(self.__scene_octree, width // 2, height, self.__intrinsics)
-
-        # Construct the simulated drone.
-        # FIXME: Get rid of this in due course.
-        self.__drone = SimulatedDrone()
 
         # Construct the camera controller.
         camera_controller: KeyboardCameraController = KeyboardCameraController(
@@ -230,11 +227,6 @@ class ViconDroneUI:
             # If the drone controller exists, destroy it.
             if self.__drone_controller is not None:
                 self.__drone_controller.terminate()
-
-            # If the simulated drone exists, destroy it.
-            # FIXME: Get rid of this in due course.
-            if self.__drone is not None:
-                self.__drone.terminate()
 
             # If the scene renderer exists, destroy it.
             if self.__scene_renderer is not None:
