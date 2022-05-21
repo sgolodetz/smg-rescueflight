@@ -9,7 +9,8 @@ def main() -> None:
     # Parse any command-line arguments.
     parser = ArgumentParser()
     parser.add_argument(
-        "--drone_controller_type", "-t", type=str, default="keyboard", choices=("futaba_t6k", "keyboard", "rts"),
+        "--drone_controller_type", "-t", type=str, default="keyboard",
+        choices=("aws_transcribe", "futaba_t6k", "keyboard", "rts"),
         help="the type of drone controller to use"
     )
     parser.add_argument(
