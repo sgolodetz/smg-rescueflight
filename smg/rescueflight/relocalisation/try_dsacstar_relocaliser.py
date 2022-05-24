@@ -4,6 +4,7 @@ import numpy as np
 import os
 
 from argparse import ArgumentParser
+from timeit import default_timer as timer
 from typing import List
 
 from smg.relocalisation.dsacstar_relocaliser import DSACStarRelocaliser
@@ -63,6 +64,8 @@ def main() -> None:
     # For each frame in the test sequence:
     image_dir: str = os.path.join(args["test_dir"], "rgb")
     image_filenames: List[str] = sorted(glob.glob(f"{image_dir}/*.color.png"))
+    max_estimation_time_ms: float = 0.0
+
     for image_filename in image_filenames:
         # Normalise the colour image filename.
         image_filename = image_filename.replace("\\", "/")
@@ -75,10 +78,15 @@ def main() -> None:
         gt_pose: np.ndarray = PoseUtil.load_pose(pose_filename)
 
         # Estimate the pose.
+        start = timer()
         estimated_pose, scene_coordinates = relocaliser.estimate_pose(image, 525.0)
+        end = timer()
+        estimation_time_ms: float = (end - start) * 1000
+        max_estimation_time_ms = max(estimation_time_ms, max_estimation_time_ms)
 
         # Print out the estimated and ground truth poses for comparison.
         print(f"=== {image_filename} ===")
+        print(f"Current: {estimation_time_ms:.1f}ms; Max: {max_estimation_time_ms:.1f}ms")
         print("--- Estimated ---")
         print(estimated_pose)
         print("--- Ground Truth ---")
