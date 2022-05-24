@@ -75,7 +75,7 @@ def main() -> None:
         gt_pose: np.ndarray = PoseUtil.load_pose(pose_filename)
 
         # Estimate the pose.
-        estimated_pose: np.ndarray = relocaliser.estimate_pose(image, 525.0)
+        estimated_pose, scene_coordinates = relocaliser.estimate_pose(image, 525.0)
 
         # Print out the estimated and ground truth poses for comparison.
         print(f"=== {image_filename} ===")
@@ -83,6 +83,12 @@ def main() -> None:
         print(estimated_pose)
         print("--- Ground Truth ---")
         print(gt_pose)
+
+        # Show the scene coordinates image. If the user presses the 'q' key, early out.
+        cv2.imshow("Scene Coordinates", cv2.resize(scene_coordinates, (640, 480), interpolation=cv2.INTER_NEAREST))
+        c: int = cv2.waitKey(1)
+        if c == ord('q'):
+            break
 
 
 if __name__ == "__main__":
