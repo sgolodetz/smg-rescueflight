@@ -1,7 +1,10 @@
 import cv2
+import glob
 import numpy as np
+import os
 
 from argparse import ArgumentParser
+from typing import List
 
 from smg.relocalisation.dsacstar_relocaliser import DSACStarRelocaliser
 from smg.utility import PoseUtil
@@ -37,6 +40,10 @@ def main() -> None:
         help="the name of the file containing the DSAC* network"
     )
     parser.add_argument(
+        "--test_dir", type=str, required=True,
+        help="the name of the directory containing the test sequence"
+    )
+    parser.add_argument(
         "--tiny", action="store_true",
         help="whether to load a tiny network to massively reduce the memory footprint"
     )
@@ -53,10 +60,29 @@ def main() -> None:
         tiny=args["tiny"]
     )
 
-    # TODO: Comment here.
-    image: np.ndarray = cv2.imread("C:/smglib/smg-relocalisation/smg/external/dsacstar/datasets/7scenes_heads/test/rgb/seq-01-frame-000000.color.png")
-    print(relocaliser.estimate_pose(image, 525.0))
-    print(PoseUtil.load_pose("C:/smglib/smg-relocalisation/smg/external/dsacstar/datasets/7scenes_heads/test/poses/seq-01-frame-000000.pose.txt"))
+    # For each frame in the test sequence:
+    image_dir: str = os.path.join(args["test_dir"], "rgb")
+    image_filenames: List[str] = sorted(glob.glob(f"{image_dir}/*.color.png"))
+    for image_filename in image_filenames:
+        # Normalise the colour image filename.
+        image_filename = image_filename.replace("\\", "/")
+
+        # Determine the ground truth pose filename.
+        pose_filename: str = image_filename.replace("/rgb/", "/poses/").replace("color.png", "pose.txt")
+
+        # Load in the image and the ground truth pose.
+        image: np.ndarray = cv2.imread(image_filename)
+        gt_pose: np.ndarray = PoseUtil.load_pose(pose_filename)
+
+        # Estimate the pose.
+        estimated_pose: np.ndarray = relocaliser.estimate_pose(image, 525.0)
+
+        # Print out the estimated and ground truth poses for comparison.
+        print(f"=== {image_filename} ===")
+        print("--- Estimated ---")
+        print(estimated_pose)
+        print("--- Ground Truth ---")
+        print(gt_pose)
 
 
 if __name__ == "__main__":
