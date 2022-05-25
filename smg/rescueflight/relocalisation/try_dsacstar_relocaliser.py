@@ -17,6 +17,10 @@ def main() -> None:
     # Parse any command-line arguments.
     parser = ArgumentParser()
     parser.add_argument(
+        "--debug", action="store_true",
+        help="whether to print out debug messages"
+    )
+    parser.add_argument(
         "--hypothesis_count", type=int, default=64,
         help="the number of RANSAC hypotheses to consider"
     )
@@ -53,6 +57,7 @@ def main() -> None:
     # Construct the relocaliser.
     relocaliser: DSACStarRelocaliser = DSACStarRelocaliser(
         args["network_filename"],
+        debug=args["debug"],
         hypothesis_count=args["hypothesis_count"],
         image_height=args["image_height"],
         inlier_alpha=args["inlier_alpha"],
