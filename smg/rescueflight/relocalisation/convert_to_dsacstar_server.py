@@ -5,7 +5,7 @@ from argparse import ArgumentParser
 
 from smg.comms.base import RGBDFrameMessageUtil, RGBDFrameReceiver
 from smg.comms.mapping import MappingServer
-from smg.utility import PooledQueue, PoseUtil
+from smg.utility import ImageUtil, PooledQueue, PoseUtil
 
 
 def main() -> None:
@@ -21,10 +21,12 @@ def main() -> None:
 
     # Determine the paths to the output directories, and make sure they exist.
     output_calibration_dir: str = os.path.join(output_dir, "calibration")
+    output_depth_dir: str = os.path.join(output_dir, "depth")
     output_poses_dir: str = os.path.join(output_dir, "poses")
     output_rgb_dir: str = os.path.join(output_dir, "rgb")
 
     os.makedirs(output_calibration_dir, exist_ok=True)
+    os.makedirs(output_depth_dir, exist_ok=True)
     os.makedirs(output_poses_dir, exist_ok=True)
     os.makedirs(output_rgb_dir, exist_ok=True)
 
@@ -54,6 +56,7 @@ def main() -> None:
                 output_calibration_filename: str = os.path.join(
                     output_calibration_dir, f"frame-{frame_idx:06d}.calibration.txt"
                 )
+                output_depth_filename: str = os.path.join(output_depth_dir, f"frame-{frame_idx:06d}.depth.png")
                 output_pose_filename: str = os.path.join(output_poses_dir, f"frame-{frame_idx:06d}.pose.txt")
                 output_rgb_filename: str = os.path.join(output_rgb_dir, f"frame-{frame_idx:06d}.color.png")
 
@@ -63,6 +66,7 @@ def main() -> None:
                 PoseUtil.save_pose(output_pose_filename, receiver.get_pose())
                 # noinspection PyUnresolvedReferences
                 cv2.imwrite(output_rgb_filename, receiver.get_rgb_image())
+                ImageUtil.save_depth_image(output_depth_filename, receiver.get_depth_image())
 
                 # Increment the frame index.
                 frame_idx += 1
