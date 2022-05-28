@@ -16,7 +16,7 @@ from smg.rigging.cameras import Camera, SimpleCamera
 from smg.rigging.controllers import KeyboardCameraController
 
 
-def draw_frame(camera: Camera, drawer: OcTreeDrawer) -> None:
+def draw_frame(camera: Camera, tree: OcTree, drawer: OcTreeDrawer) -> None:
     glClearColor(1.0, 1.0, 1.0, 1.0)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
@@ -34,7 +34,7 @@ def draw_frame(camera: Camera, drawer: OcTreeDrawer) -> None:
 
     glEnable(GL_COLOR_MATERIAL)
 
-    drawer.draw()
+    tree.draw(drawer)
 
     glDisable(GL_COLOR_MATERIAL)
     glDisable(GL_LIGHTING)
@@ -66,7 +66,6 @@ def main() -> None:
     drawer.enable_freespace()
     drawer.set_color_mode(CM_COLOR_HEIGHT)
 
-    origin_pose: Pose6D = Pose6D(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
     angles: np.ndarray = np.linspace(0.0, 10 * math.pi, 1024, endpoint=False)
     height: float = 100.0
     i: int = 0
@@ -88,11 +87,10 @@ def main() -> None:
             vertical_offset: Vector3 = Vector3(0, 0, i * height / len(angles))
             tree.insert_ray(origin, origin + horizontal_offset + vertical_offset)
             tree.insert_ray(origin, origin + horizontal_offset * 0.5 + vertical_offset)
-            drawer.set_octree(tree.get_internal_octree(), origin_pose)
             i += 1
 
         camera_controller.update(pygame.key.get_pressed(), timer() * 1000)
-        draw_frame(camera_controller.get_camera(), drawer)
+        draw_frame(camera_controller.get_camera(), tree, drawer)
         pygame.time.wait(1)
 
 
