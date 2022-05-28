@@ -38,7 +38,7 @@ def main() -> None:
 
     # Load the octrees.
     planning_voxel_size: float = 0.1
-    planning_tree: ThreadSafeOcTree = ThreadSafeOcTree(planning_voxel_size)
+    planning_tree: OcTree = OcTree(planning_voxel_size)
     planning_tree.read_binary("C:/smglib/smg-mapping/output-navigation/octree10cm.bt")
 
     rendering_voxel_size: float = 0.05

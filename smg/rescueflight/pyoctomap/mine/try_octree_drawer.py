@@ -88,7 +88,7 @@ def main() -> None:
             vertical_offset: Vector3 = Vector3(0, 0, i * height / len(angles))
             tree.insert_ray(origin, origin + horizontal_offset + vertical_offset)
             tree.insert_ray(origin, origin + horizontal_offset * 0.5 + vertical_offset)
-            drawer.set_octree(tree, origin_pose)
+            drawer.set_octree(tree.get_internal_octree(), origin_pose)
             i += 1
 
         camera_controller.update(pygame.key.get_pressed(), timer() * 1000)
