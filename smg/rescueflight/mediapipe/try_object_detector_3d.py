@@ -36,6 +36,7 @@ def main() -> None:
     ])
 
     frame_idx: int = 0
+    world_from_camera: np.ndarray = np.eye(4)
     while True:
         frame: Optional[Dict[str, Any]] = SequenceUtil.try_load_rgbd_frame(
             frame_idx, "C:/iphonescans/2022_05_17_14_37_57-aligned"
@@ -44,11 +45,11 @@ def main() -> None:
         if frame is None:
             break
 
+        image: np.ndarray = cv2.imread(os.path.join("C:/iphonescans/2022_05_17_14_37_57", fullres_image_filenames[frame_idx]))
+        world_from_camera = frame["world_from_camera"]
+
         print(frame_idx)
         frame_idx += 1
-
-        image: np.ndarray = cv2.imread(os.path.join("C:/iphonescans/2022_05_17_14_37_57", fullres_image_filenames[frame_idx]))
-        world_from_camera: np.ndarray = frame["world_from_camera"]
 
         # TODO: Comment here.
         colours: List[Tuple[float, float, float]] = [
