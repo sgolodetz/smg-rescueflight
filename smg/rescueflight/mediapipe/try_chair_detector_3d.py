@@ -21,7 +21,9 @@ def main() -> None:
     )
 
     # Construct the chair detector.
-    detector: ChairDetector3D = ChairDetector3D(debug=True, image_size=(1920, 1440), intrinsics=intrinsics)
+    detector: ChairDetector3D = ChairDetector3D(
+        debug=True, image_size=(1920, 1440), intrinsics=intrinsics, min_detection_confidence=0.6
+    )
     # detector: ChairDetector3D = ChairDetector3D(debug=True, image_size=(256, 192), intrinsics=intrinsics)
 
     # Load in the scene mesh.
@@ -63,30 +65,17 @@ def main() -> None:
         print(frame_idx)
         frame_idx += 1
 
-        # Specify the colours to give the corners of the bounding boxes for detected chairs.
-        colours: List[Tuple[float, float, float]] = [
-            (1, 0, 0),
-            (0, 1, 0),
-            (0, 0, 1),
-            (1, 1, 0),
-            (1, 0, 1),
-            (0, 1, 1),
-            (1, 0.5, 0),
-            (1, 0, 0.5),
-            (0, 0.5, 1)
-        ]
-
         # Try to detect any chairs that can be seen in the current frame.
         detected_chairs: List[ChairDetector3D.Chair] = detector.detect_chairs(image, world_from_camera)
 
-        # For each detected chair:
-        for chair in detected_chairs:
-            # Add a sphere for each corner of the chair's bounding box to the 3D visualisation.
-            for i, landmark_3d in enumerate(chair.landmarks_3d):
-                to_visualise.append(VisualisationUtil.make_sphere(landmark_3d, 0.01, colour=colours[i]))
+        # Specify the colours to give the corners of the bounding boxes for detected chairs.
+        corner_colours: List[Tuple[float, float, float]] = [
+            (1, 0, 0), (0, 1, 0), (0, 0, 1), (1, 1, 0), (1, 0, 1), (0, 1, 1), (1, 0.5, 0), (1, 0, 0.5), (0, 0.5, 1)
+        ]
 
-            # Add the bounding box itself to the 3D visualisation.
-            to_visualise.append(VisualisationUtil.make_obb(chair.landmarks_3d[1:], colour=(0, 1, 0)))
+        # Add the Open3D geometries for the detected chairs to the 3D visualisation.
+        for chair in detected_chairs:
+            to_visualise += chair.make_o3d_geometries(corner_colours=corner_colours, edge_colour=(0, 1, 0))
 
     # Run the 3D visualisation.
     VisualisationUtil.visualise_geometries(to_visualise)
