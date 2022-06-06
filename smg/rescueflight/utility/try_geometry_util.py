@@ -77,6 +77,17 @@ class TestGeometryUtil(unittest.TestCase):
             DualQuaternion.from_axis_angle(up, 3 * math.pi / 2)
         ))
 
+    def test_find_plane_intersection(self):
+        tolerance: float = 1e-4
+        self.assertTrue(np.linalg.norm(GeometryUtil.find_plane_intersection(
+            [0, 0, 0], [1, 0, 0], (1, 0, 0, 10)
+        ) - np.array([10, 0, 0])) <= tolerance)
+        self.assertTrue(np.linalg.norm(GeometryUtil.find_plane_intersection(
+            [0, 0, 0], [1, 0, 0], (-1, 0, 0, 10)
+        ) - np.array([-10, 0, 0])) <= tolerance)
+        self.assertIsNone(GeometryUtil.find_plane_intersection([0, 0, 0], [1, 0, 0], (0, 0, 1, 0)))
+        self.assertIsNone(GeometryUtil.find_plane_intersection([0, 0, 0], [1, 0, 0], (0, 0, 1, 10)))
+
     def test_transforms_are_similar(self):
         rotation_threshold: float = 20 * math.pi / 180
         translation_threshold: float = 0.05
