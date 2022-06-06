@@ -6,7 +6,7 @@ import open3d as o3d
 
 from typing import Any, Dict, List, Optional, Tuple
 
-from smg.mediapipe import ObjectDetector3D
+from smg.mediapipe import ChairDetector3D
 from smg.open3d import VisualisationUtil
 from smg.utility import SequenceUtil
 
@@ -21,8 +21,8 @@ def main() -> None:
     )
 
     # TODO: Comment here.
-    detector: ObjectDetector3D = ObjectDetector3D(image_size=(1920, 1440), intrinsics=intrinsics)
-    # detector: ObjectDetector3D = ObjectDetector3D(image_size=(256, 192), intrinsics=intrinsics)
+    detector: ChairDetector3D = ChairDetector3D(debug=True, image_size=(1920, 1440), intrinsics=intrinsics)
+    # detector: ChairDetector3D = ChairDetector3D(debug=True, image_size=(256, 192), intrinsics=intrinsics)
 
     # Set up the 3D visualisation.
     to_visualise: List[o3d.geometry.Geometry] = []
@@ -63,12 +63,12 @@ def main() -> None:
             (1, 0, 0.5),
             (0, 0.5, 1)
         ]
-        objects: List[ObjectDetector3D.Object3D] = detector.detect_objects(image, world_from_camera)
-        for obj in objects:
-            for i, landmark_3d in enumerate(obj.landmarks_3d):
+        detected_chairs: List[ChairDetector3D.Chair] = detector.detect_chairs(image, world_from_camera)
+        for chair in detected_chairs:
+            for i, landmark_3d in enumerate(chair.landmarks_3d):
                 to_visualise.append(VisualisationUtil.make_sphere(landmark_3d, 0.01, colour=colours[i]))
 
-            to_visualise.append(VisualisationUtil.make_obb(obj.landmarks_3d[1:], colour=(0, 1, 0)))
+            to_visualise.append(VisualisationUtil.make_obb(chair.landmarks_3d[1:], colour=(0, 1, 0)))
 
     # TODO: Comment here.
     VisualisationUtil.visualise_geometries(to_visualise)  # , initial_pose=np.linalg.inv(world_from_camera))
