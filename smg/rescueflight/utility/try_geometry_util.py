@@ -8,6 +8,16 @@ from smg.utility import DualQuaternion, GeometryUtil
 
 
 class TestGeometryUtil(unittest.TestCase):
+    def test_angle_between(self):
+        print(GeometryUtil.angle_between([1, 0, 0], [0, 1, 0]))
+        print(GeometryUtil.angle_between([1, 0, 0], [0, 0, 1]))
+        print(GeometryUtil.angle_between([0, 1, 0], [1, 0, 0]))
+        print(GeometryUtil.angle_between([0, 1, 0], [0, 0, 1]))
+        print(GeometryUtil.angle_between([0, 0, 1], [1, 0, 0]))
+        print(GeometryUtil.angle_between([0, 0, 1], [0, 1, 0]))
+        print(GeometryUtil.angle_between([1, 0, 0], [1, 1, 0]))
+        print(GeometryUtil.angle_between([1, 0, 0], [1, 1, 1]))
+
     def test_distance_to_line_segment(self):
         self.assertAlmostEqual(GeometryUtil.distance_to_line_segment(
             [0, 0, 0], [1, 1, 0], [1, 2, 0]
@@ -82,6 +92,9 @@ class TestGeometryUtil(unittest.TestCase):
         self.assertTrue(np.linalg.norm(GeometryUtil.find_plane_intersection(
             [0, 0, 0], [1, 0, 0], (1, 0, 0, 10)
         ) - np.array([10, 0, 0])) <= tolerance)
+        self.assertTrue(np.linalg.norm(GeometryUtil.find_plane_intersection(
+            [1, 2, 3], [1, 1, 1], (1, 0, 0, 10)
+        ) - np.array([10, 11, 12])) <= tolerance)
         self.assertTrue(np.linalg.norm(GeometryUtil.find_plane_intersection(
             [0, 0, 0], [1, 0, 0], (-1, 0, 0, 10)
         ) - np.array([-10, 0, 0])) <= tolerance)

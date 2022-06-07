@@ -68,14 +68,14 @@ def main() -> None:
         # Try to detect any chairs that can be seen in the current frame.
         detected_chairs: List[ChairDetector3D.Chair] = detector.detect_chairs(image, world_from_camera)
 
-        # Specify the colours to give the corners of the bounding boxes for detected chairs.
-        corner_colours: List[Tuple[float, float, float]] = [
+        # Specify the colours to give the detected chairs' 3D landmarks.
+        landmark_colours: List[Tuple[float, float, float]] = [
             (1, 0, 0), (0, 1, 0), (0, 0, 1), (1, 1, 0), (1, 0, 1), (0, 1, 1), (1, 0.5, 0), (1, 0, 0.5), (0, 0.5, 1)
         ]
 
         # Add the Open3D geometries for the detected chairs to the 3D visualisation.
         for chair in detected_chairs:
-            to_visualise += chair.make_o3d_geometries(corner_colours=corner_colours, edge_colour=(0, 1, 0))
+            to_visualise += chair.make_o3d_geometries(box_colour=(0, 1, 0), landmark_colours=landmark_colours)
 
     # Run the 3D visualisation.
     VisualisationUtil.visualise_geometries(to_visualise)
