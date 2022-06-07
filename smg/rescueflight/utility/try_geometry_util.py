@@ -9,14 +9,23 @@ from smg.utility import DualQuaternion, GeometryUtil
 
 class TestGeometryUtil(unittest.TestCase):
     def test_angle_between(self):
-        print(GeometryUtil.angle_between([1, 0, 0], [0, 1, 0]))
-        print(GeometryUtil.angle_between([1, 0, 0], [0, 0, 1]))
-        print(GeometryUtil.angle_between([0, 1, 0], [1, 0, 0]))
-        print(GeometryUtil.angle_between([0, 1, 0], [0, 0, 1]))
-        print(GeometryUtil.angle_between([0, 0, 1], [1, 0, 0]))
-        print(GeometryUtil.angle_between([0, 0, 1], [0, 1, 0]))
-        print(GeometryUtil.angle_between([1, 0, 0], [1, 1, 0]))
-        print(GeometryUtil.angle_between([1, 0, 0], [1, 1, 1]))
+        self.assertAlmostEqual(GeometryUtil.angle_between([1, 0, 0], [1, 0, 0]), 0.0)
+        self.assertAlmostEqual(GeometryUtil.angle_between([1, 0, 0], [-1, 0, 0]), np.pi)
+        self.assertIsNone(GeometryUtil.angle_between([0, 0, 0], [1, 0, 0]))
+        self.assertIsNone(GeometryUtil.angle_between([1, 0, 0], [0, 0, 0]))
+
+        axes: List[np.ndarray] = [np.array([1, 0, 0]), np.array([0, 1, 0]), np.array([0, 0, 1])]
+        for i in range(3):
+            for j in range(3):
+                expected_angle: float = np.pi / 2 if j != i else 0.0
+                self.assertAlmostEqual(GeometryUtil.angle_between(axes[i], axes[j]), expected_angle)
+                self.assertAlmostEqual(GeometryUtil.angle_between(-axes[i], -axes[j]), expected_angle)
+
+                expected_angle = np.pi / 2 if j != i else np.pi
+                self.assertAlmostEqual(GeometryUtil.angle_between(axes[i], -axes[j]), expected_angle)
+                self.assertAlmostEqual(GeometryUtil.angle_between(-axes[i], axes[j]), expected_angle)
+
+        self.assertAlmostEqual(GeometryUtil.angle_between([1, 0, 0], [1, 1, 0]), np.pi / 4)
 
     def test_distance_to_line_segment(self):
         self.assertAlmostEqual(GeometryUtil.distance_to_line_segment(
