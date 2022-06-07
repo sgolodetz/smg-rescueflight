@@ -8,6 +8,25 @@ from smg.utility import DualQuaternion, GeometryUtil
 
 
 class TestGeometryUtil(unittest.TestCase):
+    def test_angle_between(self):
+        self.assertAlmostEqual(GeometryUtil.angle_between([1, 0, 0], [1, 0, 0]), 0.0)
+        self.assertAlmostEqual(GeometryUtil.angle_between([1, 0, 0], [-1, 0, 0]), np.pi)
+        self.assertIsNone(GeometryUtil.angle_between([0, 0, 0], [1, 0, 0]))
+        self.assertIsNone(GeometryUtil.angle_between([1, 0, 0], [0, 0, 0]))
+
+        axes: List[np.ndarray] = [np.array([1, 0, 0]), np.array([0, 1, 0]), np.array([0, 0, 1])]
+        for i in range(3):
+            for j in range(3):
+                expected_angle: float = np.pi / 2 if j != i else 0.0
+                self.assertAlmostEqual(GeometryUtil.angle_between(axes[i], axes[j]), expected_angle)
+                self.assertAlmostEqual(GeometryUtil.angle_between(-axes[i], -axes[j]), expected_angle)
+
+                expected_angle = np.pi / 2 if j != i else np.pi
+                self.assertAlmostEqual(GeometryUtil.angle_between(axes[i], -axes[j]), expected_angle)
+                self.assertAlmostEqual(GeometryUtil.angle_between(-axes[i], axes[j]), expected_angle)
+
+        self.assertAlmostEqual(GeometryUtil.angle_between([1, 0, 0], [1, 1, 0]), np.pi / 4)
+
     def test_distance_to_line_segment(self):
         self.assertAlmostEqual(GeometryUtil.distance_to_line_segment(
             [0, 0, 0], [1, 1, 0], [1, 2, 0]
@@ -76,6 +95,20 @@ class TestGeometryUtil(unittest.TestCase):
             DualQuaternion.from_rigid_matrix(refined_transform),
             DualQuaternion.from_axis_angle(up, 3 * math.pi / 2)
         ))
+
+    def test_find_plane_intersection(self):
+        tolerance: float = 1e-4
+        self.assertTrue(np.linalg.norm(GeometryUtil.find_plane_intersection(
+            [0, 0, 0], [1, 0, 0], (1, 0, 0, 10)
+        ) - np.array([10, 0, 0])) <= tolerance)
+        self.assertTrue(np.linalg.norm(GeometryUtil.find_plane_intersection(
+            [1, 2, 3], [1, 1, 1], (1, 0, 0, 10)
+        ) - np.array([10, 11, 12])) <= tolerance)
+        self.assertTrue(np.linalg.norm(GeometryUtil.find_plane_intersection(
+            [0, 0, 0], [1, 0, 0], (-1, 0, 0, 10)
+        ) - np.array([-10, 0, 0])) <= tolerance)
+        self.assertIsNone(GeometryUtil.find_plane_intersection([0, 0, 0], [1, 0, 0], (0, 0, 1, 0)))
+        self.assertIsNone(GeometryUtil.find_plane_intersection([0, 0, 0], [1, 0, 0], (0, 0, 1, 10)))
 
     def test_transforms_are_similar(self):
         rotation_threshold: float = 20 * math.pi / 180
