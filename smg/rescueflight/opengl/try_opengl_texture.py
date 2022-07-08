@@ -37,7 +37,9 @@ def main() -> None:
 
     # Construct the texture and load in the texture image.
     texture: OpenGLTexture = OpenGLTexture()
-    texture_image: np.ndarray = cv2.imread("D:/smplx/models/smpl/uv_texture.png")
+    texture_image: np.ndarray = cv2.imread(
+        os.path.join(os.environ.get("SMGLIB_SMPLX_DIR"), "textures/smpl/texture.png")
+    )
 
     # Repeatedly:
     while True:

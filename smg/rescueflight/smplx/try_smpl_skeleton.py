@@ -49,11 +49,7 @@ def main() -> None:
     )
 
     # Construct the SMPL body.
-    body: SMPLBody = SMPLBody(
-        "female",
-        texture_coords_filename="D:/smplx/textures/smpl/texture_coords.npy",
-        texture_image_filename="D:/smplx/textures/smpl/surreal/nongrey_female_0891.jpg"
-    )
+    body: SMPLBody = SMPLBody("female", texture_image_filename="surreal/nongrey_female_0891.jpg")
 
     try:
         # Construct the remote skeleton detector.
