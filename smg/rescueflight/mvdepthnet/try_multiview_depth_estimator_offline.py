@@ -23,9 +23,9 @@ def main():
     right_pose: np.ndarray = PoseUtil.load_pose(os.path.join(sequence_dir, f"frame-{right_idx:06d}.pose.txt"))
 
     # Estimate the depth for the left-hand image.
-    depth_estimator: MVDepthMultiviewDepthEstimator = MVDepthMultiviewDepthEstimator(
-        "C:/Users/Stuart Golodetz/Downloads/MVDepthNet/opensource_model.pth.tar"
-    ).set_intrinsics(GeometryUtil.intrinsics_to_matrix(intrinsics))
+    depth_estimator: MVDepthMultiviewDepthEstimator = MVDepthMultiviewDepthEstimator().set_intrinsics(
+        GeometryUtil.intrinsics_to_matrix(intrinsics)
+    )
     depth_image: np.ndarray = depth_estimator.estimate_depth(left_image, right_image, left_pose, right_pose)
 
     # Show the estimated depth image.

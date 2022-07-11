@@ -25,8 +25,7 @@ def main() -> None:
                 # Construct the depth estimator.
                 intrinsics: Tuple[float, float, float, float] = camera.get_colour_intrinsics()
                 depth_estimator: MonocularDepthEstimator = MVDepthMonocularDepthEstimator(
-                    "C:/Users/Stuart Golodetz/Downloads/MVDepthNet/opensource_model.pth.tar", debug=True,
-                    max_consistent_depth_diff=np.inf
+                    debug=True, max_consistent_depth_diff=np.inf
                 ).set_intrinsics(GeometryUtil.intrinsics_to_matrix(intrinsics))
 
                 # Repeatedly:

@@ -27,6 +27,12 @@ def main() -> None:
 
     # Construct the remote skeleton detector.
     with RemoteSkeletonDetector() as skeleton_detector:
+        # Set the camera calibration for the skeleton detector.
+        # FIXME: The intrinsics should not be hard-coded like this.
+        height, width = image.shape[:2]
+        intrinsics: Tuple[float, float, float, float] = (532.5694641250893, 531.5410880910171, 320.0, 240.0)
+        skeleton_detector.set_calibration((width, height), intrinsics)
+
         # Detect the people in the input image.
         skeletons, _ = skeleton_detector.detect_skeletons(image, world_from_camera)
 
