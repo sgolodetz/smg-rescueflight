@@ -43,9 +43,7 @@ def main() -> None:
         if args["depth_estimator_type"] == "dvmvs":
             depth_estimator: MonocularDepthEstimator = DVMVSMonocularDepthEstimator()
         else:
-            depth_estimator: MonocularDepthEstimator = MVDepthMonocularDepthEstimator(
-                "C:/Users/Stuart Golodetz/Downloads/MVDepthNet/opensource_model.pth.tar", debug=True
-            )
+            depth_estimator: MonocularDepthEstimator = MVDepthMonocularDepthEstimator(debug=True)
 
         # Start the server.
         server.start()

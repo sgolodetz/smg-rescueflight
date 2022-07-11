@@ -130,17 +130,8 @@ class ViconVisualiser:
             self.__vicon_frame_saver = ViconFrameSaver(folder=self.__persistence_folder, vicon=self.__vicon)
 
         # Load the SMPL body models.
-        self.__female_body = SMPLBody(
-            "female",
-            texture_coords_filename="D:/smplx/textures/smpl/texture_coords.npy",
-            texture_image_filename="D:/smplx/textures/smpl/surreal/nongrey_female_0891.jpg"
-        )
-
-        self.__male_body = SMPLBody(
-            "male",
-            texture_coords_filename="D:/smplx/textures/smpl/texture_coords.npy",
-            texture_image_filename="D:/smplx/textures/smpl/surreal/nongrey_male_0170.jpg"
-        )
+        self.__female_body = SMPLBody("female", texture_image_filename="surreal/nongrey_female_0891.jpg")
+        self.__male_body = SMPLBody("male", texture_image_filename="surreal/nongrey_male_0170.jpg")
 
         self.__smpl_bodies["Aluna"] = self.__female_body
         self.__smpl_bodies["Madhu"] = self.__male_body
