@@ -58,6 +58,10 @@ def main() -> None:
         help="the strategy to use when a frame message is received whilst a client handler's frame pool is empty"
     )
     parser.add_argument(
+        "--reconstruction_filename", type=str, default="octree.bt",
+        help="the name of the file to which to save the reconstructed Octomap"
+    )
+    parser.add_argument(
         "--render_bodies", action="store_true",
         help="whether to render an SMPL body in place of each detected skeleton"
     )
@@ -103,13 +107,9 @@ def main() -> None:
     if depth_estimator_type == "dvmvs":
         depth_estimator: MonocularDepthEstimator = DVMVSMonocularDepthEstimator(max_depth=args["max_depth"])
     elif depth_estimator_type == "mvdepth":
-        depth_estimator: MonocularDepthEstimator = MVDepthMonocularDepthEstimator(
-            "C:/Users/Stuart Golodetz/Downloads/MVDepthNet/opensource_model.pth.tar", max_depth=args["max_depth"]
-        )
+        depth_estimator: MonocularDepthEstimator = MVDepthMonocularDepthEstimator(max_depth=args["max_depth"])
     else:
-        depth_estimator: MonocularDepthEstimator = MVDepth2MonocularDepthEstimator(
-            "C:/Users/Stuart Golodetz/Downloads/MVDepthNet/opensource_model.pth.tar", max_depth=args["max_depth"]
-        )
+        depth_estimator: MonocularDepthEstimator = MVDepth2MonocularDepthEstimator(max_depth=args["max_depth"])
 
     # Construct the mapping server.
     with MappingServer(
@@ -121,7 +121,8 @@ def main() -> None:
             server, depth_estimator, batch_mode=args["batch"], camera_mode=args["camera_mode"],
             detect_objects=args["detect_objects"], detect_skeletons=args["detect_skeletons"],
             max_received_depth=args["max_depth"], octree_voxel_size=args["octree_voxel_size"], output_dir=output_dir,
-            postprocess_depth=postprocess_depth, render_bodies=args["render_bodies"], save_frames=args["save_frames"],
+            postprocess_depth=postprocess_depth, reconstruction_filename=args["reconstruction_filename"],
+            render_bodies=args["render_bodies"], save_frames=args["save_frames"],
             save_people_masks=args["save_people_masks"], save_reconstruction=args["save_reconstruction"],
             save_skeletons=args["save_skeletons"], tsdf_voxel_size=args["tsdf_voxel_size"],
             use_arm_selection=args["use_arm_selection"], use_received_depth=args["use_received_depth"],

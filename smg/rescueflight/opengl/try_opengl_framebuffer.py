@@ -20,7 +20,7 @@ class Renderer:
 
     def make_image(self) -> np.ndarray:
         """
-        Make a trivial image using the renderer's framebuffer.
+        Make a trivial image using the renderer's frame-buffer.
 
         :return:    The image.
         """
@@ -42,7 +42,7 @@ def main():
     # Construct the renderer.
     renderer: Renderer = Renderer()
 
-    # Repeatedly render a simple image to the renderer's framebuffer, and show it. Exit if 'q' is pressed.
+    # Repeatedly render a simple image to the renderer's frame-buffer, and show it. Exit if 'q' is pressed.
     while True:
         cv2.imshow("Image", renderer.make_image())
         c: int = cv2.waitKey(1)

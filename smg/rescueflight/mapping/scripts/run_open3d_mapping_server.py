@@ -114,12 +114,10 @@ def main() -> None:
         depth_estimator: MonocularDepthEstimator = DVMVSMonocularDepthEstimator(max_depth=args["max_depth"])
     elif depth_estimator_type == "mvdepth":
         depth_estimator: MonocularDepthEstimator = MVDepthMonocularDepthEstimator(
-            "C:/Users/Stuart Golodetz/Downloads/MVDepthNet/opensource_model.pth.tar",
             debug=args["debug"], max_depth=args["max_depth"]
         )
     else:
         depth_estimator: MonocularDepthEstimator = MVDepth2MonocularDepthEstimator(
-            "C:/Users/Stuart Golodetz/Downloads/MVDepthNet/opensource_model.pth.tar",
             debug=args["debug"], max_depth=args["max_depth"]
         )
 

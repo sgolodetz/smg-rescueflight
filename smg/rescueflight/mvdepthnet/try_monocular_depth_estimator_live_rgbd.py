@@ -19,9 +19,8 @@ def main() -> None:
             voc_file="C:/orbslam2/Vocabulary/ORBvoc.txt", wait_till_ready=False
         ) as tracker:
             # Construct the depth estimator.
-            depth_estimator: MVDepthMonocularDepthEstimator = MVDepthMonocularDepthEstimator(
-                "C:/Users/Stuart Golodetz/Downloads/MVDepthNet/opensource_model.pth.tar", debug=True
-            ).set_intrinsics(GeometryUtil.intrinsics_to_matrix(camera.get_colour_intrinsics()))
+            depth_estimator: MVDepthMonocularDepthEstimator = MVDepthMonocularDepthEstimator(debug=True)
+            depth_estimator.set_intrinsics(GeometryUtil.intrinsics_to_matrix(camera.get_colour_intrinsics()))
 
             # noinspection PyUnusedLocal
             estimated_depth_image: Optional[np.ndarray] = None
