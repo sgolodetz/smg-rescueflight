@@ -25,26 +25,26 @@ setup(
         "smg-navigation",
         "smg-open3d",
         "smg-opengl",
-        "smg-openni",
         "smg-pyleap",
         "smg-pyoctomap",
         "smg-pyopencv",
         "smg-pyorbslam2",
         "smg-relocalisation",
         "smg-rigging",
-        "smg-robotdepot",
         "smg-rotorsim",
         "smg-rotory",
         "smg-skeletons",
         "smg-smplx",
-        "smg-utility",
-        "smg-vicon"
+        "smg-utility"
     ],
     extras_require={
         "all": [
+            "smg-openni",
             "smg-pyopenpose",
             "smg-pyorbslam3",
-            "smg-pyremode"
+            "smg-pyremode",
+            "smg-robotdepot",
+            "smg-vicon"
         ]
     },
     classifiers=[
