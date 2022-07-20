@@ -7,7 +7,7 @@ from typing import Optional, Tuple
 from smg.comms.base import RGBDFrameMessageUtil, RGBDFrameReceiver
 from smg.comms.mapping import MappingServer
 from smg.dvmvs import DVMVSMonocularDepthEstimator
-from smg.mvdepthnet import MVDepthMonocularDepthEstimator
+from smg.mvdepthnet import MVDepthMonocularDepthEstimator, MVDepth2MonocularDepthEstimator
 from smg.utility import GeometryUtil, MonocularDepthEstimator, PooledQueue
 
 
@@ -17,7 +17,7 @@ def main() -> None:
     # Parse any command-line arguments.
     parser = ArgumentParser()
     parser.add_argument(
-        "--depth_estimator_type", type=str, default="dvmvs", choices=("dvmvs", "mvdepth"),
+        "--depth_estimator_type", type=str, default="dvmvs", choices=("dvmvs", "mvdepth", "mvdepth2"),
         help="the type of depth estimator to use"
     )
     parser.add_argument(
@@ -26,6 +26,8 @@ def main() -> None:
         help="the strategy to use when a frame message is received whilst a client handler's frame pool is empty"
     )
     args: dict = vars(parser.parse_args())
+
+    depth_estimator_type: str = args.get("depth_estimator_type")
 
     # Construct the mapping server.
     with MappingServer(
@@ -40,10 +42,12 @@ def main() -> None:
         sum_mean_error: float = 0.0
 
         # Construct the depth estimator.
-        if args["depth_estimator_type"] == "dvmvs":
+        if depth_estimator_type == "dvmvs":
             depth_estimator: MonocularDepthEstimator = DVMVSMonocularDepthEstimator()
-        else:
+        elif depth_estimator_type == "mvdepth":
             depth_estimator: MonocularDepthEstimator = MVDepthMonocularDepthEstimator(debug=True)
+        else:
+            depth_estimator: MonocularDepthEstimator = MVDepth2MonocularDepthEstimator(debug=True)
 
         # Start the server.
         server.start()
