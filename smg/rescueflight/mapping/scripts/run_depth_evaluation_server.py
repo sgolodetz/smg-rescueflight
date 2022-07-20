@@ -7,7 +7,7 @@ from typing import Optional, Tuple
 from smg.comms.base import RGBDFrameMessageUtil, RGBDFrameReceiver
 from smg.comms.mapping import MappingServer
 from smg.dvmvs import DVMVSMonocularDepthEstimator
-from smg.mvdepthnet import MVDepthMonocularDepthEstimator
+from smg.mvdepthnet import MVDepth2MonocularDepthEstimator
 from smg.utility import GeometryUtil, MonocularDepthEstimator, PooledQueue
 
 
@@ -43,7 +43,7 @@ def main() -> None:
         if args["depth_estimator_type"] == "dvmvs":
             depth_estimator: MonocularDepthEstimator = DVMVSMonocularDepthEstimator()
         else:
-            depth_estimator: MonocularDepthEstimator = MVDepthMonocularDepthEstimator(debug=True)
+            depth_estimator: MonocularDepthEstimator = MVDepth2MonocularDepthEstimator(debug=True)
 
         # Start the server.
         server.start()

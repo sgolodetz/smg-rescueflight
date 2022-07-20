@@ -7,7 +7,7 @@ from smg.comms.base import RGBDFrameMessageUtil
 from smg.comms.mapping import MappingServer
 from smg.dvmvs import DVMVSMonocularDepthEstimator
 from smg.mapping.systems import OctomapMappingSystem
-from smg.mvdepthnet import MVDepthMonocularDepthEstimator
+from smg.mvdepthnet import MVDepth2MonocularDepthEstimator
 from smg.utility import MonocularDepthEstimator, PooledQueue
 
 
@@ -107,7 +107,7 @@ def main() -> None:
     if depth_estimator_type == "dvmvs":
         depth_estimator: MonocularDepthEstimator = DVMVSMonocularDepthEstimator(max_depth=args["max_depth"])
     else:
-        depth_estimator: MonocularDepthEstimator = MVDepthMonocularDepthEstimator(max_depth=args["max_depth"])
+        depth_estimator: MonocularDepthEstimator = MVDepth2MonocularDepthEstimator(max_depth=args["max_depth"])
 
     # Construct the mapping server.
     with MappingServer(
