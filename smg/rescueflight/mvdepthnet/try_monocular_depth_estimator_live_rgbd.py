@@ -3,7 +3,7 @@ import numpy as np
 
 from typing import Optional
 
-from smg.mvdepthnet import MVDepthMonocularDepthEstimator
+from smg.mvdepthnet import MVDepth2MonocularDepthEstimator
 from smg.open3d import VisualisationUtil
 from smg.openni import OpenNICamera
 from smg.pyorbslam2 import RGBDTracker
@@ -19,7 +19,7 @@ def main() -> None:
             voc_file="C:/orbslam2/Vocabulary/ORBvoc.txt", wait_till_ready=False
         ) as tracker:
             # Construct the depth estimator.
-            depth_estimator: MVDepthMonocularDepthEstimator = MVDepthMonocularDepthEstimator(debug=True)
+            depth_estimator: MVDepth2MonocularDepthEstimator = MVDepth2MonocularDepthEstimator(debug=True)
             depth_estimator.set_intrinsics(GeometryUtil.intrinsics_to_matrix(camera.get_colour_intrinsics()))
 
             # noinspection PyUnusedLocal
