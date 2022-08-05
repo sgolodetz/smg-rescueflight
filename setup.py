@@ -1,15 +1,15 @@
 from setuptools import find_packages, setup
 
-# with open("README.md", "r") as fh:
-#     long_description = fh.read()
+with open("README.md", "r") as fh:
+    long_description = fh.read()
 
 setup(
     name="smg-rescueflight",
     version="0.0.1",
     author="Stuart Golodetz",
     author_email="stuart.golodetz@cs.ox.ac.uk",
-    description="Top-level scripts related to indoor search and rescue",
-    long_description="",  #long_description,
+    description="Top-level scripts related to our application domain",
+    long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/sgolodetz/smg-rescueflight",
     packages=find_packages(include=["smg.rescueflight", "smg.rescueflight.*"]),
@@ -25,24 +25,28 @@ setup(
         "smg-navigation",
         "smg-open3d",
         "smg-opengl",
-        "smg-openni",
         "smg-pyleap",
         "smg-pyoctomap",
         "smg-pyopencv",
-        "smg-pyopenpose",
         "smg-pyorbslam2",
-        "smg-pyorbslam3",
-        "smg-pyremode",
         "smg-relocalisation",
         "smg-rigging",
-        "smg-robotdepot",
         "smg-rotorsim",
         "smg-rotory",
         "smg-skeletons",
         "smg-smplx",
-        "smg-utility",
-        "smg-vicon"
+        "smg-utility"
     ],
+    extras_require={
+        "all": [
+            "smg-openni",
+            "smg-pyopenpose",
+            "smg-pyorbslam3",
+            "smg-pyremode",
+            "smg-robotdepot",
+            "smg-vicon"
+        ]
+    },
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",

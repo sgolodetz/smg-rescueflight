@@ -5,7 +5,7 @@ from timeit import default_timer as timer
 from typing import Optional, Tuple
 
 from smg.comms.skeletons import RemoteSkeletonDetector
-from smg.mvdepthnet import MVDepthMonocularDepthEstimator
+from smg.mvdepthnet import MVDepth2MonocularDepthEstimator
 from smg.openni import OpenNICamera
 from smg.pyorbslam2 import RGBDTracker
 from smg.skeletons import SkeletonUtil
@@ -24,7 +24,7 @@ def main() -> None:
             with RemoteSkeletonDetector() as skeleton_detector:
                 # Construct the depth estimator.
                 intrinsics: Tuple[float, float, float, float] = camera.get_colour_intrinsics()
-                depth_estimator: MonocularDepthEstimator = MVDepthMonocularDepthEstimator(
+                depth_estimator: MonocularDepthEstimator = MVDepth2MonocularDepthEstimator(
                     debug=True, max_consistent_depth_diff=np.inf
                 ).set_intrinsics(GeometryUtil.intrinsics_to_matrix(intrinsics))
 
