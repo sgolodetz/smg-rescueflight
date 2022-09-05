@@ -10,7 +10,7 @@ from smg.comms.base import RGBDFrameMessageUtil
 from smg.comms.mapping import MappingServer
 from smg.dvmvs import DVMVSMonocularDepthEstimator
 from smg.mapping.systems import Open3DMappingSystem
-from smg.mvdepthnet import MVDepthMonocularDepthEstimator
+from smg.mvdepthnet import MVDepthMonocularDepthEstimator, MVDepth2MonocularDepthEstimator
 from smg.open3d import ReconstructionUtil, VisualisationUtil
 from smg.relocalisation import ArUcoPnPRelocaliser
 from smg.utility import MonocularDepthEstimator, PooledQueue, PoseUtil
@@ -30,7 +30,7 @@ def main() -> None:
         help="whether to enable debugging"
     )
     parser.add_argument(
-        "--depth_estimator_type", type=str, default="dvmvs", choices=("dvmvs", "mvdepth"),
+        "--depth_estimator_type", type=str, default="dvmvs", choices=("dvmvs", "mvdepth", "mvdepth2"),
         help="the type of depth estimator to use"
     )
     parser.add_argument(
@@ -112,8 +112,12 @@ def main() -> None:
     # Construct the depth estimator.
     if depth_estimator_type == "dvmvs":
         depth_estimator: MonocularDepthEstimator = DVMVSMonocularDepthEstimator(max_depth=args["max_depth"])
-    else:
+    elif depth_estimator_type == "mvdepth":
         depth_estimator: MonocularDepthEstimator = MVDepthMonocularDepthEstimator(
+            debug=args["debug"], max_depth=args["max_depth"]
+        )
+    else:
+        depth_estimator: MonocularDepthEstimator = MVDepth2MonocularDepthEstimator(
             debug=args["debug"], max_depth=args["max_depth"]
         )
 
