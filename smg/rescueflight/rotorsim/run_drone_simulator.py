@@ -1,3 +1,5 @@
+import numpy as np
+
 from argparse import ArgumentParser
 from typing import Optional, Tuple
 
@@ -8,6 +10,8 @@ from smg.rotorsim import DroneSimulator
 
 
 def main() -> None:
+    np.set_printoptions(suppress=True)
+
     # Parse any command-line arguments.
     parser = ArgumentParser()
     parser.add_argument(
