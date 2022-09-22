@@ -15,6 +15,10 @@ def main() -> None:
         help="the index of the device to use for audio input"
     )
     parser.add_argument(
+        "--beacon_range_std", type=float,
+        help="the standard deviation of the zero-mean Gaussian noise to add when getting the fake beacon ranges"
+    )
+    parser.add_argument(
         "--drone_controller_type", "-t", type=str, default="keyboard",
         choices=("aws_transcribe", "futaba_t6k", "keyboard", "rts"),
         help="the type of drone controller to use"
@@ -49,6 +53,7 @@ def main() -> None:
         # Construct the drone simulator.
         with DroneSimulator(
             audio_input_device=args.get("audio_input_device"),
+            beacon_range_std=args.get("beacon_range_std"),
             debug=False,
             drone_controller_type=args.get("drone_controller_type"),
             drone_mesh=MeshUtil.load_tello_mesh(),
