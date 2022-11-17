@@ -16,6 +16,10 @@ def main() -> None:
     # Parse any command-line arguments.
     parser = ArgumentParser()
     parser.add_argument(
+        "--force_scene_mesh", action="store_true",
+        help="whether to try to load a ground-truth scene mesh regardless of the Vicon persistence mode"
+    )
+    parser.add_argument(
         "--pause", action="store_true",
         help="whether to start the visualiser in its paused state"
     )
@@ -41,8 +45,8 @@ def main() -> None:
     )
     args: dict = vars(parser.parse_args())
 
-    persistence_folder: Optional[str] = args["persistence_folder"]
-    persistence_mode: str = args["persistence_mode"]
+    persistence_folder: Optional[str] = args.get("persistence_folder")
+    persistence_mode: str = args.get("persistence_mode")
 
     if persistence_mode != "none" and persistence_folder is None:
         raise RuntimeError(f"Cannot {persistence_mode}: need to specify a persistence folder")
@@ -66,9 +70,10 @@ def main() -> None:
 
         # Construct the visualiser.
         with ViconVisualiser(
-            debug=False, mapping_server=mapping_server, pause=args["pause"], persistence_folder=persistence_folder,
-            persistence_mode=persistence_mode, rendering_intrinsics=rendering_intrinsics,
-            use_partial_frames=args["use_partial_frames"], use_vicon_poses=args["use_vicon_poses"]
+            debug=False, force_scene_mesh=args["force_scene_mesh"], mapping_server=mapping_server,
+            pause=args["pause"], persistence_folder=persistence_folder, persistence_mode=persistence_mode,
+            rendering_intrinsics=rendering_intrinsics, use_partial_frames=args["use_partial_frames"],
+            use_vicon_poses=args["use_vicon_poses"]
         ) as visualiser:
             # Run the visualiser.
             visualiser.run()
