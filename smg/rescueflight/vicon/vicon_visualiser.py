@@ -32,7 +32,7 @@ class ViconVisualiser:
 
     # CONSTRUCTOR
 
-    def __init__(self, *, debug: bool = False, mapping_server: Optional[MappingServer],
+    def __init__(self, *, debug: bool = False, force_scene_mesh: bool, mapping_server: Optional[MappingServer],
                  pause: bool = False, persistence_folder: Optional[str], persistence_mode: str,
                  rendering_intrinsics: Tuple[float, float, float, float], use_partial_frames: bool,
                  use_vicon_poses: bool, window_size: Tuple[int, int] = (640, 480)):
@@ -40,6 +40,8 @@ class ViconVisualiser:
         Construct a Vicon visualiser.
 
         :param debug:                   Whether to enable debugging.
+        :param force_scene_mesh:        Whether to try to load a ground-truth scene mesh regardless of the Vicon
+                                        persistence mode.
         :param mapping_server:          The mapping server (if any) that should be used to receive images from a drone.
         :param pause:                   Whether to start the visualiser in its paused state.
         :param persistence_folder:      The folder (if any) that should be used for Vicon persistence.
@@ -55,6 +57,7 @@ class ViconVisualiser:
         self.__client_id: int = 0
         self.__debug: bool = debug
         self.__female_body: Optional[SMPLBody] = None
+        self.__force_scene_mesh: bool = force_scene_mesh
         self.__male_body: Optional[SMPLBody] = None
         self.__mapping_server: Optional[MappingServer] = mapping_server
         self.__pause: threading.Event = threading.Event()
@@ -136,9 +139,8 @@ class ViconVisualiser:
         self.__smpl_bodies["Aluna"] = self.__female_body
         self.__smpl_bodies["Madhu"] = self.__male_body
 
-        # If we're in input mode, load in a ground-truth scene mesh (if available).
-        # if self.__persistence_mode == "input" and self.__vicon.get_frame():
-        if self.__vicon.get_frame():
+        # If desired, try to load in a ground-truth scene mesh.
+        if (self.__persistence_mode == "input" or self.__force_scene_mesh) and self.__vicon.get_frame():
             self.__scene_mesh = self.__try_load_scene_mesh(self.__vicon)
 
         # Until the visualiser should terminate:
