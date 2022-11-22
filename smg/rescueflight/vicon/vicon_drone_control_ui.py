@@ -260,7 +260,7 @@ class ViconDroneControlUI:
             )
 
     def terminate(self) -> None:
-        """Destroy the simulator."""
+        """Destroy the drone UI."""
         if self.__alive:
             # Set the termination flag if it isn't set already.
             if not self.__should_terminate.is_set():
