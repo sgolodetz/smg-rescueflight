@@ -33,7 +33,7 @@ class ViconDroneControlUI:
     # CONSTRUCTOR
 
     def __init__(self, *, audio_input_device: Optional[int] = None, debug: bool = False, drone: Drone,
-                 drone_controller_type: str, drone_mesh: o3d.geometry.TriangleMesh,
+                 drone_controller_type: str, drone_mesh: o3d.geometry.TriangleMesh, drone_subject_name: str = "Tello",
                  intrinsics: Tuple[float, float, float, float], mapping_client: Optional[MappingClient],
                  planning_octree_filename: Optional[str], scene_mesh_filename: Optional[str],
                  scene_octree_filename: Optional[str], window_size: Tuple[int, int] = (1280, 480)):
@@ -45,6 +45,7 @@ class ViconDroneControlUI:
         :param drone:                       The drone.
         :param drone_controller_type:       The type of drone controller to use.
         :param drone_mesh:                  An Open3D mesh for the drone.
+        :param drone_subject_name:          The name of the Vicon subject corresponding to the drone.
         :param intrinsics:                  The camera intrinsics.
         :param mapping_client:              The mapping client (if any) to use to stream frames to a mapping server.
         :param planning_octree_filename:    The name of a file containing an octree for path planning (optional).
@@ -61,6 +62,7 @@ class ViconDroneControlUI:
         self.__drone_controller_type: str = drone_controller_type
         self.__drone_mesh: Optional[OpenGLTriMesh] = None
         self.__drone_mesh_o3d: o3d.geometry.TriangleMesh = drone_mesh
+        self.__drone_subject_name: str = drone_subject_name
         self.__frame_idx: int = 0
         self.__gl_image_renderer: Optional[OpenGLImageRenderer] = None
         self.__intrinsics: Tuple[float, float, float, float] = intrinsics
@@ -212,7 +214,9 @@ class ViconDroneControlUI:
             # Try to get the drone's pose from the Vicon system.
             drone_w_t_c: Optional[np.ndarray] = None
             if self.__vicon.get_frame():
-                drone_c_t_w: Optional[np.ndarray] = self.__vicon.get_segment_global_pose("Tello", "Tello")
+                drone_c_t_w: Optional[np.ndarray] = self.__vicon.get_segment_global_pose(
+                    self.__drone_subject_name, self.__drone_subject_name
+                )
                 if drone_c_t_w is not None:
                     drone_w_t_c = np.linalg.inv(drone_c_t_w)
                     m: np.ndarray = np.array([
