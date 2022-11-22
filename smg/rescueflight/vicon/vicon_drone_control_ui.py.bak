@@ -11,7 +11,6 @@ from OpenGL.GL import *
 from timeit import default_timer as timer
 from typing import Dict, List, Optional, Sequence, Tuple
 
-from smg.comms.base import RGBDFrameMessageUtil
 from smg.comms.mapping import MappingClient
 from smg.meshing import MeshUtil
 from smg.navigation import OCS_OCCUPIED, PlanningToolkit
@@ -61,10 +60,8 @@ class ViconDroneControlUI:
         self.__drone_controller_type: str = drone_controller_type
         self.__drone_mesh: Optional[OpenGLTriMesh] = None
         self.__drone_mesh_o3d: o3d.geometry.TriangleMesh = drone_mesh
-        self.__frame_idx: int = 0
-        self.__gl_image_renderer: Optional[OpenGLImageRenderer] = None
         self.__intrinsics: Tuple[float, float, float, float] = intrinsics
-        self.__mapping_client: Optional[MappingClient] = mapping_client
+        self.__gl_image_renderer: Optional[OpenGLImageRenderer] = None
         self.__octree_drawer: Optional[OcTreeDrawer] = None
         self.__planning_octree: Optional[OcTree] = None
         self.__planning_octree_filename: Optional[str] = planning_octree_filename
@@ -147,17 +144,6 @@ class ViconDroneControlUI:
             if self.__scene_octree is not None:
                 self.__scene_octree_picker = OctomapPicker(self.__scene_octree, width // 2, height, self.__intrinsics)
 
-        # Get the drone's camera parameters.
-        image_size: Tuple[int, int] = self.__drone.get_image_size()
-        intrinsics: Optional[Tuple[float, float, float, float]] = self.__drone.get_intrinsics()
-        assert (intrinsics is not None)
-
-        # If we're using the mapping client, send a calibration message to tell the server the camera parameters.
-        if self.__mapping_client is not None:
-            self.__mapping_client.send_calibration_message(RGBDFrameMessageUtil.make_calibration_message(
-                image_size, image_size, intrinsics, intrinsics
-            ))
-
         # Construct the camera controller.
         camera_controller: KeyboardCameraController = KeyboardCameraController(
             CameraUtil.make_default_camera(), canonical_angular_speed=0.05, canonical_linear_speed=0.075
@@ -209,7 +195,7 @@ class ViconDroneControlUI:
             # Get the most recent image from the drone.
             drone_image: np.ndarray = self.__drone.get_image()
 
-            # Try to get the drone's pose from the Vicon system.
+            # Get the drone's pose from the Vicon system.
             drone_w_t_c: Optional[np.ndarray] = None
             if self.__vicon.get_frame():
                 drone_c_t_w: Optional[np.ndarray] = self.__vicon.get_segment_global_pose("Tello", "Tello")
@@ -222,19 +208,6 @@ class ViconDroneControlUI:
                         [0, 0, 0, 1]
                     ])
                     drone_w_t_c = m @ drone_w_t_c
-
-            # If that succeeded:
-            if drone_w_t_c is not None:
-                # If we're using the mapping client, send the frame across to the server.
-                if self.__mapping_client is not None:
-                    dummy_depth_image: np.ndarray = np.zeros(drone_image.shape[:2], dtype=np.float32)
-                    self.__mapping_client.send_frame_message(lambda msg: RGBDFrameMessageUtil.fill_frame_message(
-                        self.__frame_idx, drone_image, ImageUtil.to_short_depth(dummy_depth_image),
-                        drone_w_t_c, msg
-                    ))
-
-                # Increment the frame index.
-                self.__frame_idx += 1
 
             # Allow the user to control the drone.
             self.__drone_controller.iterate(
