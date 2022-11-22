@@ -30,13 +30,15 @@ class ViconDroneControlUI:
 
     # CONSTRUCTOR
 
-    def __init__(self, *, debug: bool = False, drone: Drone, drone_controller_type: str,
-                 drone_mesh: o3d.geometry.TriangleMesh, intrinsics: Tuple[float, float, float, float],
-                 planning_octree_filename: Optional[str], scene_mesh_filename: Optional[str],
-                 scene_octree_filename: Optional[str], window_size: Tuple[int, int] = (1280, 480)):
+    def __init__(self, *, audio_input_device: Optional[int] = None, debug: bool = False, drone: Drone,
+                 drone_controller_type: str, drone_mesh: o3d.geometry.TriangleMesh,
+                 intrinsics: Tuple[float, float, float, float], planning_octree_filename: Optional[str],
+                 scene_mesh_filename: Optional[str], scene_octree_filename: Optional[str],
+                 window_size: Tuple[int, int] = (1280, 480)):
         """
         Construct a drone UI that uses a Vicon system to track the drone.
 
+        :param audio_input_device:          The index of the device to use for audio input (optional).
         :param debug:                       Whether to print out debugging messages.
         :param drone:                       The drone.
         :param drone_controller_type:       The type of drone controller to use.
@@ -49,6 +51,7 @@ class ViconDroneControlUI:
         """
         self.__alive: bool = False
 
+        self.__audio_input_device: Optional[int] = audio_input_device
         self.__debug: bool = debug
         self.__drone: Drone = drone
         self.__drone_controller: Optional[DroneController] = None
@@ -146,6 +149,9 @@ class ViconDroneControlUI:
 
         # Construct the drone controller.
         kwargs: Dict[str, dict] = {
+            "aws_transcribe": dict(
+                audio_input_device=self.__audio_input_device, debug=True, drone=self.__drone
+            ),
             "futaba_t6k": dict(drone=self.__drone),
             "keyboard": dict(drone=self.__drone),
             "rts": dict(
@@ -256,7 +262,7 @@ class ViconDroneControlUI:
         """
         Render the contents of the window.
 
-        :param drone_image:     A synthetic image rendered from the pose of the drone's camera.
+        :param drone_image:     The most recent image from the drone.
         :param drone_w_t_c:     The pose of the drone (if known).
         :param viewing_pose:    The pose of the free-view camera.
         """
