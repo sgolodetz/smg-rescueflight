@@ -85,17 +85,17 @@ class ViconDroneControlUI:
     # SPECIAL METHODS
 
     def __enter__(self):
-        """No-op (needed to allow the simulator's lifetime to be managed by a with statement)."""
+        """No-op (needed to allow the drone UI's lifetime to be managed by a with statement)."""
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """Destroy the simulator at the end of the with statement that's used to manage its lifetime."""
+        """Destroy the drone UI at the end of the with statement that's used to manage its lifetime."""
         self.terminate()
 
     # PUBLIC METHODS
 
     def run(self) -> None:
-        """Run the drone simulator."""
+        """Run the drone UI."""
         # Initialise PyGame and some of its modules.
         pygame.init()
         pygame.joystick.init()
@@ -180,7 +180,7 @@ class ViconDroneControlUI:
             self.__drone_controller_type, **kwargs[self.__drone_controller_type]
         )
 
-        # Until the simulator should terminate:
+        # Until the UI should terminate:
         while not self.__should_terminate.is_set():
             # Process any PyGame events.
             events: List[pygame.event.Event] = []
